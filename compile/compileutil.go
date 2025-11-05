@@ -64,9 +64,6 @@ func (s *StackCompileVisitor) FillTarget(instrs ...*vm.StackInstr) {
 }
 
 func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
-	// insert check nil br to pop left value
-	brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
-	s.WriteInstr(brNil)
 	var ids []string
 	var query []int // tokenType
 	var qExprs []*gen.ExprContext
@@ -77,10 +74,11 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 		}
 		if node, ok := child.(antlr.TerminalNode); ok {
 			switch t := node.GetSymbol().GetTokenType(); t {
-			case gen.GsLexerDOT, gen.GsLexerSAFE_DOT, gen.GsLexerLBRACK, gen.GsLexerSAFE_LBRACK:
-				{
-					query = append(query, t)
-				}
+			case gen.GsLexerDOT, gen.GsLexerLBRACK:
+				query = append(query, t)
+			case gen.GsLexerSAFE_DOT, gen.GsLexerSAFE_LBRACK:
+				s.Log.ErrorToken(node.GetSymbol(), "syntax error:can't use %s in assign left side", node.GetSymbol().GetText())
+				return
 			case gen.GsLexerID:
 				ids = append(ids, node.GetText())
 			}
@@ -92,30 +90,16 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	if len(ids) == 1 {
 		// no need load primarySymbol
 		s.EmitStore(primarySymbol)
-		brOK := vm.NewStackInstr(vm.InstrBR, placeholder)
-		s.WriteInstr(brOK)
-		s.FillTarget(brNil)
-		s.Write(vm.InstrPop, 1)
-		s.FillTarget(brOK)
 		return
 	}
 	s.EmitLoad(primarySymbol)
-	var brNils []*vm.StackInstr
-	var brOk []*vm.StackInstr
 	for i := 0; i < len(query)-1; i++ {
 		switch query[i] {
-		case gen.GsLexerSAFE_DOT:
-			// if true, then fieldLoad
-			brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
-			fallthrough
 		case gen.GsLexerDOT:
 			// fieldLoad
 			fieldName := ids[i+1]
 			operand := s.defineStringConst(fieldName)
 			s.Write(vm.InstrFLoad, operand)
-		case gen.GsLexerSAFE_LBRACK:
-			brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
-			fallthrough
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad
 			expr := qExprs[i]
@@ -125,34 +109,16 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	}
 	// lastQuery
 	switch query[len(query)-1] {
-	case gen.GsLexerSAFE_DOT:
-		brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
 	case gen.GsLexerDOT:
 		fieldName := ids[len(ids)-1]
 		operand := s.defineStringConst(fieldName)
 		s.Write(vm.InstrFStore, operand)
-		brOK := vm.NewStackInstr(vm.InstrBR, placeholder)
-		s.WriteInstr(brOK)
-		brOk = append(brOk, brOK)
-	case gen.GsLexerSAFE_LBRACK:
-		brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
-		fallthrough
 	case gen.GsLexerLBRACK:
 		// arrayStore/mapStore
 		expr := qExprs[len(qExprs)-1]
 		expr.Accept(s)
 		s.Write(vm.InstrIndexStore)
-		brOK := vm.NewStackInstr(vm.InstrBR, placeholder)
-		s.WriteInstr(brOK)
-		brOk = append(brOk, brOK)
 	}
-	for _, nilInstr := range brNils {
-		s.FillTarget(nilInstr)
-	}
-	s.Write(vm.InstrPop, 1) // pop right value
-	s.FillTarget(brNil)
-	s.Write(vm.InstrPop, 1) // pop left value
-	s.FillTarget(brOk...)
 }
 
 func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
@@ -192,7 +158,9 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		switch query[i] {
 		case gen.GsLexerSAFE_DOT:
 			// if true, then fieldLoad
-			brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
+			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNils = append(brNils, brNil)
+			s.WriteInstr(brNil)
 			fallthrough
 		case gen.GsLexerDOT:
 			// fieldLoad
@@ -200,7 +168,9 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			operand := s.defineStringConst(fieldName)
 			s.Write(vm.InstrFLoad, operand)
 		case gen.GsLexerSAFE_LBRACK:
-			brNils = append(brNils, vm.NewStackInstr(vm.InstrBRNil, placeholder))
+			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNils = append(brNils, brNil)
+			s.WriteInstr(brNil)
 			fallthrough
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad

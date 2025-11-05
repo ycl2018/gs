@@ -252,6 +252,18 @@ a--
 print a
 		`,
 		},
+		{
+			name: "safeAccess.Gs",
+			program: `
+type Student struct {
+x,y,z
+}
+
+s = new Student{}
+a = s.x?.z
+print a
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
