@@ -34,7 +34,7 @@ func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScop
 		MainFunc:    mainFunc,
 		CurFunc:     mainFunc,
 	}
-	s.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: &BaseVisitor{realVisitor: s}}
+	s.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: gen.NewBaseVisitor(s)}
 	return s
 }
 

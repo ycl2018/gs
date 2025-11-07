@@ -12,7 +12,7 @@ func TestGsInterpreter_Interp(t *testing.T) {
 		program string
 	}{
 		{
-			name: "apple.Gs",
+			name: "apple.gs",
 			program: `
 i = 0
 for i<10 {
@@ -26,14 +26,14 @@ for i<10 {
 }
 	`},
 		{
-			name: "cheery.Gs",
+			name: "cheery.gs",
 			program: `
 func f(x) {return 2*x}
 print f(4)
 `,
 		},
 		{
-			name: "factorials.Gs",
+			name: "factorials.gs",
 			program: `
 func fact(n) {
 	if n < 2 {
@@ -46,7 +46,7 @@ print fact(10)
 `,
 		},
 		{
-			name: "forward.Gs",
+			name: "forward.gs",
 			program: `
 print f(4)           // references definition on next line
 func f(x) {return 2*x}
@@ -55,7 +55,7 @@ type User struct { name, password }
 `,
 		},
 		{
-			name: "localstruct.Gs",
+			name: "localstruct.gs",
 			program: `
 type User struct { name, password } // define global struct
 func f() {                       // define f
@@ -68,7 +68,7 @@ f()                            // call f
 `,
 		},
 		{
-			name: "lookup.Gs",
+			name: "lookup.gs",
 			program: `
 x = 1           // create global variable
 func f(x) {       // define f in global space
@@ -84,7 +84,7 @@ print x         // prints 3 (g alters global value)
 `,
 		},
 		{
-			name: "loop.Gs",
+			name: "loop.gs",
 			program: `
 n = 100
 i = 0
@@ -96,7 +96,7 @@ print "looped "+n+" times."
 `,
 		},
 		{
-			name: "struct.Gs",
+			name: "struct.gs",
 			program: `
 type User struct { name, password }
 u = new User{}
@@ -106,7 +106,7 @@ print u
 `,
 		},
 		{
-			name: "structerr.Gs",
+			name: "structerr.gs",
 			program: `
 type User struct { name, password }
 u = new User{}
@@ -117,7 +117,7 @@ print u.x           // check for unknown field in expr as well
 `,
 		},
 		{
-			name: "nested.Gs",
+			name: "nested.gs",
 			program: `
 type User struct { name, addr }
 type Address struct { street, city, state, zip }
@@ -133,7 +133,7 @@ print u.addr
 `,
 		},
 		{
-			name: "range.Gs",
+			name: "range.gs",
 			program: `
 for i = range 10 {
 	print i
@@ -145,7 +145,7 @@ for k, v = range c {
 	`,
 		},
 		{
-			name: "cStyleRange.Gs",
+			name: "cStyleRange.gs",
 			program: `
 for i = 0; i<10; i = i + 1 {
 	print i
@@ -153,7 +153,7 @@ for i = 0; i<10; i = i + 1 {
 	`,
 		},
 		{
-			name: "forRangeBreak.Gs",
+			name: "forRangeBreak.gs",
 			program: `
 for i = range 10 {
 	if i == 5 {
@@ -168,7 +168,7 @@ for i = range 10 {
 	`,
 		},
 		{
-			name: "ifElse.Gs",
+			name: "ifElse.gs",
 			program: `
 a = 1
 b = 2
@@ -180,7 +180,7 @@ if i = a + b; i< 10 {
 	`,
 		},
 		{
-			name: "slice.Gs",
+			name: "slice.gs",
 			program: `
 s = ["a", "b", "c"]
 print s[0]
@@ -191,14 +191,14 @@ print s[:]
 	`,
 		},
 		{
-			name: "dict.Gs",
+			name: "dict.gs",
 			program: `
 d = {"a": 1, "b": 2, "c": 3}
 print d["a"]
 	`,
 		},
 		{
-			name: "expression.Gs",
+			name: "expression.gs",
 			program: `
 a = 1
 b = 2
@@ -224,7 +224,7 @@ print a ^ b
 		`,
 		},
 		{
-			name: "expression2.Gs",
+			name: "expression2.gs",
 			program: `
 a = 1
 b = 2
@@ -233,7 +233,7 @@ print c
 		`,
 		},
 		{
-			name: "selfUpdate.Gs",
+			name: "selfUpdate.gs",
 			program: `
 a = 0
 a+=1
@@ -244,7 +244,7 @@ print a
 		`,
 		},
 		{
-			name: "selfIncrDecr.Gs",
+			name: "selfIncrDecr.gs",
 			program: `
 a = 0
 a++
@@ -253,7 +253,7 @@ print a
 		`,
 		},
 		{
-			name: "safeAccess.Gs",
+			name: "safeAccess.gs",
 			program: `
 type Student struct {
 x,y,z

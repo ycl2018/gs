@@ -1,14 +1,17 @@
-package compile
+package gen
 
 import (
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/ycl2018/gs/gen"
 )
 
 var _ antlr.ParseTreeVisitor = (*BaseVisitor)(nil)
 
 type BaseVisitor struct {
-	realVisitor gen.GsVisitor
+	realVisitor GsVisitor
+}
+
+func NewBaseVisitor(realVisitor GsVisitor) BaseVisitor {
+	return BaseVisitor{realVisitor: realVisitor}
 }
 
 func (b BaseVisitor) Visit(tree antlr.ParseTree) interface{} {
