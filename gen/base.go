@@ -7,15 +7,15 @@ import (
 var _ antlr.ParseTreeVisitor = (*BaseVisitor)(nil)
 
 type BaseVisitor struct {
-	realVisitor GsVisitor
+	RealVisitor GsVisitor
 }
 
 func NewBaseVisitor(realVisitor GsVisitor) BaseVisitor {
-	return BaseVisitor{realVisitor: realVisitor}
+	return BaseVisitor{RealVisitor: realVisitor}
 }
 
 func (b BaseVisitor) Visit(tree antlr.ParseTree) interface{} {
-	return tree.Accept(b.realVisitor)
+	return tree.Accept(b.RealVisitor)
 }
 
 func (b BaseVisitor) VisitChildren(node antlr.RuleNode) interface{} {
@@ -24,7 +24,7 @@ func (b BaseVisitor) VisitChildren(node antlr.RuleNode) interface{} {
 		return b.Visit(ctx.GetChild(0).(antlr.ParseTree))
 	}
 	for _, child := range ctx.GetChildren() {
-		child.(antlr.ParseTree).Accept(b.realVisitor)
+		child.(antlr.ParseTree).Accept(b.RealVisitor)
 	}
 	return nil
 }

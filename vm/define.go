@@ -49,6 +49,8 @@ const (
 	InstrIConst
 	InstrFConst
 	InstrSConst
+	InstrSliceConst
+	InstrMapConst
 
 	InstrNil // push nil
 
@@ -110,6 +112,8 @@ var Instructions = []*Instruction{
 	{"iconst", []int{INT}},
 	{"fconst", []int{POLL}},
 	{"sconst", []int{POLL}},
+	{"slice_const", []int{POLL}},
+	{"map_const", []int{POLL}},
 	{"nil", []int{}},
 	{"load", []int{INT}},
 	{"gload", []int{INT}},

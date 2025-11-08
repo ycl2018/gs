@@ -264,6 +264,23 @@ a = s.x?.z
 print a
 `,
 		},
+		{
+			name: "constOptimizer.gs",
+			program: `
+a = 10 + 20+50
+`,
+		},
+		{
+			name: "slice.gs",
+			program: `
+a={
+1: "11",
+2: "22",
+3: "33"
+}
+b=["111","222","333"]
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

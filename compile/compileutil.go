@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 	"github.com/ycl2018/gs/vm"
 )
@@ -41,6 +42,24 @@ func (s *StackCompileVisitor) EmitLoad(v *VariableSymbol) {
 	} else {
 		s.Write(vm.InstrLoad, v.Address)
 	}
+}
+
+func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
+	switch v.Kind {
+	case consts.ConstKindInt:
+		s.Write(vm.InstrIConst, v.Value.(int))
+	case consts.ConstKindFloat:
+		s.Write(vm.InstrFConst, getFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
+	case consts.ConstKindList:
+		s.Write(vm.InstrSliceConst, getSliceConst(v.Value.(*consts.SliceInitConst), s.GlobalScope).GetAddress())
+	case consts.ConstKindMap:
+		s.Write(vm.InstrMapConst, getMapConst(v.Value.(*consts.MapInitConst), s.GlobalScope).GetAddress())
+	case consts.ConstKindString:
+		s.Write(vm.InstrSConst, s.defineStringConst(v.Value.(string)))
+	default:
+		panic(fmt.Sprintf("unknown constant type:%d", v.Kind))
+	}
+	return nil
 }
 
 func (s *StackCompileVisitor) defineStringConst(val string) int {

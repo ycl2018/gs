@@ -62,7 +62,7 @@ func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {
 		Scopes:      make(map[antlr.ParserRuleContext]Scope),
 		Log:         log,
 	}
-	ret.BaseGsVisitor = &gen.BaseGsVisitor{ParseTreeVisitor: &gen.BaseVisitor{realVisitor: ret}}
+	ret.BaseGsVisitor = &gen.BaseGsVisitor{ParseTreeVisitor: &gen.BaseVisitor{RealVisitor: ret}}
 	return ret
 }
 
