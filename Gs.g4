@@ -87,7 +87,6 @@ atom
     :   SUB atom                #negAtom  // 负数字面量/表达式
     |   INT                     #intAtom
     |   FLOAT                   #floatAtom
-    |   CHAR                    #charAtom
     |   STRING                  #stringAtom
     |   TRUE                    #trueAtom
     |   FALSE                   #falseAtom
@@ -112,7 +111,7 @@ sliceExpr : expr? COLON expr? ;
 // 字典相关（支持末尾逗号）
 dictLiteral : '{' (dictEntry (',' dictEntry)* ','?)? '}' ;
 dictEntry
-    :   STRING ':' expr         #strKeyEntry
+    :   (STRING|INT|FLOAT|TRUE|FALSE) ':' expr         #constKeyEntry
     |   qid ':' expr             #idKeyEntry  // 支持qid作为键
     ;
 
@@ -195,9 +194,6 @@ FLOAT
     |   '.' [0-9]+ ( '_' [0-9]+ )* ([eE][+-]? [0-9]+ ( '_' [0-9]+ )*)?  // .45_6e+8, .789
     |   [0-9]+ ( '_' [0-9]+ )* [eE][+-]? [0-9]+ ( '_' [0-9]+ )*  // 123_456e-3, 789E+10
     ;
-
-// 字符字面量（对齐Go风格：支持Unicode转义）
-CHAR    : '\'' ( ESC | ~['\\] ) '\'' ;
 
 // 字符串字面量（对齐Go风格：双引号单行字符串+反引号原始字符串）
 STRING

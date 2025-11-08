@@ -32,6 +32,8 @@ const (
 	ConstString
 	ConstStruct
 	ConstFunc
+	ConstMapInit
+	ConstSliceInit
 )
 
 func (c ConstKind) String() string {
@@ -44,6 +46,10 @@ func (c ConstKind) String() string {
 		return "struct"
 	case ConstFunc:
 		return "func"
+	case ConstMapInit:
+		return "map"
+	case ConstSliceInit:
+		return "slice"
 	default:
 		panic(fmt.Sprintf("unknown const kind %d", c))
 	}

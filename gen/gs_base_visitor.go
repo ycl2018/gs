@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 type BaseGsVisitor struct {
 	antlr.ParseTreeVisitor
@@ -176,10 +175,6 @@ func (v *BaseGsVisitor) VisitFloatAtom(ctx *FloatAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitCharAtom(ctx *CharAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitStringAtom(ctx *StringAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -244,7 +239,7 @@ func (v *BaseGsVisitor) VisitDictLiteral(ctx *DictLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitStrKeyEntry(ctx *StrKeyEntryContext) interface{} {
+func (v *BaseGsVisitor) VisitConstKeyEntry(ctx *ConstKeyEntryContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

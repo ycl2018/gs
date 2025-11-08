@@ -44,6 +44,9 @@ func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
 	log := p.InterpreterListener
 	defVisitor := NewGsDefineVisitor(log)
 	defVisitor.Visit(programContext)
+	// 优化
+	optimize := NewConstOptimizer(log)
+	optimize.Visit(programContext)
 	// 执行
 	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log)
 	p.compileVisitor.Visit(programContext)

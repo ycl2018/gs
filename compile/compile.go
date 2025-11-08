@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 	"github.com/ycl2018/gs/vm"
 )
@@ -115,16 +116,6 @@ func (s *StackCompileVisitor) VisitIntAtom(ctx *gen.IntAtomContext) interface{} 
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitCharAtom(ctx *gen.CharAtomContext) interface{} {
-	valStr := ctx.CHAR().GetText()
-	ival := rune(valStr[0])
-	s.WriteInstr(&vm.StackInstr{
-		OpCode:   vm.InstrCConst,
-		Operands: []int{int(ival)}, // 字符常量地址
-	})
-	return nil
-}
-
 func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen.FloatAtomContext) interface{} {
 	valStr := ctx.FLOAT().GetText()
 	fval, _ := strconv.ParseFloat(valStr, 64)
@@ -143,6 +134,26 @@ func getFloatConst(fval float64, scope *GlobalScope) Symbol {
 		Name:  fmt.Sprintf("%s_%f", vm.ConstFloat64, fval),
 		Value: fval,
 		Kind:  vm.ConstFloat64,
+	}
+	symbol, _ := scope.DefineOrGetConst(constSymbol)
+	return symbol
+}
+
+func getSliceConst(sliceInit *consts.SliceInitConst, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s_%s", vm.ConstSliceInit, sliceInit.Name),
+		Value: sliceInit,
+		Kind:  vm.ConstSliceInit,
+	}
+	symbol, _ := scope.DefineOrGetConst(constSymbol)
+	return symbol
+}
+
+func getMapConst(mapInit *consts.MapInitConst, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s_%s", vm.ConstMapInit, mapInit.Name),
+		Value: mapInit,
+		Kind:  vm.ConstMapInit,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
 	return symbol
@@ -445,11 +456,8 @@ func (s *StackCompileVisitor) VisitIncrDecr(ctx *gen.IncrDecrContext) interface{
 		s.Write(vm.InstrIConst, -1)
 	}
 	s.loadQid(qid)
-	brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
-	s.WriteInstr(brNil)
 	s.Write(vm.InstrAdd)
 	s.storeQid(qid)
-	s.FillTarget(brNil)
 	return nil
 }
 
@@ -458,11 +466,8 @@ func (s *StackCompileVisitor) VisitSelfAssign(ctx *gen.SelfAssignContext) interf
 	qid := ctx.Qid()
 	ctx.Expr().Accept(s)
 	s.loadQid(qid)
-	brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
-	s.WriteInstr(brNil)
 	ctx.SelfAssignOp().Accept(s)
 	s.storeQid(qid)
-	s.FillTarget(brNil)
 	return nil
 }
 
@@ -488,7 +493,11 @@ func (s *StackCompileVisitor) VisitSelfAssignOp(ctx *gen.SelfAssignOpContext) in
 
 func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {
 	allLogicalAndExpr := ctx.AllLogicalAndExpr()
-	brts := make([]*vm.StackInstr, 0, len(allLogicalAndExpr)-1)
+	if len(allLogicalAndExpr) == 0 && ctx.GetChildCount() == 1 {
+		// must be constNode
+		return s.VisitChildren(ctx)
+	}
+	var brts []*vm.StackInstr
 	for i, andExpr := range allLogicalAndExpr {
 		andExpr.Accept(s)
 		if i != 0 {
@@ -537,8 +546,8 @@ func (s *StackCompileVisitor) VisitAddExpr(ctx *gen.AddExprContext) interface{} 
 	var preOp *gen.AddOpContext
 	for _, tree := range ctx.GetChildren() {
 		switch tree := tree.(type) {
-		case *gen.BinExprContext:
-			tree.Accept(s)
+		default:
+			tree.(antlr.RuleContext).Accept(s)
 			if preOp != nil {
 				preOp.Accept(s)
 			}
@@ -620,6 +629,10 @@ func (s *StackCompileVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} 
 
 func (s *StackCompileVisitor) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interface{} {
 	// arrayLiteral : '[' (expr (',' expr)* ','?)? ']' ;
+	if len(ctx.GetChildren()) == 1 {
+		// must be constNode
+		return s.VisitChildren(ctx)
+	}
 	exprs := ctx.AllExpr()
 	for i := range exprs {
 		ctx.Expr(i).Accept(s)
@@ -677,6 +690,10 @@ func (s *StackCompileVisitor) VisitSliceExpr(ctx *gen.SliceExprContext) interfac
 
 func (s *StackCompileVisitor) VisitDictLiteral(ctx *gen.DictLiteralContext) interface{} {
 	// dictLiteral : '{' (dictEntry (',' dictEntry)* ','?)? '}' ;
+	if len(ctx.GetChildren()) == 1 {
+		// must be constNode
+		return s.VisitChildren(ctx)
+	}
 	entries := ctx.AllDictEntry()
 	for i := range entries {
 		entries[i].Accept(s)
@@ -687,9 +704,32 @@ func (s *StackCompileVisitor) VisitDictLiteral(ctx *gen.DictLiteralContext) inte
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitStrKeyEntry(ctx *gen.StrKeyEntryContext) interface{} {
+func (s *StackCompileVisitor) VisitConstKeyEntry(ctx *gen.ConstKeyEntryContext) interface{} {
 	// strKeyEntry : STRING ':' expr ;
-	s.Write(vm.InstrSConst, s.defineStringConst(ctx.STRING().GetText()[1:len(ctx.STRING().GetText())-1]))
+	key := ctx.GetChildren()[0].(antlr.TerminalNode)
+	switch key.GetSymbol().GetTokenType() {
+	case gen.GsLexerSTRING:
+		s.Write(vm.InstrSConst, s.defineStringConst(ctx.STRING().GetText()[1:len(ctx.STRING().GetText())-1]))
+	case gen.GsLexerINT:
+		val, err := strconv.ParseInt(key.GetText(), 0, 64)
+		if err != nil {
+			panic(fmt.Sprintf("can't parse %s to int", key.GetText()))
+		}
+		s.Write(vm.InstrIConst, int(val))
+	case gen.GsLexerFLOAT:
+		val, err := strconv.ParseFloat(key.GetText(), 64)
+		if err != nil {
+			panic(fmt.Sprintf("can't parse %s to float", key.GetText()))
+		}
+		s.Write(vm.InstrFConst, getFloatConst(val, s.GlobalScope).GetAddress())
+	case gen.GsParserTRUE:
+		s.Write(vm.InstrTrue)
+	case gen.GsParserFALSE:
+		s.Write(vm.InstrFalse)
+	default:
+		panic(fmt.Sprintf("unknown tokenType:%s", key.GetText()))
+	}
+
 	ctx.Expr().Accept(s)
 	return nil
 }

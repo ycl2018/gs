@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 // A complete Visitor for a parse tree produced by GsParser.
 type GsVisitor interface {
@@ -134,9 +133,6 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#floatAtom.
 	VisitFloatAtom(ctx *FloatAtomContext) interface{}
 
-	// Visit a parse tree produced by GsParser#charAtom.
-	VisitCharAtom(ctx *CharAtomContext) interface{}
-
 	// Visit a parse tree produced by GsParser#stringAtom.
 	VisitStringAtom(ctx *StringAtomContext) interface{}
 
@@ -185,8 +181,8 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#dictLiteral.
 	VisitDictLiteral(ctx *DictLiteralContext) interface{}
 
-	// Visit a parse tree produced by GsParser#strKeyEntry.
-	VisitStrKeyEntry(ctx *StrKeyEntryContext) interface{}
+	// Visit a parse tree produced by GsParser#constKeyEntry.
+	VisitConstKeyEntry(ctx *ConstKeyEntryContext) interface{}
 
 	// Visit a parse tree produced by GsParser#idKeyEntry.
 	VisitIdKeyEntry(ctx *IdKeyEntryContext) interface{}
@@ -214,5 +210,4 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#powOp.
 	VisitPowOp(ctx *PowOpContext) interface{}
-
 }

@@ -1,11 +1,12 @@
 package compile
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
+	consts2 "github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/vm"
 )
 
@@ -238,6 +239,22 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 			return fmt.Sprintf("#%04d: string \"%s\"\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
 		case vm.ConstFloat64:
 			return fmt.Sprintf("#%04d: float32 %f\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
+		case vm.ConstMapInit:
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("#%04d: map[%s] {\n", s.Address, s.Name))
+			m := s.Value.(*consts2.MapInitConst)
+			for k, v := range m.Map {
+				sb.WriteString(fmt.Sprintf("    %v: %v;\n", k, v))
+			}
+			sb.WriteString("}\n")
+			return sb.String()
+		case vm.ConstSliceInit:
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("#%04d: slice[%s]\n", s.Address, s.Name))
+			m := s.Value.(*consts2.SliceInitConst)
+			bytes, _ := json.Marshal(m.Value)
+			sb.WriteString("    " + string(bytes) + "\n")
+			return sb.String()
 		default:
 			return fmt.Sprintf("#%04d:\t%-11s\t%-11s\n", s.Address, s.Kind, s.Name)
 		}
@@ -245,17 +262,5 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 		return ""
 	default:
 		return fmt.Sprintf("#%04d:\t%-11s\n", s.GetAddress(), s.GetName())
-	}
-}
-
-func NewFloatConst(value string) *ConstSymbol {
-	fVal, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		panic(fmt.Sprintf("parse float err:%v invalid float constant: %s", err, value))
-	}
-	return &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstFloat64, value),
-		Kind:  vm.ConstFloat64,
-		Value: fVal,
 	}
 }
