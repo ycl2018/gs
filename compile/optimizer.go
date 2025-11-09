@@ -16,6 +16,12 @@ type Parenter interface {
 
 var _ gen.GsVisitor = (*ConstOptimizer)(nil)
 
+// ConstOptimizer do optimize:
+//
+//	fold const expr
+//
+// fold array/dict literal to const
+
 type ConstOptimizer struct {
 	gen.BaseGsVisitor
 	FoldConstExpr bool
@@ -44,8 +50,12 @@ func (g *ConstOptimizer) VisitChildren(node antlr.RuleNode) interface{} {
 
 func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interface{} {
 	c.VisitChildren(ctx)
+	exprs := ctx.AllExpr()
+	if len(exprs) == 0 {
+		return nil
+	}
 	var sliceInit []any
-	for _, tree := range ctx.AllExpr() {
+	for _, tree := range exprs {
 		if len(tree.GetChildren()) != 1 {
 			return nil
 		}
@@ -72,7 +82,7 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 	}
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 	gen.InitEmptyArrayLiteralContext(ctx)
-	ctx.AddChild(consts.NewConstNode(consts.ConstKindList, &consts.SliceInitConst{Value: sliceInit, Name: name}))
+	ctx.AddChild(consts.NewConstNode(consts.ConstKindList, &consts.SliceLiteralConst{Value: sliceInit, Name: name}))
 	return nil
 }
 
@@ -83,8 +93,12 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	//    |   qid ':' expr             #idKeyEntry  // 支持qid作为键
 	//    ;
 	c.VisitChildren(ctx)
-	var m = map[*consts.ConstNode]*consts.ConstNode{}
-	for _, entry := range ctx.AllDictEntry() {
+	allEntries := ctx.AllDictEntry()
+	if len(allEntries) == 0 {
+		return nil
+	}
+	var m = map[consts.ConstNode]*consts.ConstNode{}
+	for _, entry := range allEntries {
 		constKey, ok := entry.(*gen.ConstKeyEntryContext)
 		if !ok {
 			return nil
@@ -104,34 +118,34 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 		case gen.GsLexerSTRING:
 			str := keyTerminal.GetText()[1 : len(keyTerminal.GetText())-1]
 			keyValue := consts.NewConstNode(consts.ConstKindString, str)
-			m[keyValue] = constValue
+			m[*keyValue] = constValue
 		case gen.GsLexerINT:
 			intValue, err := strconv.ParseInt(keyTerminal.GetText(), 0, 64)
 			if err != nil {
 				panic(err)
 			}
 			keyValue := consts.NewConstNode(consts.ConstKindInt, int(intValue))
-			m[keyValue] = constValue
+			m[*keyValue] = constValue
 		case gen.GsLexerFLOAT:
 			floatValue, err := strconv.ParseFloat(keyTerminal.GetText(), 64)
 			if err != nil {
 				panic(err)
 			}
 			keyValue := consts.NewConstNode(consts.ConstKindFloat, floatValue)
-			m[keyValue] = constValue
+			m[*keyValue] = constValue
 		case gen.GsLexerTRUE:
 			keyValue := consts.NewConstNode(consts.ConstKindBool, true)
-			m[keyValue] = constValue
+			m[*keyValue] = constValue
 		case gen.GsLexerFALSE:
 			keyValue := consts.NewConstNode(consts.ConstKindBool, false)
-			m[keyValue] = constValue
+			m[*keyValue] = constValue
 		default:
 			panic(fmt.Sprintf("unknown key: %s", keyTerminal))
 		}
 	}
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 	gen.InitEmptyDictLiteralContext(ctx)
-	ctx.AddChild(consts.NewConstNode(consts.ConstKindMap, &consts.MapInitConst{Map: m, Name: name}))
+	ctx.AddChild(consts.NewConstNode(consts.ConstKindMap, &consts.MapLiteralConst{Map: m, Name: name}))
 	return nil
 }
 
@@ -143,7 +157,7 @@ func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) inter
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -180,7 +194,7 @@ func (c *ConstOptimizer) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) int
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -217,7 +231,7 @@ func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) int
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -308,7 +322,7 @@ func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -364,7 +378,7 @@ func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -382,7 +396,6 @@ func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
 				var constNode *consts.ConstNode
 				switch op {
 				case "|":
-
 					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top))
 				case "&":
 					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top))
@@ -413,7 +426,7 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 	for _, tree := range ctx.GetChildren() {
 		var added bool
 		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChildren()[0].(*consts.ConstNode); ok {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
 				newChildren = append(newChildren, v)
 				applied = true
 				added = true
@@ -496,6 +509,20 @@ func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
 		case *gen.FalseAtomContext:
 			applied = true
 			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindBool, false))
+		case *gen.ParenAtomContext:
+			// expr -> logicalor
+			added := false
+			expr := t.Expr()
+			if expr.GetChildCount() == 1 && expr.GetChild(0).GetChildCount() == 1 {
+				if v, ok := expr.GetChild(0).GetChild(0).(*consts.ConstNode); ok {
+					newChildren = append(newChildren, v)
+					applied = true
+					added = true
+				}
+			}
+			if !added {
+				newChildren = append(newChildren, expr)
+			}
 		default:
 			newChildren = append(newChildren, t)
 		}

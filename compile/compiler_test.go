@@ -267,7 +267,7 @@ print a
 		{
 			name: "constOptimizer.gs",
 			program: `
-a = 10 + 20+50
+a= (1*2+3*3) + 100 // 111
 `,
 		},
 		{

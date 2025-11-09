@@ -51,9 +51,9 @@ func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 	case consts.ConstKindFloat:
 		s.Write(vm.InstrFConst, getFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
 	case consts.ConstKindList:
-		s.Write(vm.InstrSliceConst, getSliceConst(v.Value.(*consts.SliceInitConst), s.GlobalScope).GetAddress())
+		s.Write(vm.InstrSliceConst, getSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstKindMap:
-		s.Write(vm.InstrMapConst, getMapConst(v.Value.(*consts.MapInitConst), s.GlobalScope).GetAddress())
+		s.Write(vm.InstrMapConst, getMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstKindString:
 		s.Write(vm.InstrSConst, s.defineStringConst(v.Value.(string)))
 	default:

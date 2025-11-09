@@ -46,7 +46,14 @@ func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
 	defVisitor.Visit(programContext)
 	// 优化
 	optimize := NewConstOptimizer(log)
-	optimize.Visit(programContext)
+	for i := 0; i < 100; i++ {
+		optimize.Visit(programContext)
+		if !optimize.FoldConstExpr {
+			break
+		} else {
+			optimize.FoldConstExpr = false
+		}
+	}
 	// 执行
 	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log)
 	p.compileVisitor.Visit(programContext)

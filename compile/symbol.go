@@ -242,7 +242,7 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 		case vm.ConstMapInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: map[%s] {\n", s.Address, s.Name))
-			m := s.Value.(*consts2.MapInitConst)
+			m := s.Value.(*consts2.MapLiteralConst)
 			for k, v := range m.Map {
 				sb.WriteString(fmt.Sprintf("    %v: %v;\n", k, v))
 			}
@@ -251,7 +251,7 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 		case vm.ConstSliceInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: slice[%s]\n", s.Address, s.Name))
-			m := s.Value.(*consts2.SliceInitConst)
+			m := s.Value.(*consts2.SliceLiteralConst)
 			bytes, _ := json.Marshal(m.Value)
 			sb.WriteString("    " + string(bytes) + "\n")
 			return sb.String()

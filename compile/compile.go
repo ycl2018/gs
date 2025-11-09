@@ -139,7 +139,7 @@ func getFloatConst(fval float64, scope *GlobalScope) Symbol {
 	return symbol
 }
 
-func getSliceConst(sliceInit *consts.SliceInitConst, scope *GlobalScope) Symbol {
+func getSliceConst(sliceInit *consts.SliceLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
 		Name:  fmt.Sprintf("%s_%s", vm.ConstSliceInit, sliceInit.Name),
 		Value: sliceInit,
@@ -149,7 +149,7 @@ func getSliceConst(sliceInit *consts.SliceInitConst, scope *GlobalScope) Symbol 
 	return symbol
 }
 
-func getMapConst(mapInit *consts.MapInitConst, scope *GlobalScope) Symbol {
+func getMapConst(mapInit *consts.MapLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
 		Name:  fmt.Sprintf("%s_%s", vm.ConstMapInit, mapInit.Name),
 		Value: mapInit,
