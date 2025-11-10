@@ -84,7 +84,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 		if i == 0 {
 			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
 				if s.Env != nil {
-					s.loadQidFromEnv(qid)
+					s.storeQidToEnv(qid)
 					return
 				} else {
 					ids = append(ids, "$")

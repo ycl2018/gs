@@ -2,6 +2,7 @@ package consts
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/gen"
@@ -263,8 +264,37 @@ func (c *ConstNode) Accept(Visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (c *ConstNode) GetText() string {
-	//TODO implement me
-	panic("implement me")
+	switch c.Kind {
+	case ConstKindBool:
+		return fmt.Sprintf("%t", c.Value.(bool))
+	case ConstKindInt:
+		return fmt.Sprintf("%d", c.Value.(int))
+	case ConstKindFloat:
+		return fmt.Sprintf("%f", c.Value.(float64))
+	case ConstKindString:
+		return fmt.Sprintf("%s", c.Value.(string))
+	case ConstKindMap:
+		var sb strings.Builder
+		sb.WriteString("{")
+		for k, v := range c.Value.(map[ConstNode]*ConstNode) {
+			sb.WriteString(k.GetText() + ":" + v.GetText())
+		}
+		sb.WriteString("}")
+		return sb.String()
+	case ConstKindList:
+		var sb strings.Builder
+		sb.WriteString("[")
+		for i, v := range c.Value.([]ConstNode) {
+			sb.WriteString(v.GetText())
+			if i < len(c.Value.([]ConstNode)) {
+				sb.WriteString(",")
+			}
+		}
+		sb.WriteString("]")
+		return sb.String()
+	default:
+		return ""
+	}
 }
 
 func (c *ConstNode) ToStringTree(strings []string, recognizer antlr.Recognizer) string {

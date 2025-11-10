@@ -21,13 +21,11 @@ func NewEnv(v any) *Env {
 		return nil
 	}
 	rt := reflect.TypeOf(v)
-	for rt.Kind() == reflect.Ptr {
-		rt = rt.Elem()
-	}
 	isMap := rt.Kind() == reflect.Map
 	isSlice := rt.Kind() == reflect.Slice || rt.Kind() == reflect.Array
 	isStruct := rt.Kind() == reflect.Struct
-	valid := isMap || isSlice || isStruct
+	isPtrStruct := rt.Kind() == reflect.Ptr && rt.Elem().Kind() == reflect.Struct
+	valid := isMap || isSlice || isStruct || isPtrStruct
 	if !valid {
 		panic("invalid type")
 	}
@@ -158,7 +156,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
 			}
-			if i == len(query)-1 {
+			if i == len(query)-1 && curType.Kind() != reflect.Interface {
 				s.Write(vm.InstrInterface) // convert reflect.Value to interface
 			}
 		}
@@ -170,6 +168,10 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 	env := qid.GetChild(0).(*gen.PrimaryContext).ENV()
 	if env == nil {
 		panic("not env")
+	}
+	if s.Env.Kind == reflect.Struct {
+		s.Log.ErrorToken(qid.GetStart(), "Env type is struct, can't assign,try use pointer instead")
+		return
 	}
 	var ids []string
 	var query []int // tokenType

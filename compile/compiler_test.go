@@ -287,7 +287,7 @@ print a
 `,
 		},
 		{
-			name: "env.gs",
+			name: "env_map.gs",
 			program: `
 return $["a"]["name"] + $["a"]["addr"]
 `,
@@ -297,6 +297,24 @@ return $["a"]["name"] + $["a"]["addr"]
 					"addr": "123 Main St",
 				},
 			},
+		},
+		{
+			name: "env_slice.gs",
+			env:  []any{},
+			program: `
+return $[1]+$[2]+$[3]
+`,
+		},
+		{
+			name: "env_struct.gs",
+			env: &struct {
+				A string
+				B string
+				C map[string]string
+			}{},
+			program: `
+$.C = $.A + $.B
+`,
 		},
 	}
 	for _, tt := range tests {
