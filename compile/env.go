@@ -164,6 +164,8 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 	s.FillTarget(brNils...)
 }
 
+// TODO: 优化loadQid/storeQid,如果一直是fieldLoad，一步到位，合并所有path，一次性加载
+
 func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 	env := qid.GetChild(0).(*gen.PrimaryContext).ENV()
 	if env == nil {
