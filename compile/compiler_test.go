@@ -10,6 +10,7 @@ func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
 		name    string
 		program string
+		env     any
 	}{
 		{
 			name: "apple.gs",
@@ -285,11 +286,23 @@ print a
 }
 `,
 		},
+		{
+			name: "env.gs",
+			program: `
+return $["a"]["name"] + $["a"]["addr"]
+`,
+			env: map[string]any{
+				"a": map[string]any{
+					"name": "parrt",
+					"addr": "123 Main St",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewGsCompiler()
-			_, err := p.Compile(antlr.NewInputStream(tt.program))
+			_, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -47,6 +47,9 @@ func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{
 
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
+	if ctx.Primary().ID() == nil {
+		return nil // env node
+	}
 	refName := ctx.Primary().ID().GetText()
 	if g.CurScope.Resolve(refName) == nil {
 		g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)

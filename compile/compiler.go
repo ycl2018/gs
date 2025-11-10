@@ -32,7 +32,7 @@ func NewGsCompiler() *GsCompiler {
 	}
 }
 
-func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
+func (p *GsCompiler) Compile(input antlr.CharStream, env any) ([]byte, error) {
 	lexer := gen.NewGsLexer(input)
 	tokens := antlr.NewCommonTokenStream(lexer, 0)
 	ps := gen.NewGsParser(tokens)
@@ -55,7 +55,7 @@ func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
 		}
 	}
 	// 执行
-	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log)
+	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log, env)
 	p.compileVisitor.Visit(programContext)
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())

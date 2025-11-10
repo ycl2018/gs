@@ -49,11 +49,11 @@ func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 	case consts.ConstKindInt:
 		s.Write(vm.InstrIConst, v.Value.(int))
 	case consts.ConstKindFloat:
-		s.Write(vm.InstrFConst, getFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
+		s.Write(vm.InstrFConst, defineFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
 	case consts.ConstKindList:
-		s.Write(vm.InstrSliceConst, getSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
+		s.Write(vm.InstrSliceConst, defineSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstKindMap:
-		s.Write(vm.InstrMapConst, getMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
+		s.Write(vm.InstrMapConst, defineMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstKindString:
 		s.Write(vm.InstrSConst, s.defineStringConst(v.Value.(string)))
 	default:
@@ -63,13 +63,7 @@ func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 }
 
 func (s *StackCompileVisitor) defineStringConst(val string) int {
-	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstString, val),
-		Kind:  vm.ConstString,
-		Value: val,
-	}
-	cSymbol, _ := s.GlobalScope.DefineOrGetConst(constSymbol)
-	return cSymbol.GetAddress()
+	return defineStringConst(val, s.GlobalScope).GetAddress()
 }
 
 func (s *StackCompileVisitor) Write(code int, operands ...int) {
@@ -88,7 +82,17 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	var qExprs []*gen.ExprContext
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
-			ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
+			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
+				if s.Env != nil {
+					s.loadQidFromEnv(qid)
+					return
+				} else {
+					ids = append(ids, "$")
+					continue
+				}
+			} else {
+				ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
+			}
 			continue
 		}
 		if node, ok := child.(antlr.TerminalNode); ok {
@@ -105,13 +109,18 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 			qExprs = append(qExprs, e)
 		}
 	}
-	primarySymbol := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
-	if len(ids) == 1 {
-		// no need load primarySymbol
-		s.EmitStore(primarySymbol)
-		return
+	if ids[0] == "$" {
+		s.Write(vm.InstrLoadEnv)
+		s.Write(vm.InstrRV)
+	} else {
+		primarySymbol := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
+		if len(ids) == 1 {
+			// no need load primarySymbol
+			s.EmitStore(primarySymbol)
+			return
+		}
+		s.EmitLoad(primarySymbol)
 	}
-	s.EmitLoad(primarySymbol)
 	for i := 0; i < len(query)-1; i++ {
 		switch query[i] {
 		case gen.GsLexerDOT:
@@ -123,7 +132,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 			// arrayLoad/mapLoad
 			expr := qExprs[i]
 			expr.Accept(s)
-			s.Write(vm.InstrIndexAccess)
+			s.Write(vm.InstrIndexLoad)
 		}
 	}
 	// lastQuery
@@ -146,15 +155,23 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 	var qExprs []*gen.ExprContext
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
-			ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
+			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
+				if s.Env != nil {
+					s.loadQidFromEnv(qid)
+					return
+				} else {
+					ids = append(ids, "$")
+					continue
+				}
+			} else {
+				ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
+			}
 			continue
 		}
 		if node, ok := child.(antlr.TerminalNode); ok {
 			switch t := node.GetSymbol().GetTokenType(); t {
 			case gen.GsLexerDOT, gen.GsLexerSAFE_DOT, gen.GsLexerLBRACK, gen.GsLexerSAFE_LBRACK:
-				{
-					query = append(query, t)
-				}
+				query = append(query, t)
 			case gen.GsLexerID:
 				ids = append(ids, node.GetText())
 			}
@@ -162,16 +179,16 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			qExprs = append(qExprs, e)
 		}
 	}
-	primarySymbol, ok := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
-	if !ok {
-		s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", ids[0])
-		return
+	if ids[0] == "$" {
+		s.Write(vm.InstrLoadEnv)
+	} else {
+		primarySymbol, ok := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
+		if !ok {
+			s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", ids[0])
+			return
+		}
+		s.EmitLoad(primarySymbol)
 	}
-	if len(ids) == 0 {
-		// no need load primarySymbol
-		s.EmitStore(primarySymbol)
-	}
-	s.EmitLoad(primarySymbol)
 	var brNils []*vm.StackInstr
 	for i := 0; i < len(query); i++ {
 		switch query[i] {
@@ -195,7 +212,7 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			// arrayLoad/mapLoad
 			expr := qExprs[i]
 			expr.Accept(s)
-			s.Write(vm.InstrIndexAccess)
+			s.Write(vm.InstrIndexLoad)
 		}
 	}
 	s.FillTarget(brNils...)

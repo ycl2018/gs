@@ -22,6 +22,7 @@ const (
 	InstrGEQ
 	InstrLEQ
 	InstrNEQ
+
 	InstrEQ
 	InstrOR
 	InstrAND
@@ -32,17 +33,18 @@ const (
 	InstrNot
 	InstrBitAND
 	InstrBitOR
-	InstrXOR
-	InstrArray       // create array
-	InstrIndexAccess // array[index]/map[key]
-	InstrSliceSplit  // array[start:end]
-	InstrDict        // create dict
 
+	InstrXOR
+	InstrArray      // create array
+	InstrIndexLoad  // array[index]/map[key]，need reflect by vm
+	InstrSliceSplit // array[start:end]
+	InstrDict       // create dict
 	InstrCall
 	InstrReturn
 	InstrBR  // branch
 	InstrBRT // branch if true
 	InstrBRF // branch if false
+
 	InstrBRNil
 	InstrBRNotNil
 	InstrCConst // push constant
@@ -51,12 +53,11 @@ const (
 	InstrSConst
 	InstrSliceConst
 	InstrMapConst
-
 	InstrNil // push nil
-
 	InstrLoad
+
 	InstrGLoad      // global load
-	InstrFLoad      // filed load
+	InstrFLoad      // filed load by name,need reflect by vm[*StructSpace or Any type]
 	InstrStore      // local store
 	InstrGStore     // global store
 	InstrFStore     // field store
@@ -65,17 +66,28 @@ const (
 	InstrStruct     // push struct on stack
 	InstrPop        // pop stack
 	InstrBuildTuple // build tuple
-	InstrUnpack     // unpack tuple
-	InstrIterNext   // push iterVal
-	InstrIter       // push iter state
-	InstrIterDone   // check iter done
 
+	InstrUnpack   // unpack tuple
+	InstrIterNext // push iterVal
+	InstrIter     // push iter state
+	InstrIterDone // check iter done
 	InstrHalt
+
+	InstrLoadEnv
+	InstrRV           // reflect value
+	InstrRElem        // reflect value's element
+	InstrRFByIndex    // reflect load field by index
+	InstrRMapIndex    // reflect map index
+	InstrRIndex       // reflect slice index
+	InstrRSet         // reflect set value
+	InstrInterface    // reflect to interface
+	InstrRSetMapIndex // reflect set map index
 )
 
 // 基于栈的指令集
 var Instructions = []*Instruction{
 	nil,
+	// 1-10
 	{"add", nil},
 	{"sub", nil},
 	{"mul", nil},
@@ -86,6 +98,7 @@ var Instructions = []*Instruction{
 	{"geq", nil},
 	{"leq", nil},
 	{"neq", nil},
+	// 11
 	{"eq", nil},
 	{"or", nil},
 	{"and", nil},
@@ -96,16 +109,18 @@ var Instructions = []*Instruction{
 	{"not", nil},
 	{"bit_and", nil},
 	{"bit_or", nil},
+	// 21-30
 	{"xor", nil},
 	{"array", []int{INT}},
-	{"index_access", []int{INT}},
-	{"slice_split", []int{INT}},
+	{"index_load", nil},
+	{"slice_split", nil},
 	{"dict", []int{INT}},
 	{"call", []int{POLL}},
 	{"ret", nil},
 	{"br", []int{INT}},
 	{"brt", []int{INT}},
 	{"brf", []int{INT}},
+	// 31-40
 	{"br_nil", []int{INT}},
 	{"br_not_nil", nil},
 	{"cconst", []int{INT}},
@@ -116,6 +131,7 @@ var Instructions = []*Instruction{
 	{"map_const", []int{POLL}},
 	{"nil", []int{}},
 	{"load", []int{INT}},
+	// 41-50
 	{"gload", []int{INT}},
 	{"fload", []int{POLL}},
 	{"store", []int{INT}},
@@ -123,12 +139,23 @@ var Instructions = []*Instruction{
 	{"fstore", []int{POLL}},
 	{"index_store", nil},  // slice: index value; map: key value
 	{"print", []int{INT}}, // print n values
-	{"struct", []int{INT}},
+	{"struct", []int{POLL}},
 	{"pop", []int{INT}}, // pop n values
 	{"build_tuple", []int{INT}},
+	// 51-60
 	{"unpack", []int{INT}},
 	{"iter_next", []int{INT}},
 	{"iter", []int{INT}},
 	{"iter_done", nil},
 	{"halt", nil},
+
+	{"load_env",nil},
+	{"rv",nil},
+	{"relem",nil},
+	{"rf_by_index",nil},
+	{"rmap_index",nil},
+	{"rindex",nil},
+	{"rset",nil},
+	{"interface",nil},
+	{"rset_map_index",nil},
 }

@@ -106,12 +106,8 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 		keyTerminal := constKey.GetChild(0).(antlr.TerminalNode)
 		keyType := keyTerminal.GetSymbol().GetTokenType()
 		valueExpr := entry.(antlr.RuleContext).GetChild(2).(*gen.ExprContext)
-		valueChildren := valueExpr.GetChild(0).(*gen.LogicalOrExprContext)
-		if len(valueChildren.GetChildren()) != 1 {
-			return nil
-		}
-		constValue, ok2 := valueChildren.GetChild(0).(*consts.ConstNode)
-		if !ok2 {
+		constValue, ok := toConstNode(valueExpr)
+		if !ok {
 			return nil
 		}
 		switch keyType {
@@ -147,6 +143,18 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	gen.InitEmptyDictLiteralContext(ctx)
 	ctx.AddChild(consts.NewConstNode(consts.ConstKindMap, &consts.MapLiteralConst{Map: m, Name: name}))
 	return nil
+}
+
+func toConstNode(valueExpr *gen.ExprContext) (*consts.ConstNode, bool) {
+	valueChildren := valueExpr.GetChild(0).(*gen.LogicalOrExprContext)
+	if len(valueChildren.GetChildren()) != 1 {
+		return nil, false
+	}
+	constValue, ok2 := valueChildren.GetChild(0).(*consts.ConstNode)
+	if !ok2 {
+		return nil, false
+	}
+	return constValue, false
 }
 
 func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {
@@ -513,12 +521,10 @@ func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
 			// expr -> logicalor
 			added := false
 			expr := t.Expr()
-			if expr.GetChildCount() == 1 && expr.GetChild(0).GetChildCount() == 1 {
-				if v, ok := expr.GetChild(0).GetChild(0).(*consts.ConstNode); ok {
-					newChildren = append(newChildren, v)
-					applied = true
-					added = true
-				}
+			if constNode, ok := toConstNode(expr.(*gen.ExprContext)); ok {
+				newChildren = append(newChildren, constNode)
+				applied = true
+				added = true
 			}
 			if !added {
 				newChildren = append(newChildren, expr)

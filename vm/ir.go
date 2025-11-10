@@ -34,6 +34,7 @@ const (
 	ConstFunc
 	ConstMapInit
 	ConstSliceInit
+	ConstFieldIndex
 )
 
 func (c ConstKind) String() string {
@@ -50,6 +51,8 @@ func (c ConstKind) String() string {
 		return "map"
 	case ConstSliceInit:
 		return "slice"
+	case ConstFieldIndex:
+		return "fieldIndex"
 	default:
 		panic(fmt.Sprintf("unknown const kind %d", c))
 	}

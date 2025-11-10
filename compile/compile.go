@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 	"github.com/ycl2018/gs/vm"
 )
@@ -14,6 +13,7 @@ var _ gen.GsVisitor = (*StackCompileVisitor)(nil)
 
 type StackCompileVisitor struct {
 	gen.BaseGsVisitor
+	Env         *Env
 	Log         InterpreterListener
 	Scopes      map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
 	GlobalScope *GlobalScope
@@ -25,9 +25,10 @@ type StackCompileVisitor struct {
 	LoopStack   []*ForLoop
 }
 
-func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener) *StackCompileVisitor {
+func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
 	mainFunc := NewFunctionSymbol("main", nil)
 	s := &StackCompileVisitor{
+		Env:         NewEnv(env),
 		Log:         log,
 		Scopes:      scopes,
 		GlobalScope: globalScope,
@@ -80,16 +81,6 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 	return nil
 }
 
-func defineStringConst(val string, scope *GlobalScope) Symbol {
-	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstString, val),
-		Kind:  vm.ConstString,
-		Value: val,
-	}
-	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
-	return cSymbol
-}
-
 func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
 	for _, context := range ctx.AllExpr() {
 		context.Accept(s)
@@ -120,43 +111,13 @@ func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen.FloatAtomContext) interfac
 	valStr := ctx.FLOAT().GetText()
 	fval, _ := strconv.ParseFloat(valStr, 64)
 	// 浮点数常量地址
-	symbol := getFloatConst(fval, s.GlobalScope)
+	symbol := defineFloatConst(fval, s.GlobalScope)
 	s.WriteInstr(&vm.StackInstr{
 		OpCode:   vm.InstrFConst,
 		Operands: []int{symbol.GetAddress()}, // 浮点数常量地址
 
 	})
 	return nil
-}
-
-func getFloatConst(fval float64, scope *GlobalScope) Symbol {
-	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s_%f", vm.ConstFloat64, fval),
-		Value: fval,
-		Kind:  vm.ConstFloat64,
-	}
-	symbol, _ := scope.DefineOrGetConst(constSymbol)
-	return symbol
-}
-
-func getSliceConst(sliceInit *consts.SliceLiteralConst, scope *GlobalScope) Symbol {
-	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s_%s", vm.ConstSliceInit, sliceInit.Name),
-		Value: sliceInit,
-		Kind:  vm.ConstSliceInit,
-	}
-	symbol, _ := scope.DefineOrGetConst(constSymbol)
-	return symbol
-}
-
-func getMapConst(mapInit *consts.MapLiteralConst, scope *GlobalScope) Symbol {
-	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s_%s", vm.ConstMapInit, mapInit.Name),
-		Value: mapInit,
-		Kind:  vm.ConstMapInit,
-	}
-	symbol, _ := scope.DefineOrGetConst(constSymbol)
-	return symbol
 }
 
 func (s *StackCompileVisitor) VisitStringAtom(ctx *gen.StringAtomContext) interface{} {
@@ -647,7 +608,7 @@ func (s *StackCompileVisitor) VisitIndexAccess(ctx *gen.IndexAccessContext) inte
 	expr := ctx.Expr()
 	if expr != nil {
 		expr.Accept(s)
-		s.Write(vm.InstrIndexAccess)
+		s.Write(vm.InstrIndexLoad)
 	} else {
 		ctx.SliceExpr().Accept(s)
 	}
@@ -721,7 +682,7 @@ func (s *StackCompileVisitor) VisitConstKeyEntry(ctx *gen.ConstKeyEntryContext) 
 		if err != nil {
 			panic(fmt.Sprintf("can't parse %s to float", key.GetText()))
 		}
-		s.Write(vm.InstrFConst, getFloatConst(val, s.GlobalScope).GetAddress())
+		s.Write(vm.InstrFConst, defineFloatConst(val, s.GlobalScope).GetAddress())
 	case gen.GsParserTRUE:
 		s.Write(vm.InstrTrue)
 	case gen.GsParserFALSE:

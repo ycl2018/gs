@@ -3,6 +3,7 @@ package compile
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -263,4 +264,54 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 	default:
 		return fmt.Sprintf("#%04d:\t%-11s\n", s.GetAddress(), s.GetName())
 	}
+}
+
+func defineFloatConst(fval float64, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%f", vm.ConstFloat64, fval),
+		Value: fval,
+		Kind:  vm.ConstFloat64,
+	}
+	symbol, _ := scope.DefineOrGetConst(constSymbol)
+	return symbol
+}
+
+func defineSliceConst(sliceInit *consts2.SliceLiteralConst, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", vm.ConstSliceInit, sliceInit.Name),
+		Value: sliceInit,
+		Kind:  vm.ConstSliceInit,
+	}
+	symbol, _ := scope.DefineOrGetConst(constSymbol)
+	return symbol
+}
+
+func defineMapConst(mapInit *consts2.MapLiteralConst, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", vm.ConstMapInit, mapInit.Name),
+		Value: mapInit,
+		Kind:  vm.ConstMapInit,
+	}
+	symbol, _ := scope.DefineOrGetConst(constSymbol)
+	return symbol
+}
+
+func defineStringConst(val string, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", vm.ConstString, val),
+		Kind:  vm.ConstString,
+		Value: val,
+	}
+	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
+	return cSymbol
+}
+
+func defineFieldIndexConst(id string, fieldIndex *reflect.StructField, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", vm.ConstFieldIndex, id),
+		Kind:  vm.ConstFieldIndex,
+		Value: fieldIndex,
+	}
+	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
+	return cSymbol
 }

@@ -120,7 +120,7 @@ instance : 'new' ID '{' (ID ':' expr (',' ID ':' expr)* ','?)? '}' ;
 
 // 限定标识符（修正：引用可选链词法规则）
 qid : primary ( (DOT | SAFE_DOT ) ID | (LBRACK | SAFE_LBRACK) expr ']' )* ;
-primary : ID ;
+primary : ID | ENV ;
 
 // 运算符集合
 compOp  : EQ | LT | GT | NEQ | GEQ | LEQ ;
@@ -130,6 +130,7 @@ mulOp   : MUL | DIV | MOD ;
 powOp   : POW ;
 
 // 关键字（全部放在ID前，利用优先级匹配）
+ENV     : '$' ;
 TRUE    : 'true' ;
 FALSE   : 'false' ;
 NIL     : 'nil' ;
