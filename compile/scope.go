@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/ycl2018/gs/vm"
 )
 
 const (
@@ -52,25 +50,17 @@ func (g *GlobalScope) Define(symbol Symbol) {
 		}
 		g.Symbols[symbol.GetName()] = symbol
 		symbol.SetScope(g)
-		// fields: structNameIndex+fieldName1Index+fieldName2Index+...
-		fields := make([]int, len(s.Fields)+1)
+		// meta: structNameIndex+fieldName1Index+fieldName2Index+...
 		// trimPrefix: index::
+		var structName = s.Name
 		if index := strings.Index(s.Name, "::"); index != -1 {
-			index := strings.Index(s.Name, "::") + 2
-			fields[0] = defineStringConst(s.Name[index:], g).GetAddress()
-		} else {
-			fields[0] = defineStringConst(s.Name, g).GetAddress()
+			structName = s.Name[index+2:]
 		}
-		for i, field := range s.Fields {
-			sym := defineStringConst(field.GetName(), g)
-			fields[i+1] = sym.GetAddress()
+		var fields []string
+		for _, field := range s.Fields {
+			fields = append(fields, field.GetName())
 		}
-		constSym := &ConstSymbol{
-			Name:   s.Name,
-			Kind:   vm.ConstStruct,
-			Fields: fields,
-		}
-		g.Define(constSym) // 存储结构体常量到全局常量池
+		constSym := defineStructConst(s.Name, structName, fields, g)
 		s.SetAddress(constSym.GetAddress())
 	case *FunctionSymbol:
 		if g.Symbols[symbol.GetName()] != nil {
@@ -78,15 +68,8 @@ func (g *GlobalScope) Define(symbol Symbol) {
 		}
 		g.Symbols[symbol.GetName()] = symbol
 		symbol.SetScope(g)
-		funcNameIndex := defineStringConst(s.Name, g).GetAddress()
 		// 函数名，参数数，局部变量数，代码地址
-		fields := []int{funcNameIndex, int(len(s.FormalArgs)), int(s.LocalNums()), s.CodeAddr}
-		constSym := &ConstSymbol{
-			Name:   s.Name,
-			Kind:   vm.ConstFunc,
-			Fields: fields,
-		}
-		g.Define(constSym) // 存储函数常量到全局常量池
+		constSym := defineFuncConst(s.Name, len(s.FormalArgs), s.LocalNums(), g)
 		s.SetAddress(constSym.GetAddress())
 	default:
 		if g.Symbols[symbol.GetName()] != nil {

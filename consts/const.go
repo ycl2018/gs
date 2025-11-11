@@ -13,3 +13,16 @@ type MapLiteralConst struct {
 	Map  map[ConstNode]*ConstNode
 	Name string
 }
+
+type FunctionConst struct {
+	Name       string
+	ParamCount int
+	LocalCount int
+	Addr       int // 函数入口地址, 在[]AllFuncs中的索引
+	Code       []StackInstr
+}
+
+type StructConst struct {
+	Name   string
+	Fields []string
+}

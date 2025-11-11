@@ -10,7 +10,7 @@ import (
 	"github.com/ycl2018/gs/gen"
 )
 
-type Parenter interface {
+type INode interface {
 	AddChild(child antlr.RuleContext) antlr.RuleContext
 }
 
@@ -32,18 +32,18 @@ func NewConstOptimizer(log InterpreterListener) *ConstOptimizer {
 	c := &ConstOptimizer{
 		Log: log,
 	}
-	c.BaseGsVisitor = gen.BaseGsVisitor{gen.NewBaseVisitor(c)}
+	c.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: gen.NewBaseVisitor(c)}
 	return c
 }
 
-func (g *ConstOptimizer) Visit(tree antlr.ParseTree) interface{} {
-	return tree.Accept(g)
+func (c *ConstOptimizer) Visit(tree antlr.ParseTree) interface{} {
+	return tree.Accept(c)
 }
 
-func (g *ConstOptimizer) VisitChildren(node antlr.RuleNode) interface{} {
+func (c *ConstOptimizer) VisitChildren(node antlr.RuleNode) interface{} {
 	ctx := node.(antlr.ParserRuleContext)
 	for _, child := range ctx.GetChildren() {
-		child.(antlr.ParseTree).Accept(g)
+		child.(antlr.ParseTree).Accept(c)
 	}
 	return nil
 }
@@ -68,13 +68,13 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 			return nil
 		}
 		switch v2.Kind {
-		case consts.ConstKindInt:
+		case consts.ConstNodeKindInt:
 			sliceInit = append(sliceInit, consts.ToIntValue(v2))
-		case consts.ConstKindFloat:
+		case consts.ConstNodeKindFloat:
 			sliceInit = append(sliceInit, consts.ToFloatValue(v2))
-		case consts.ConstKindString:
+		case consts.ConstNodeKindString:
 			sliceInit = append(sliceInit, consts.ToStringValue(v2))
-		case consts.ConstKindBool:
+		case consts.ConstNodeKindBool:
 			sliceInit = append(sliceInit, consts.ToBoolValue(v2))
 		default:
 			return nil
@@ -82,7 +82,7 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 	}
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 	gen.InitEmptyArrayLiteralContext(ctx)
-	ctx.AddChild(consts.NewConstNode(consts.ConstKindList, &consts.SliceLiteralConst{Value: sliceInit, Name: name}))
+	ctx.AddChild(consts.NewConstNode(consts.ConstNodeKindList, &consts.SliceLiteralConst{Value: sliceInit, Name: name}))
 	return nil
 }
 
@@ -113,27 +113,27 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 		switch keyType {
 		case gen.GsLexerSTRING:
 			str := keyTerminal.GetText()[1 : len(keyTerminal.GetText())-1]
-			keyValue := consts.NewConstNode(consts.ConstKindString, str)
+			keyValue := consts.NewConstNode(consts.ConstNodeKindString, str)
 			m[*keyValue] = constValue
 		case gen.GsLexerINT:
 			intValue, err := strconv.ParseInt(keyTerminal.GetText(), 0, 64)
 			if err != nil {
 				panic(err)
 			}
-			keyValue := consts.NewConstNode(consts.ConstKindInt, int(intValue))
+			keyValue := consts.NewConstNode(consts.ConstNodeKindInt, int(intValue))
 			m[*keyValue] = constValue
 		case gen.GsLexerFLOAT:
 			floatValue, err := strconv.ParseFloat(keyTerminal.GetText(), 64)
 			if err != nil {
 				panic(err)
 			}
-			keyValue := consts.NewConstNode(consts.ConstKindFloat, floatValue)
+			keyValue := consts.NewConstNode(consts.ConstNodeKindFloat, floatValue)
 			m[*keyValue] = constValue
 		case gen.GsLexerTRUE:
-			keyValue := consts.NewConstNode(consts.ConstKindBool, true)
+			keyValue := consts.NewConstNode(consts.ConstNodeKindBool, true)
 			m[*keyValue] = constValue
 		case gen.GsLexerFALSE:
-			keyValue := consts.NewConstNode(consts.ConstKindBool, false)
+			keyValue := consts.NewConstNode(consts.ConstNodeKindBool, false)
 			m[*keyValue] = constValue
 		default:
 			panic(fmt.Sprintf("unknown key: %s", keyTerminal))
@@ -141,7 +141,7 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	}
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 	gen.InitEmptyDictLiteralContext(ctx)
-	ctx.AddChild(consts.NewConstNode(consts.ConstKindMap, &consts.MapLiteralConst{Map: m, Name: name}))
+	ctx.AddChild(consts.NewConstNode(consts.ConstNodeKindMap, &consts.MapLiteralConst{Map: m, Name: name}))
 	return nil
 }
 
@@ -177,7 +177,7 @@ func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) inter
 		if len(newChildren) > 0 {
 			top, ok := newChildren[len(newChildren)-1].(*consts.ConstNode)
 			if ok {
-				if top.Kind == consts.ConstKindBool && top.Value.(bool) == true {
+				if top.Kind == consts.ConstNodeKindBool && top.Value.(bool) == true {
 					newChildren = []antlr.Tree{top}
 					c.FoldConstExpr = true
 					break
@@ -214,7 +214,7 @@ func (c *ConstOptimizer) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) int
 		if len(newChildren) > 0 {
 			top, ok := newChildren[len(newChildren)-1].(*consts.ConstNode)
 			if ok {
-				if top.Kind == consts.ConstKindBool && top.Value.(bool) == false {
+				if top.Kind == consts.ConstNodeKindBool && top.Value.(bool) == false {
 					newChildren = []antlr.Tree{top}
 					c.FoldConstExpr = true
 					break
@@ -258,51 +258,51 @@ func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) int
 				// EQ | LT | GT | NEQ | GEQ | LEQ
 				switch op {
 				case "==":
-					if top.Kind == consts.ConstKindString && pre.Kind == consts.ConstKindString {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToStringValue(pre) == consts.ToStringValue(top))
-					} else if top.Kind == consts.ConstKindBool && pre.Kind == consts.ConstKindBool {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToBoolValue(pre) == consts.ToBoolValue(top))
+					if top.Kind == consts.ConstNodeKindString && pre.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(pre) == consts.ToStringValue(top))
+					} else if top.Kind == consts.ConstNodeKindBool && pre.Kind == consts.ConstNodeKindBool {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(pre) == consts.ToBoolValue(top))
 					}
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) == consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) == consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) == consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) == consts.ToIntValue(top))
 					}
 
 				case "<":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) < consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) < consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) < consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) < consts.ToIntValue(top))
 					}
 				case ">":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) > consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) > consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) > consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) > consts.ToIntValue(top))
 					}
 				case "!=":
-					if top.Kind == consts.ConstKindString && pre.Kind == consts.ConstKindString {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToStringValue(pre) != consts.ToStringValue(top))
-					} else if top.Kind == consts.ConstKindBool && pre.Kind == consts.ConstKindBool {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToBoolValue(pre) != consts.ToBoolValue(top))
+					if top.Kind == consts.ConstNodeKindString && pre.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(pre) != consts.ToStringValue(top))
+					} else if top.Kind == consts.ConstNodeKindBool && pre.Kind == consts.ConstNodeKindBool {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(pre) != consts.ToBoolValue(top))
 					}
-					if top.Kind == consts.ConstKindFloat && pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) != consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat && pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) != consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) != consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) != consts.ToIntValue(top))
 					}
 				case ">=":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) >= consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) >= consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) >= consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) >= consts.ToIntValue(top))
 					}
 				case "<=":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToFloatValue(pre) <= consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) <= consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindBool, consts.ToIntValue(pre) <= consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) <= consts.ToIntValue(top))
 					}
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
@@ -348,17 +348,17 @@ func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
 				var constNode *consts.ConstNode
 				switch op {
 				case "+":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindFloat, consts.ToFloatValue(pre)+consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)+consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)+consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)+consts.ToIntValue(top))
 					}
 
 				case "-":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindFloat, consts.ToFloatValue(pre)-consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)-consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)-consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)-consts.ToIntValue(top))
 					}
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
@@ -404,11 +404,11 @@ func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
 				var constNode *consts.ConstNode
 				switch op {
 				case "|":
-					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top))
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top))
 				case "&":
-					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top))
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top))
 				case "^":
-					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)^consts.ToIntValue(top))
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)^consts.ToIntValue(top))
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
 				}
@@ -452,20 +452,20 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 				var constNode *consts.ConstNode
 				switch op {
 				case "*":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindFloat, consts.ToFloatValue(pre)*consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)*consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)*consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)*consts.ToIntValue(top))
 					}
 
 				case "/":
-					if top.Kind == consts.ConstKindFloat || pre.Kind == consts.ConstKindFloat {
-						constNode = consts.NewConstNode(consts.ConstKindFloat, consts.ToFloatValue(pre)/consts.ToFloatValue(top))
+					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)/consts.ToFloatValue(top))
 					} else {
-						constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)/consts.ToIntValue(top))
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)/consts.ToIntValue(top))
 					}
 				case "%":
-					constNode = consts.NewConstNode(consts.ConstKindInt, consts.ToIntValue(pre)/consts.ToIntValue(top))
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)/consts.ToIntValue(top))
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
 				}
@@ -498,7 +498,7 @@ func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
 				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
 				return nil
 			}
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindFloat, f))
+			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, f))
 		case *gen.IntAtomContext:
 			applied = true
 			f, err := strconv.ParseInt(t.GetText(), 0, 64)
@@ -506,17 +506,17 @@ func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
 				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
 				return nil
 			}
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindInt, int(f)))
+			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, int(f)))
 		case *gen.StringAtomContext:
 			applied = true
 			str := t.GetText()[1 : len(t.GetText())-1]
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindString, str))
+			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindString, str))
 		case *gen.TrueAtomContext:
 			applied = true
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindBool, true))
+			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, true))
 		case *gen.FalseAtomContext:
 			applied = true
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindBool, false))
+			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, false))
 		case *gen.ParenAtomContext:
 			// expr -> logicalor
 			added := false
@@ -538,7 +538,7 @@ func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
 			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
 			if ok1 && ok2 {
 				newChildren = newChildren[:len(newChildren)-3]
-				newChildren = append(newChildren, consts.NewConstNode(consts.ConstKindFloat, math.Pow(consts.ToFloatValue(pre), consts.ToFloatValue(top))))
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, math.Pow(consts.ToFloatValue(pre), consts.ToFloatValue(top))))
 			}
 			c.FoldConstExpr = true
 		}

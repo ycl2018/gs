@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
-	"github.com/ycl2018/gs/vm"
 )
 
 var _ gen.GsVisitor = (*StackCompileVisitor)(nil)
@@ -20,7 +20,6 @@ type StackCompileVisitor struct {
 	AllFuncs    []*FunctionSymbol // 所有函数,不包含主函数
 	MainFunc    *FunctionSymbol
 	CurFunc     *FunctionSymbol
-	ToBeFilled  map[*vm.StackInstr][]*vm.StackInstr // 目标分支跳转Tag -> 需要回填的分支跳转指令列表
 	TagAlloc    int
 	LoopStack   []*ForLoop
 }
@@ -32,7 +31,6 @@ func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScop
 		Log:         log,
 		Scopes:      scopes,
 		GlobalScope: globalScope,
-		ToBeFilled:  map[*vm.StackInstr][]*vm.StackInstr{},
 		MainFunc:    mainFunc,
 		CurFunc:     mainFunc,
 	}
@@ -40,8 +38,8 @@ func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScop
 	return s
 }
 
-func (s *StackCompileVisitor) WriteInstr(instr *vm.StackInstr) {
-	s.CurFunc.Code = append(s.CurFunc.Code, instr)
+func (s *StackCompileVisitor) WriteInstr(instr *consts.StackInstr) {
+	s.CurFunc.Code = append(s.CurFunc.Code, *instr)
 }
 
 func (s *StackCompileVisitor) AllocTag() int {
@@ -52,9 +50,9 @@ func (s *StackCompileVisitor) AllocTag() int {
 func (s *StackCompileVisitor) VisitProgram(ctx *gen.ProgramContext) interface{} {
 	s.VisitChildren(ctx)
 	// 补充主函数Halt指令IR
-	if len(s.MainFunc.Code) == 0 || s.MainFunc.Code[len(s.MainFunc.Code)-1].OpCode != vm.InstrHalt {
-		s.MainFunc.Code = append(s.MainFunc.Code, &vm.StackInstr{
-			OpCode: vm.InstrHalt,
+	if len(s.MainFunc.Code) == 0 || s.MainFunc.Code[len(s.MainFunc.Code)-1].OpCode != consts.InstrHalt {
+		s.MainFunc.Code = append(s.MainFunc.Code, consts.StackInstr{
+			OpCode: consts.InstrHalt,
 		})
 	}
 	return nil
@@ -71,10 +69,10 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 	// 生成函数体IR
 	ctx.Block().Accept(s)
 	// 补充返回指令IR
-	if len(s.CurFunc.Code) == 0 || s.CurFunc.Code[len(s.CurFunc.Code)-1].OpCode != vm.InstrReturn {
+	if len(s.CurFunc.Code) == 0 || s.CurFunc.Code[len(s.CurFunc.Code)-1].OpCode != consts.InstrReturn {
 		// 函数体没有显式返回值时，补充返回nil指令IR
-		s.Write(vm.InstrNil)
-		s.Write(vm.InstrReturn)
+		s.Write(consts.InstrNil)
+		s.Write(consts.InstrReturn)
 	}
 	s.AllFuncs = append(s.AllFuncs, funcSymbol)
 	s.CurFunc = s.MainFunc
@@ -92,10 +90,7 @@ func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
 	}
 	fSymbol := s.Scopes[ctx].Resolve(funcName).(*FunctionSymbol)
 	// 生成调用指令IR
-	callInstr := &vm.StackInstr{
-		OpCode:   vm.InstrCall,
-		Operands: []int{fSymbol.Address}, // 函数ID填充，编译为二进制时会替换为函数地址
-	}
+	callInstr := consts.NewStackInstr(consts.InstrCall, fSymbol.Address)
 	s.WriteInstr(callInstr)
 	return nil
 }
@@ -103,7 +98,7 @@ func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
 func (s *StackCompileVisitor) VisitIntAtom(ctx *gen.IntAtomContext) interface{} {
 	valStr := ctx.INT().GetText()
 	ival, _ := strconv.ParseInt(valStr, 0, 64)
-	s.Write(vm.InstrIConst, int(ival))
+	s.Write(consts.InstrIConst, int(ival))
 	return nil
 }
 
@@ -112,11 +107,7 @@ func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen.FloatAtomContext) interfac
 	fval, _ := strconv.ParseFloat(valStr, 64)
 	// 浮点数常量地址
 	symbol := defineFloatConst(fval, s.GlobalScope)
-	s.WriteInstr(&vm.StackInstr{
-		OpCode:   vm.InstrFConst,
-		Operands: []int{symbol.GetAddress()}, // 浮点数常量地址
-
-	})
+	s.Write(consts.InstrFConst, symbol.GetAddress())
 	return nil
 }
 
@@ -124,10 +115,7 @@ func (s *StackCompileVisitor) VisitStringAtom(ctx *gen.StringAtomContext) interf
 	valStr := ctx.STRING().GetText()
 	// 字符串常量地址
 	symbol := defineStringConst(valStr[1:len(valStr)-1], s.GlobalScope)
-	s.WriteInstr(&vm.StackInstr{
-		OpCode:   vm.InstrSConst,
-		Operands: []int{symbol.GetAddress()}, // 字符串常量地址
-	})
+	s.Write(consts.InstrSConst, symbol.GetAddress())
 	return nil
 }
 
@@ -139,14 +127,14 @@ func (s *StackCompileVisitor) VisitInstance(ctx *gen.InstanceContext) interface{
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined struct: %s", structName))
 		return nil
 	}
-	s.Write(vm.InstrStruct, structSymbol.GetAddress())
+	s.Write(consts.InstrStruct, structSymbol.GetAddress())
 	// 初始化结构体字段
 	allIDs := ctx.AllID()[1:]
 	allExprs := ctx.AllExpr()
 	for i := 0; i < len(allIDs); i++ {
 		fieldName := allIDs[i].GetText()
 		allExprs[i].Accept(s)
-		s.Write(vm.InstrFStore, s.defineStringConst(fieldName))
+		s.Write(consts.InstrFStore, s.defineStringConst(fieldName))
 	}
 	return nil
 }
@@ -160,9 +148,9 @@ func (s *StackCompileVisitor) VisitAddOp(ctx *gen.AddOpContext) interface{} {
 	// addOp	: ADD | SUB ;
 	op := ctx.GetText()
 	if op == "+" {
-		s.Write(vm.InstrAdd)
+		s.Write(consts.InstrAdd)
 	} else if op == "-" {
-		s.Write(vm.InstrSub)
+		s.Write(consts.InstrSub)
 	}
 	return nil
 }
@@ -172,17 +160,17 @@ func (s *StackCompileVisitor) VisitCompOp(ctx *gen.CompOpContext) interface{} {
 	op := ctx.GetText()
 	switch op {
 	case "==":
-		s.Write(vm.InstrEQ)
+		s.Write(consts.InstrEQ)
 	case "<":
-		s.Write(vm.InstrLT)
+		s.Write(consts.InstrLT)
 	case ">":
-		s.Write(vm.InstrGT)
+		s.Write(consts.InstrGT)
 	case ">=":
-		s.Write(vm.InstrGEQ)
+		s.Write(consts.InstrGEQ)
 	case "<=":
-		s.Write(vm.InstrLEQ)
+		s.Write(consts.InstrLEQ)
 	case "!=":
-		s.Write(vm.InstrNEQ)
+		s.Write(consts.InstrNEQ)
 	default:
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("unknown compOp %s", op))
 	}
@@ -217,11 +205,11 @@ func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	}
 	// build tuple
 	if len(exprs) > 1 {
-		s.Write(vm.InstrBuildTuple, len(exprs))
+		s.Write(consts.InstrBuildTuple, len(exprs))
 	}
 	// unpack tuple
 	if len(qids) > 1 {
-		s.Write(vm.InstrUnpack, len(qids))
+		s.Write(consts.InstrUnpack, len(qids))
 	}
 	// qids from left to right
 	//  qid (',' qid)* assignOp expr (',' expr)*
@@ -241,12 +229,12 @@ func (s *StackCompileVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interf
 	}
 	lenExprs := len(es)
 	if lenExprs > 1 {
-		s.Write(vm.InstrBuildTuple, lenExprs)
+		s.Write(consts.InstrBuildTuple, lenExprs)
 	}
 	if lenExprs == 0 {
-		s.Write(vm.InstrNil)
+		s.Write(consts.InstrNil)
 	}
-	s.Write(vm.InstrReturn)
+	s.Write(consts.InstrReturn)
 	return nil
 }
 
@@ -255,7 +243,7 @@ func (s *StackCompileVisitor) VisitPrintStmt(ctx *gen.PrintStmtContext) interfac
 	for _, expr := range exprs {
 		expr.Accept(s)
 	}
-	s.Write(vm.InstrPrint, len(exprs))
+	s.Write(consts.InstrPrint, len(exprs))
 	return nil
 }
 
@@ -271,11 +259,11 @@ func (s *StackCompileVisitor) VisitIfStmt(ctx *gen.IfStmtContext) interface{} {
 	}
 	ctx.Expr().Accept(s)
 	// 生成分支跳转IR
-	brfInstr := vm.NewStackInstr(vm.InstrBRF, placeholder)
+	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
 	s.WriteInstr(brfInstr)
 	blocks[0].Accept(s)
 	if len(blocks) == 2 {
-		var brInstr = vm.NewStackInstr(vm.InstrBR, placeholder)
+		var brInstr = consts.NewStackInstr(consts.InstrBR, placeholder)
 		s.WriteInstr(brInstr)
 		s.FillTarget(brfInstr)
 		blocks[1].Accept(s)
@@ -298,21 +286,21 @@ func (s *StackCompileVisitor) VisitForCStyleStmt(ctx *gen.ForCStyleStmtContext) 
 	if expr != nil {
 		expr.Accept(s)
 	}
-	brfInstr := vm.NewStackInstr(vm.InstrBRF, placeholder)
+	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
 	s.WriteInstr(brfInstr)
 	ctx.Block().Accept(s)
 	updateTarget := len(s.CurFunc.Code)
 	if forUpdate != nil {
 		forUpdate.Accept(s)
 	}
-	s.Write(vm.InstrBR, brTarget)
+	s.Write(consts.InstrBR, brTarget)
 	s.FillTarget(brfInstr)
 	loop := s.PopLoopStack()
 	for _, br := range loop.Breaks {
 		s.FillTarget(br)
 	}
 	for _, br := range loop.Continues {
-		br.Operands[0] = updateTarget
+		br.Operands = updateTarget
 	}
 	return nil
 }
@@ -321,28 +309,28 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 	// 'for' iterVar '=' 'range' expr block
 	s.PushLoopStack(&ForLoop{Token: ctx.GetStart()})
 	ctx.Expr().Accept(s)
-	brNilInstr := vm.NewStackInstr(vm.InstrBRNil, placeholder)
-	s.WriteInstr(brNilInstr) // for safe range
-	s.Write(vm.InstrIter)    // push iter state
+	brNilInstr := consts.NewStackInstr(consts.InstrBRNil, placeholder)
+	s.WriteInstr(brNilInstr)  // for safe range
+	s.Write(consts.InstrIter) // push iter state
 	rangeNextAddr := len(s.CurFunc.Code)
-	s.Write(vm.InstrIterDone)
-	brtInstr := vm.NewStackInstr(vm.InstrBRT, placeholder)
+	s.Write(consts.InstrIterDone)
+	brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
 	s.WriteInstr(brtInstr)
 	scope := s.Scopes[ctx]
 	switch iterVar := ctx.IterVar().(type) {
 	case *gen.SingleIterContext:
-		s.Write(vm.InstrIterNext, 1)
+		s.Write(consts.InstrIterNext, 1)
 		iter := scope.Resolve(iterVar.ID().GetText()).(*VariableSymbol)
 		s.EmitStore(iter)
 	case *gen.DoubleIterContext:
-		s.Write(vm.InstrIterNext, 2) //push k,v on stack
+		s.Write(consts.InstrIterNext, 2) //push k,v on stack
 		second := scope.Resolve(iterVar.ID(0).GetText()).(*VariableSymbol)
 		first := scope.Resolve(iterVar.ID(1).GetText()).(*VariableSymbol)
 		s.EmitStore(second)
 		s.EmitStore(first)
 	}
 	ctx.Block().Accept(s)
-	s.Write(vm.InstrBR, rangeNextAddr)
+	s.Write(consts.InstrBR, rangeNextAddr)
 	s.FillTarget(brNilInstr, brtInstr)
 
 	loop := s.PopLoopStack()
@@ -350,9 +338,9 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 		s.FillTarget(br)
 	}
 	for _, br := range loop.Continues {
-		br.Operands[0] = rangeNextAddr
+		br.Operands = rangeNextAddr
 	}
-	s.Write(vm.InstrPop, 1) // pop iter state
+	s.Write(consts.InstrPop, 1) // pop iter state
 	return nil
 }
 
@@ -363,17 +351,17 @@ func (s *StackCompileVisitor) VisitForCondStmt(ctx *gen.ForCondStmtContext) inte
 	if ctx.Expr() != nil {
 		ctx.Expr().Accept(s)
 	}
-	brfInstr := vm.NewStackInstr(vm.InstrBRF, placeholder)
+	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
 	s.WriteInstr(brfInstr)
 	ctx.Block().Accept(s)
-	s.Write(vm.InstrBR, brTarget)
+	s.Write(consts.InstrBR, brTarget)
 	s.FillTarget(brfInstr)
 	loop := s.PopLoopStack()
 	for _, br := range loop.Breaks {
 		s.FillTarget(br)
 	}
 	for _, br := range loop.Continues {
-		br.Operands[0] = brTarget
+		br.Operands = brTarget
 	}
 	return nil
 }
@@ -381,12 +369,12 @@ func (s *StackCompileVisitor) VisitForCondStmt(ctx *gen.ForCondStmtContext) inte
 func (s *StackCompileVisitor) VisitCallStmt(ctx *gen.CallStmtContext) interface{} {
 	ctx.Call().Accept(s)
 	// discard return values
-	s.Write(vm.InstrPop, 1)
+	s.Write(consts.InstrPop, 1)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitBreakStmt(ctx *gen.BreakStmtContext) interface{} {
-	breakInstr := vm.NewStackInstr(vm.InstrBR, placeholder)
+	breakInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
 	s.WriteInstr(breakInstr)
 	if s.GetCurrentLoop() == nil {
 		s.Log.ErrorToken(ctx.GetStart(), "break statement not in loop")
@@ -397,7 +385,7 @@ func (s *StackCompileVisitor) VisitBreakStmt(ctx *gen.BreakStmtContext) interfac
 }
 
 func (s *StackCompileVisitor) VisitContinueStmt(ctx *gen.ContinueStmtContext) interface{} {
-	continueInstr := vm.NewStackInstr(vm.InstrBR, placeholder)
+	continueInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
 	s.WriteInstr(continueInstr)
 	if s.GetCurrentLoop() == nil {
 		s.Log.ErrorToken(ctx.GetStart(), "continue statement not in loop")
@@ -412,12 +400,12 @@ func (s *StackCompileVisitor) VisitIncrDecr(ctx *gen.IncrDecrContext) interface{
 	qid := ctx.Qid()
 	incr := ctx.INCR() != nil
 	if incr {
-		s.Write(vm.InstrIConst, 1)
+		s.Write(consts.InstrIConst, 1)
 	} else {
-		s.Write(vm.InstrIConst, -1)
+		s.Write(consts.InstrIConst, -1)
 	}
 	s.loadQid(qid)
-	s.Write(vm.InstrAdd)
+	s.Write(consts.InstrAdd)
 	s.storeQid(qid)
 	return nil
 }
@@ -437,15 +425,15 @@ func (s *StackCompileVisitor) VisitSelfAssignOp(ctx *gen.SelfAssignOpContext) in
 	// '+=' | '-=' | '*=' | '/=' | '%='
 	switch ctx.GetText() {
 	case "+=":
-		s.Write(vm.InstrAdd)
+		s.Write(consts.InstrAdd)
 	case "-=":
-		s.Write(vm.InstrSub)
+		s.Write(consts.InstrSub)
 	case "*=":
-		s.Write(vm.InstrMul)
+		s.Write(consts.InstrMul)
 	case "/=":
-		s.Write(vm.InstrDiv)
+		s.Write(consts.InstrDiv)
 	case "%=":
-		s.Write(vm.InstrMod)
+		s.Write(consts.InstrMod)
 	default:
 		s.Log.ErrorToken(ctx.GetStart(), "unknown selfAssignOp: %s", ctx.GetText())
 	}
@@ -458,14 +446,14 @@ func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) 
 		// must be constNode
 		return s.VisitChildren(ctx)
 	}
-	var brts []*vm.StackInstr
+	var brts []*consts.StackInstr
 	for i, andExpr := range allLogicalAndExpr {
 		andExpr.Accept(s)
 		if i != 0 {
-			s.Write(vm.InstrOR)
+			s.Write(consts.InstrOR)
 		}
 		if i < len(allLogicalAndExpr)-1 {
-			brt := vm.NewStackInstr(vm.InstrBRT, placeholder)
+			brt := consts.NewStackInstr(consts.InstrBRT, placeholder)
 			s.WriteInstr(brt)
 			brts = append(brts, brt)
 		}
@@ -476,14 +464,14 @@ func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) 
 
 func (s *StackCompileVisitor) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) interface{} {
 	allComparisonExpr := ctx.AllComparisonExpr()
-	brfs := make([]*vm.StackInstr, 0, len(allComparisonExpr)-1)
+	brfs := make([]*consts.StackInstr, 0, len(allComparisonExpr)-1)
 	for i, cmpExpr := range allComparisonExpr {
 		cmpExpr.Accept(s)
 		if i != 0 {
-			s.Write(vm.InstrAND)
+			s.Write(consts.InstrAND)
 		}
 		if i < len(allComparisonExpr)-1 {
-			brf := vm.NewStackInstr(vm.InstrBRF, placeholder)
+			brf := consts.NewStackInstr(consts.InstrBRF, placeholder)
 			s.WriteInstr(brf)
 			brfs = append(brfs, brf)
 		}
@@ -555,7 +543,7 @@ func (s *StackCompileVisitor) VisitPowExpr(ctx *gen.PowExprContext) interface{} 
 	for i := range ctx.AllAtom() {
 		ctx.Atom(i).Accept(s)
 		if i != 0 {
-			s.Write(vm.InstrPow)
+			s.Write(consts.InstrPow)
 		}
 	}
 	return nil
@@ -563,23 +551,23 @@ func (s *StackCompileVisitor) VisitPowExpr(ctx *gen.PowExprContext) interface{} 
 
 func (s *StackCompileVisitor) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
 	ctx.Atom().Accept(s)
-	s.Write(vm.InstrNeg)
+	s.Write(consts.InstrNeg)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitTrueAtom(ctx *gen.TrueAtomContext) interface{} {
-	s.Write(vm.InstrTrue)
+	s.Write(consts.InstrTrue)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitFalseAtom(ctx *gen.FalseAtomContext) interface{} {
-	s.Write(vm.InstrFalse)
+	s.Write(consts.InstrFalse)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitNotAtom(ctx *gen.NotAtomContext) interface{} {
 	ctx.Expr().Accept(s)
-	s.Write(vm.InstrNot)
+	s.Write(consts.InstrNot)
 	return nil
 }
 
@@ -598,7 +586,7 @@ func (s *StackCompileVisitor) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) in
 	for i := range exprs {
 		ctx.Expr(i).Accept(s)
 	}
-	s.Write(vm.InstrArray, len(exprs))
+	s.Write(consts.InstrArray, len(exprs))
 	return nil
 }
 
@@ -608,7 +596,7 @@ func (s *StackCompileVisitor) VisitIndexAccess(ctx *gen.IndexAccessContext) inte
 	expr := ctx.Expr()
 	if expr != nil {
 		expr.Accept(s)
-		s.Write(vm.InstrIndexLoad)
+		s.Write(consts.InstrIndexLoad)
 	} else {
 		ctx.SliceExpr().Accept(s)
 	}
@@ -637,15 +625,15 @@ func (s *StackCompileVisitor) VisitSliceExpr(ctx *gen.SliceExprContext) interfac
 	if l != nil {
 		l.Accept(s)
 	} else {
-		s.Write(vm.InstrIConst, 0)
+		s.Write(consts.InstrIConst, 0)
 	}
 	if r != nil {
 		r.Accept(s)
 	} else {
-		s.Write(vm.InstrIConst, 0)
+		s.Write(consts.InstrIConst, 0)
 	}
 	// qidValue | l | r | InstrSlice
-	s.Write(vm.InstrSliceSplit)
+	s.Write(consts.InstrSliceSplit)
 	return nil
 }
 
@@ -659,9 +647,9 @@ func (s *StackCompileVisitor) VisitDictLiteral(ctx *gen.DictLiteralContext) inte
 	for i := range entries {
 		entries[i].Accept(s)
 		// pack tuple2 (key, value)
-		s.Write(vm.InstrBuildTuple, 2)
+		s.Write(consts.InstrBuildTuple, 2)
 	}
-	s.Write(vm.InstrDict, len(entries))
+	s.Write(consts.InstrDict, len(entries))
 	return nil
 }
 
@@ -670,23 +658,23 @@ func (s *StackCompileVisitor) VisitConstKeyEntry(ctx *gen.ConstKeyEntryContext) 
 	key := ctx.GetChildren()[0].(antlr.TerminalNode)
 	switch key.GetSymbol().GetTokenType() {
 	case gen.GsLexerSTRING:
-		s.Write(vm.InstrSConst, s.defineStringConst(ctx.STRING().GetText()[1:len(ctx.STRING().GetText())-1]))
+		s.Write(consts.InstrSConst, s.defineStringConst(ctx.STRING().GetText()[1:len(ctx.STRING().GetText())-1]))
 	case gen.GsLexerINT:
 		val, err := strconv.ParseInt(key.GetText(), 0, 64)
 		if err != nil {
 			panic(fmt.Sprintf("can't parse %s to int", key.GetText()))
 		}
-		s.Write(vm.InstrIConst, int(val))
+		s.Write(consts.InstrIConst, int(val))
 	case gen.GsLexerFLOAT:
 		val, err := strconv.ParseFloat(key.GetText(), 64)
 		if err != nil {
 			panic(fmt.Sprintf("can't parse %s to float", key.GetText()))
 		}
-		s.Write(vm.InstrFConst, defineFloatConst(val, s.GlobalScope).GetAddress())
+		s.Write(consts.InstrFConst, defineFloatConst(val, s.GlobalScope).GetAddress())
 	case gen.GsParserTRUE:
-		s.Write(vm.InstrTrue)
+		s.Write(consts.InstrTrue)
 	case gen.GsParserFALSE:
-		s.Write(vm.InstrFalse)
+		s.Write(consts.InstrFalse)
 	default:
 		panic(fmt.Sprintf("unknown tokenType:%s", key.GetText()))
 	}
@@ -706,11 +694,11 @@ func (s *StackCompileVisitor) VisitBitOp(ctx *gen.BitOpContext) interface{} {
 	// bitOp : BITAND | BITOR | XOR ;
 	switch ctx.GetText() {
 	case "&":
-		s.Write(vm.InstrBitAND)
+		s.Write(consts.InstrBitAND)
 	case "|":
-		s.Write(vm.InstrBitOR)
+		s.Write(consts.InstrBitOR)
 	case "^":
-		s.Write(vm.InstrXOR)
+		s.Write(consts.InstrXOR)
 	default:
 		panic("unknown bit op")
 	}
@@ -721,11 +709,11 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 	// mulOp : MUL | DIV | MOD ;
 	switch ctx.GetText() {
 	case "*":
-		s.Write(vm.InstrMul)
+		s.Write(consts.InstrMul)
 	case "/":
-		s.Write(vm.InstrDiv)
+		s.Write(consts.InstrDiv)
 	case "%":
-		s.Write(vm.InstrMod)
+		s.Write(consts.InstrMod)
 	default:
 		panic("unknown mul op")
 	}
@@ -734,6 +722,6 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 
 func (s *StackCompileVisitor) VisitPowOp(ctx *gen.PowOpContext) interface{} {
 	// powOp : POW ;
-	s.Write(vm.InstrPow)
+	s.Write(consts.InstrPow)
 	return nil
 }

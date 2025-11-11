@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/ycl2018/gs/consts"
 )
 
 type Option func(interpreter *Interpreter)
@@ -21,12 +23,12 @@ func WithEnableDump() Option {
 }
 
 type Interpreter struct {
-	disAssembler *DisAssembler
-	IP           int32  // 指令地址
-	Code         []byte // 代码
-	ConstPool    []Const
-	MainFuncAddr int32 // Main函数入口地址
-
+	IP           int32               // 指令地址
+	Code         []consts.StackInstr // 代码
+	ConstPool    []consts.Const
+	MainFunc     consts.FunctionConst   // Main函数入口地址
+	AllFuncs     []consts.FunctionConst // 所有函数入口地址
+	BuildEnvType reflect.Type
 	// 函数调用栈
 	Calls []*StackFrame
 	FP    int32 // 栈桢计数器
@@ -36,7 +38,7 @@ type Interpreter struct {
 
 	// 虚拟全局内存
 	Globals  []any
-	DataSize int32
+	DataSize int
 
 	// ops
 	enableTrace bool
@@ -46,27 +48,43 @@ type Interpreter struct {
 const DefaultOperandStackSize = 100
 
 type StackFrame struct {
-	ReturnAddr int32 // 返回值
-	FuncSymbol *FunctionSymbol
+	ReturnAddr int32               // 返回值地址
+	ReturnCode []consts.StackInstr // 之前函数的指令，用于返回时恢复
+	FuncConsts *consts.FunctionConst
 	Locals     []any // 参数和本地变量
 }
 
-func NewStackFrame(f *FunctionSymbol, returnAddr int32) *StackFrame {
+func NewStackFrame(f *consts.FunctionConst, returnAddr int32) *StackFrame {
 	return &StackFrame{
 		ReturnAddr: returnAddr,
-		FuncSymbol: f,
-		Locals:     make([]any, f.Locals+uint16(f.Args)),
+		ReturnCode: []consts.StackInstr{},
+		FuncConsts: f,
+		Locals:     make([]any, f.LocalCount+f.ParamCount),
 	}
 }
 
-func NewInterpreter(ops ...Option) *Interpreter {
+type Code struct {
+	Globals      int
+	ConstPool    []consts.Const
+	MainFunc     consts.FunctionConst
+	AllFuncs     []consts.FunctionConst
+	BuildEnvType reflect.Type
+}
+
+func NewInterpreter(code Code, ops ...Option) *Interpreter {
 	// 编译
 	i := &Interpreter{
 		IP:           -1,
 		FP:           -1,
 		Operands:     make([]any, DefaultOperandStackSize),
 		SP:           -1,
-		disAssembler: NewDisAssembler(Instructions),
+		Globals:      make([]any, code.Globals),
+		DataSize:     code.Globals,
+		Code:         code.MainFunc.Code,
+		ConstPool:    code.ConstPool,
+		MainFunc:     code.MainFunc,
+		AllFuncs:     code.AllFuncs,
+		BuildEnvType: code.BuildEnvType,
 	}
 	for _, op := range ops {
 		op(i)
@@ -74,33 +92,14 @@ func NewInterpreter(ops ...Option) *Interpreter {
 	return i
 }
 
-func (i *Interpreter) Run(code []byte) error {
-	err := i.disAssembler.DisAssemble(code)
-	if err != nil {
-		return err
-	}
-	if i.dump {
-		dump, err := i.disAssembler.Dump()
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(dump))
-	}
-	i.Code = code
-	i.MainFuncAddr = i.disAssembler.MainFuncIp
-	i.DataSize = int32(i.disAssembler.GlobalNums)
-	i.ConstPool = i.disAssembler.ConstPool
-	i.Globals = make([]any, i.disAssembler.GlobalNums)
-	sf := NewStackFrame(&FunctionSymbol{
-		Name:   "main",
-		Args:   0,
-		Locals: 0,
-		Addr:   i.MainFuncAddr,
+func (i *Interpreter) Run(env any) error {
+	sf := NewStackFrame(&consts.FunctionConst{
+		Name: "main",
+		Code: i.MainFunc.Code,
 	}, i.IP)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
-
-	i.IP = i.MainFuncAddr
+	i.IP = 0
 	if i.enableTrace {
 		fmt.Printf("\ntrace:\n")
 	}
@@ -133,13 +132,13 @@ func (i *Interpreter) NextOperand() int32 {
 func (i *Interpreter) cpu() {
 	// 取指令，并执行
 	instr := i.Code[i.IP]
-	for i.IP < int32(len(i.Code)) && instr != InstrHalt {
+	for i.IP < int32(len(i.Code)) && instr.OpCode != consts.InstrHalt {
 		if i.enableTrace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand
-		switch instr {
-		case InstrAdd:
+		switch instr.OpCode {
+		case consts.InstrAdd:
 			// support auto type convert
 			// int32 + float32 = int32
 			// int32 + string = string
@@ -153,7 +152,7 @@ func (i *Interpreter) cpu() {
 			} else {
 				i.PushOpStack(toInt32(op2) + toInt32(op1))
 			}
-		case InstrSub, InstrMul, InstrDiv, InstrLT, InstrEQ, InstrLEQ, InstrNEQ, InstrGEQ, InstrGT:
+		case consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT:
 			// 弹出两个操作数，相加，push
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
 			t2, t1 := reflect.TypeOf(op2), reflect.TypeOf(op1)
@@ -161,56 +160,56 @@ func (i *Interpreter) cpu() {
 				op1, op2 = toFloat32(op1), toFloat32(op2)
 				t1, t2 = reflect.TypeOf(op1), reflect.TypeOf(op2)
 			}
-			switch instr {
-			case InstrSub:
+			switch instr.OpCode {
+			case consts.InstrSub:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) - toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) - toFloat32(op2))
 				}
-			case InstrMul:
+			case consts.InstrMul:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) * toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) * toFloat32(op2))
 				}
-			case InstrDiv:
+			case consts.InstrDiv:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) / toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) / toFloat32(op2))
 				}
-			case InstrLT:
+			case consts.InstrLT:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) < toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) < toFloat32(op2))
 				}
-			case InstrEQ:
+			case consts.InstrEQ:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) == toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) == toFloat32(op2))
 				}
-			case InstrLEQ:
+			case consts.InstrLEQ:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) <= toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) <= toFloat32(op2))
 				}
-			case InstrNEQ:
+			case consts.InstrNEQ:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) != toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) != toFloat32(op2))
 				}
-			case InstrGEQ:
+			case consts.InstrGEQ:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) >= toInt32(op2))
 				} else {
 					i.PushOpStack(toFloat32(op1) >= toFloat32(op2))
 				}
-			case InstrGT:
+			case consts.InstrGT:
 				if t1.Kind() == reflect.Int32 {
 					i.PushOpStack(toInt32(op1) > toInt32(op2))
 				} else {
@@ -220,10 +219,10 @@ func (i *Interpreter) cpu() {
 				panic("unhandled default case")
 			}
 
-		case InstrCall:
+		case consts.InstrCall:
 			// 函数调用
 			funcIndex := i.NextOperand()
-			fs := i.ConstPool[funcIndex].Value.(FunctionSymbol)
+			fs := i.ConstPool[funcIndex].Value.(consts.FunctionSymbol)
 			funcStack := NewStackFrame(&fs, i.IP)
 			i.FP++
 			i.Calls = append(i.Calls, funcStack)
@@ -233,61 +232,61 @@ func (i *Interpreter) cpu() {
 				funcStack.Locals[a] = i.PopOpStack()
 			}
 			i.IP = fs.Addr
-		case InstrReturn:
+		case consts.InstrReturn:
 			curFs := i.Calls[i.FP]
 			i.Calls = i.Calls[:i.FP]
 			i.FP--
 			i.IP = curFs.ReturnAddr
-		case InstrBR:
+		case consts.InstrBR:
 			toAddr := i.NextOperand()
 			i.IP = toAddr
-		case InstrBRT:
+		case consts.InstrBRT:
 			toAddr := i.NextOperand()
 			if i.PopOpStack().(bool) {
 				i.IP = toAddr
 			}
-		case InstrBRF:
+		case consts.InstrBRF:
 			toAddr := i.NextOperand()
 			if !i.PopOpStack().(bool) {
 				i.IP = toAddr
 			}
-		case InstrCConst, InstrIConst:
+		case consts.InstrCConst, consts.InstrIConst:
 			val := i.NextOperand()
 			i.PushOpStack(val)
-		case InstrFConst:
+		case consts.InstrFConst:
 			poolIndex := i.NextOperand()
 			fConst := i.ConstPool[poolIndex].Value.(float32)
 			i.PushOpStack(fConst)
-		case InstrSConst:
+		case consts.InstrSConst:
 			poolIndex := i.NextOperand()
 			fConst := i.ConstPool[poolIndex].Value.(string)
 			i.PushOpStack(fConst)
-		case InstrLoad:
+		case consts.InstrLoad:
 			argIndex := i.NextOperand()
 			curStack := i.Calls[i.FP]
 			i.PushOpStack(curStack.Locals[argIndex])
-		case InstrGLoad:
+		case consts.InstrGLoad:
 			argIndex := i.NextOperand()
 			gVal := i.Globals[argIndex]
 			i.PushOpStack(gVal)
-		case InstrFLoad:
+		case consts.InstrFLoad:
 			// 字段加载,字段地址在操作数栈中，字段index为下个操作数
 			s := i.PopOpStack().(*StructSpace)
 			index := i.NextOperand()
 			fieldName := i.ConstPool[index].Value.(string)
 			i.PushOpStack(s.Field(fieldName))
-		case InstrStore:
+		case consts.InstrStore:
 			addr := i.NextOperand()
 			i.Calls[i.FP].Locals[addr] = i.PopOpStack()
-		case InstrGStore:
+		case consts.InstrGStore:
 			addr := i.NextOperand()
 			i.Globals[addr] = i.PopOpStack()
-		case InstrFStore:
+		case consts.InstrFStore:
 			s := i.PopOpStack().(*StructSpace)
 			index := i.NextOperand()
 			fieldName := i.ConstPool[index].Value.(string)
 			s.Set(fieldName, i.PopOpStack())
-		case InstrPrint:
+		case consts.InstrPrint:
 			val := i.PopOpStack()
 			switch v := val.(type) {
 			case *StructSpace:
@@ -295,16 +294,16 @@ func (i *Interpreter) cpu() {
 			default:
 				fmt.Println(v)
 			}
-		case InstrStruct:
+		case consts.InstrStruct:
 			// push struct
-			def := i.ConstPool[int(i.NextOperand())].Value.(ConstStructDef)
+			def := i.ConstPool[int(i.NextOperand())].Value.(consts.ConstStructDef)
 			s := NewStructSpace(&def)
 			i.PushOpStack(s)
-		case InstrNil:
+		case consts.InstrNil:
 			i.PushOpStack(nil)
-		case InstrPop:
+		case consts.InstrPop:
 			i.PopOpStack()
-		case InstrHalt:
+		case consts.InstrHalt:
 			return
 		default:
 			panic(fmt.Sprintf("unknown opcode:%d", instr))
@@ -350,27 +349,27 @@ func toFloat32(x any) float32 {
 
 func (i *Interpreter) trace() {
 	// asm code
-	_, str, err := i.disAssembler.DisAssembleInstruction(int(i.IP))
-	if err != nil {
-		fmt.Printf("disAssemble instruction err:%v on ip:%d", err, i.IP)
-		return
-	}
-	fmt.Println(str)
-	// operand stack
-	fmt.Printf("\tstack=[")
-	for j := int32(0); j <= i.SP; j++ {
-		fmt.Printf(" %v", i.Operands[j])
-	}
-	fmt.Print(" ]")
-	// call stack
-	if i.FP >= 0 {
-		fmt.Printf(", calls=[")
-		for j := int32(0); j <= i.FP; j++ {
-			fmt.Printf(" " + i.Calls[j].FuncSymbol.Name)
-		}
-		fmt.Print(" ]")
-	}
-	fmt.Println()
+	//_, str, err := i.disAssembler.DisAssembleInstruction(int(i.IP))
+	//if err != nil {
+	//	fmt.Printf("disAssemble instruction err:%v on ip:%d", err, i.IP)
+	//	return
+	//}
+	//fmt.Println(str)
+	//// operand stack
+	//fmt.Printf("\tstack=[")
+	//for j := int32(0); j <= i.SP; j++ {
+	//	fmt.Printf(" %v", i.Operands[j])
+	//}
+	//fmt.Print(" ]")
+	//// call stack
+	//if i.FP >= 0 {
+	//	fmt.Printf(", calls=[")
+	//	for j := int32(0); j <= i.FP; j++ {
+	//		fmt.Printf(" " + i.Calls[j].FuncSymbol.Name)
+	//	}
+	//	fmt.Print(" ]")
+	//}
+	//fmt.Println()
 }
 
 func (i *Interpreter) Dump() {
@@ -384,10 +383,10 @@ func (i *Interpreter) Dump() {
 }
 
 func (i *Interpreter) dumpConstPool() {
-	fmt.Println("Constant Pool:")
-	dumped, _ := i.disAssembler.DumpConstPool()
-	fmt.Print(dumped)
-	fmt.Println()
+	//fmt.Println("Constant Pool:")
+	//dumped, _ := i.disAssembler.DumpConstPool()
+	//fmt.Print(dumped)
+	//fmt.Println()
 }
 
 func (i *Interpreter) dumpCodeMemory() {
@@ -419,7 +418,7 @@ func (i *Interpreter) dumpDataMemory() {
 type StructSpace struct {
 	Name         string
 	Fields       map[string]any
-	Define       *ConstStructDef
+	Define       *consts.ConstStructDef
 	AllowDynamic bool
 }
 
@@ -454,7 +453,7 @@ func (s *StructSpace) String() string {
 	return sb.String()
 }
 
-func NewStructSpace(structDef *ConstStructDef) *StructSpace {
+func NewStructSpace(structDef *consts.ConstStructDef) *StructSpace {
 	s := &StructSpace{Fields: make(map[string]any, len(structDef.MemberNames))}
 	s.Define = structDef
 	s.Name = structDef.Name
