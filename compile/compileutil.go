@@ -6,7 +6,6 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
-	"github.com/ycl2018/gs/vm"
 )
 
 const placeholder = -1
@@ -30,32 +29,38 @@ func (s *StackCompileVisitor) GetCurrentLoop() *ForLoop {
 
 func (s *StackCompileVisitor) EmitStore(l *VariableSymbol) {
 	if l.Scope().GetName() == GlobalScopeName {
-		s.Write(vm.InstrGStore, l.Address)
+		s.Write(consts.InstrGStore, l.Address)
 	} else {
-		s.Write(vm.InstrStore, l.Address)
+		s.Write(consts.InstrStore, l.Address)
 	}
 }
 
 func (s *StackCompileVisitor) EmitLoad(v *VariableSymbol) {
 	if v.Scope().GetName() == GlobalScopeName {
-		s.Write(vm.InstrGLoad, v.Address)
+		s.Write(consts.InstrGLoad, v.Address)
 	} else {
-		s.Write(vm.InstrLoad, v.Address)
+		s.Write(consts.InstrLoad, v.Address)
 	}
 }
 
 func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 	switch v.Kind {
-	case consts.ConstKindInt:
-		s.Write(vm.InstrIConst, v.Value.(int))
-	case consts.ConstKindFloat:
-		s.Write(vm.InstrFConst, defineFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
-	case consts.ConstKindList:
-		s.Write(vm.InstrSliceConst, defineSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
-	case consts.ConstKindMap:
-		s.Write(vm.InstrMapConst, defineMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
-	case consts.ConstKindString:
-		s.Write(vm.InstrSConst, s.defineStringConst(v.Value.(string)))
+	case consts.ConstNodeKindInt:
+		s.Write(consts.InstrIConst, v.Value.(int))
+	case consts.ConstNodeKindFloat:
+		s.Write(consts.InstrFConst, defineFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
+	case consts.ConstNodeKindList:
+		s.Write(consts.InstrSliceConst, defineSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
+	case consts.ConstNodeKindMap:
+		s.Write(consts.InstrMapConst, defineMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
+	case consts.ConstNodeKindString:
+		s.Write(consts.InstrSConst, s.defineStringConst(v.Value.(string)))
+	case consts.ConstNodeKindBool:
+		if v.Value.(bool) {
+			s.Write(consts.InstrTrue)
+		} else {
+			s.Write(consts.InstrFalse)
+		}
 	default:
 		panic(fmt.Sprintf("unknown constant type:%d", v.Kind))
 	}
@@ -66,13 +71,17 @@ func (s *StackCompileVisitor) defineStringConst(val string) int {
 	return defineStringConst(val, s.GlobalScope).GetAddress()
 }
 
-func (s *StackCompileVisitor) Write(code int, operands ...int) {
-	s.CurFunc.Code = append(s.CurFunc.Code, vm.NewStackInstr(code, operands...))
+func (s *StackCompileVisitor) Write(code consts.Instr, operands ...int) {
+	operand := -11111
+	if len(operands) > 0 {
+		operand = operands[0]
+	}
+	s.CurFunc.Code = append(s.CurFunc.Code, *consts.NewStackInstr(code, operand))
 }
 
-func (s *StackCompileVisitor) FillTarget(instrs ...*vm.StackInstr) {
+func (s *StackCompileVisitor) FillTarget(instrs ...*consts.StackInstr) {
 	for _, instr := range instrs {
-		instr.Operands[0] = len(s.CurFunc.Code)
+		instr.Operands = len(s.CurFunc.Code)
 	}
 }
 
@@ -80,6 +89,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	var ids []string
 	var query []int // tokenType
 	var qExprs []*gen.ExprContext
+	var j int // index of qExprs
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
 			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
@@ -110,8 +120,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 		}
 	}
 	if ids[0] == "$" {
-		s.Write(vm.InstrLoadEnv)
-		s.Write(vm.InstrRV)
+		s.Write(consts.InstrLoadEnv)
 	} else {
 		primarySymbol := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
 		if len(ids) == 1 {
@@ -127,12 +136,13 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 			// fieldLoad
 			fieldName := ids[i+1]
 			operand := s.defineStringConst(fieldName)
-			s.Write(vm.InstrFLoad, operand)
+			s.Write(consts.InstrFLoad, operand)
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad
-			expr := qExprs[i]
+			expr := qExprs[j]
+			j++
 			expr.Accept(s)
-			s.Write(vm.InstrIndexLoad)
+			s.Write(consts.InstrIndexLoad)
 		}
 	}
 	// lastQuery
@@ -140,12 +150,12 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	case gen.GsLexerDOT:
 		fieldName := ids[len(ids)-1]
 		operand := s.defineStringConst(fieldName)
-		s.Write(vm.InstrFStore, operand)
+		s.Write(consts.InstrFStore, operand)
 	case gen.GsLexerLBRACK:
 		// arrayStore/mapStore
-		expr := qExprs[len(qExprs)-1]
+		expr := qExprs[j]
 		expr.Accept(s)
-		s.Write(vm.InstrIndexStore)
+		s.Write(consts.InstrIndexStore)
 	}
 }
 
@@ -153,6 +163,7 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 	var ids []string
 	var query []int // tokenType
 	var qExprs []*gen.ExprContext
+	var j int // index of qExprs
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
 			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
@@ -180,7 +191,10 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		}
 	}
 	if ids[0] == "$" {
-		s.Write(vm.InstrLoadEnv)
+		if len(query) == 0 {
+			s.Write(consts.InstrLoadEnv)
+			return
+		}
 	} else {
 		primarySymbol, ok := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
 		if !ok {
@@ -189,12 +203,12 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		}
 		s.EmitLoad(primarySymbol)
 	}
-	var brNils []*vm.StackInstr
+	var brNils []*consts.StackInstr
 	for i := 0; i < len(query); i++ {
 		switch query[i] {
 		case gen.GsLexerSAFE_DOT:
 			// if true, then fieldLoad
-			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 			brNils = append(brNils, brNil)
 			s.WriteInstr(brNil)
 			fallthrough
@@ -202,17 +216,18 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			// fieldLoad
 			fieldName := ids[i+1]
 			operand := s.defineStringConst(fieldName)
-			s.Write(vm.InstrFLoad, operand)
+			s.Write(consts.InstrFLoad, operand)
 		case gen.GsLexerSAFE_LBRACK:
-			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 			brNils = append(brNils, brNil)
 			s.WriteInstr(brNil)
 			fallthrough
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad
-			expr := qExprs[i]
+			expr := qExprs[j]
+			j++
 			expr.Accept(s)
-			s.Write(vm.InstrIndexLoad)
+			s.Write(consts.InstrIndexLoad)
 		}
 	}
 	s.FillTarget(brNils...)

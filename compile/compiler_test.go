@@ -313,7 +313,28 @@ return $[1]+$[2]+$[3]
 				C map[string]string
 			}{},
 			program: `
-$.C = $.A + $.B
+$.C["A+B"] = $.A + $.B
+`,
+		},
+		{
+			name: "env_struct2.gs",
+			env: &struct {
+				A string
+				B string
+				C struct {
+					X string
+					Y string
+				}
+				D *struct {
+					X string
+					Y string
+				}
+				E map[string]string
+			}{},
+			program: `
+$.E["C+D"] = $.C.X + $.D?.Y
+$.E["A+B"] = $.A + $.B
+$.E["A+D"] = $.A + $.D?.X
 `,
 		},
 	}

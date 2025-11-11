@@ -8,7 +8,6 @@ import (
 
 	"github.com/antlr4-go/antlr/v4"
 	consts2 "github.com/ycl2018/gs/consts"
-	"github.com/ycl2018/gs/vm"
 )
 
 type Symbol interface {
@@ -51,7 +50,7 @@ type FunctionSymbol struct {
 	BaseSymbol
 	FormalArgs []Symbol
 	BodyScope  *LocalScope
-	Code       []*vm.StackInstr
+	Code       []consts2.StackInstr
 	Results    int
 	CodeAddr   int // 函数入口
 }
@@ -191,11 +190,8 @@ type ConstSymbol struct {
 	Name           string
 	Address        int // 常量在全局符号表中的地址
 	EnclosingScope Scope
-	Kind           vm.ConstKind
+	Kind           consts2.ConstKind
 	Value          any
-	// Kind==ConstStruct:structName+存储字段名常量的地址
-	// Kind==ConstFunc:存储args,locals的数量，以及函数体代码地址
-	Fields []int
 }
 
 func (c *ConstSymbol) GetName() string {
@@ -222,25 +218,24 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 	switch s := s.(type) {
 	case *ConstSymbol:
 		switch s.Kind {
-		case vm.ConstFunc:
-			return fmt.Sprintf("#%04d: func %s(args:%d, locals:%d)\n", s.Address, s.Name, s.Fields[1], s.Fields[2])
-		case vm.ConstStruct:
+		case consts2.ConstFunc:
+			val := s.Value.(*consts2.FunctionConst)
+			return fmt.Sprintf("#%04d: func %s(args:%d, locals:%d)\n", s.Address, val.Name, val.ParamCount, val.LocalCount)
+		case consts2.ConstStruct:
 			// 结构体常量
+			val := s.Value.(*consts2.StructConst)
 			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("#%04d: struct %s {\n", s.Address, s.Name))
-			for i, field := range s.Fields {
-				if i == 0 {
-					continue // skip name index
-				}
-				sb.WriteString(fmt.Sprintf("         %s;\n", consts[field].(*ConstSymbol).Value))
+			sb.WriteString(fmt.Sprintf("#%04d: struct %s {\n", s.Address, val.Name))
+			for _, field := range val.Fields {
+				sb.WriteString(fmt.Sprintf("         %s;\n", field))
 			}
 			sb.WriteString("       }\n")
 			return sb.String()
-		case vm.ConstString:
+		case consts2.ConstString:
 			return fmt.Sprintf("#%04d: string \"%s\"\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
-		case vm.ConstFloat64:
+		case consts2.ConstFloat64:
 			return fmt.Sprintf("#%04d: float32 %f\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
-		case vm.ConstMapInit:
+		case consts2.ConstMapInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: map[%s] {\n", s.Address, s.Name))
 			m := s.Value.(*consts2.MapLiteralConst)
@@ -249,7 +244,7 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 			}
 			sb.WriteString("}\n")
 			return sb.String()
-		case vm.ConstSliceInit:
+		case consts2.ConstSliceInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: slice[%s]\n", s.Address, s.Name))
 			m := s.Value.(*consts2.SliceLiteralConst)
@@ -268,9 +263,9 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 
 func defineFloatConst(fval float64, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%f", vm.ConstFloat64, fval),
+		Name:  fmt.Sprintf("%s::%f", consts2.ConstFloat64, fval),
 		Value: fval,
-		Kind:  vm.ConstFloat64,
+		Kind:  consts2.ConstFloat64,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
 	return symbol
@@ -278,9 +273,9 @@ func defineFloatConst(fval float64, scope *GlobalScope) Symbol {
 
 func defineSliceConst(sliceInit *consts2.SliceLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstSliceInit, sliceInit.Name),
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstSliceInit, sliceInit.Name),
 		Value: sliceInit,
-		Kind:  vm.ConstSliceInit,
+		Kind:  consts2.ConstSliceInit,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
 	return symbol
@@ -288,9 +283,9 @@ func defineSliceConst(sliceInit *consts2.SliceLiteralConst, scope *GlobalScope) 
 
 func defineMapConst(mapInit *consts2.MapLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstMapInit, mapInit.Name),
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstMapInit, mapInit.Name),
 		Value: mapInit,
-		Kind:  vm.ConstMapInit,
+		Kind:  consts2.ConstMapInit,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
 	return symbol
@@ -298,19 +293,48 @@ func defineMapConst(mapInit *consts2.MapLiteralConst, scope *GlobalScope) Symbol
 
 func defineStringConst(val string, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstString, val),
-		Kind:  vm.ConstString,
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstString, val),
+		Kind:  consts2.ConstString,
 		Value: val,
 	}
 	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
 	return cSymbol
 }
 
-func defineFieldIndexConst(id string, fieldIndex *reflect.StructField, scope *GlobalScope) Symbol {
+func defineFieldIndexConst(id string, fieldIndex []*reflect.StructField, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name:  fmt.Sprintf("%s::%s", vm.ConstFieldIndex, id),
-		Kind:  vm.ConstFieldIndex,
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstFieldIndex, id),
+		Kind:  consts2.ConstFieldIndex,
 		Value: fieldIndex,
+	}
+	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
+	return cSymbol
+}
+
+func defineFuncConst(name string, paramCount, localCount int, scope *GlobalScope) Symbol {
+	val := &consts2.FunctionConst{
+		Name:       name,
+		ParamCount: paramCount,
+		LocalCount: localCount,
+	}
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstFunc, name),
+		Kind:  consts2.ConstFunc,
+		Value: val,
+	}
+	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
+	return cSymbol
+}
+
+func defineStructConst(constName, name string, fields []string, scope *GlobalScope) Symbol {
+	val := &consts2.StructConst{
+		Name:   name,
+		Fields: fields,
+	}
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstStruct, constName),
+		Kind:  consts2.ConstStruct,
+		Value: val,
 	}
 	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
 	return cSymbol

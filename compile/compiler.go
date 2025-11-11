@@ -10,11 +10,6 @@ import (
 	"github.com/ycl2018/gs/gen"
 )
 
-const (
-	Version     uint16 = 1
-	MagicNumber int32  = 0x25504446 // %Gs
-)
-
 type GsCompiler struct {
 	InterpreterListener *DefaultInterpreterListener
 	compileVisitor      *StackCompileVisitor
@@ -60,7 +55,6 @@ func (p *GsCompiler) Compile(input antlr.CharStream, env any) ([]byte, error) {
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())
 	}
-	//assembler := NewAssembler(defVisitor.GlobalScope, p.compileVisitor.MainFunc, p.compileVisitor.AllFuncs, p.compileVisitor.ToBeFilled)
 	return nil, nil
 }
 

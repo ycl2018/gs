@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
-	"github.com/ycl2018/gs/vm"
 )
 
 type Env struct {
@@ -89,31 +89,46 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			qExprs = append(qExprs, e)
 		}
 	}
-	s.Write(vm.InstrLoadEnv)
+	s.Write(consts.InstrLoadEnv)
 	if len(query) == 0 {
 		return
 	}
-	s.Write(vm.InstrRV)
 	var curType = s.Env.RType
-	var brNils []*vm.StackInstr
+	var brNils []*consts.StackInstr
 	var indexId strings.Builder
 	indexId.WriteString("$")
 	for i := 0; i < len(query); i++ {
+		curType = dePointer(curType)
+		var fieldPath []*reflect.StructField
+		// short path for struct field load
+		for curType.Kind() == reflect.Struct && i < len(query) && query[i] == gen.GsLexerDOT {
+			indexId.WriteString("." + ids[i+1])
+			f, err := s.Env.IndexField(ids[i+1], curType)
+			if err != nil {
+				s.Log.ErrorToken(qid.GetStart(), err.Error())
+				return
+			}
+			fieldPath = append(fieldPath, f)
+			curType = dePointer(f.Type)
+			i++
+		}
+		if len(fieldPath) > 0 {
+			s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
+			fieldPath = fieldPath[:0]
+			if i > len(query)-1 {
+				return
+			}
+		}
 		switch query[i] {
 		case gen.GsLexerSAFE_DOT:
 			// if true, then fieldLoad
-			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 			brNils = append(brNils, brNil)
 			s.WriteInstr(brNil)
-			fallthrough
-		case gen.GsLexerDOT:
 			indexId.WriteString("." + ids[i+1])
-			// fieldLoad
+			// must be safe dot
 			fieldName := ids[i+1]
-			if curType.Kind() == reflect.Pointer {
-				curType = curType.Elem()
-				s.Write(vm.InstrRElem)
-			}
+			curType = dePointer(curType)
 			switch curType.Kind() {
 			case reflect.Struct:
 				f, err := s.Env.IndexField(fieldName, curType)
@@ -122,19 +137,16 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 					return
 				}
 				curType = f.Type
-				s.Write(vm.InstrRFByIndex, defineFieldIndexConst(indexId.String(), f, s.GlobalScope).GetAddress())
-				if i == len(query)-1 {
-					s.Write(vm.InstrInterface)
-				}
+				s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
 			case reflect.Interface:
 				// interface Load
-				s.Write(vm.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
 			}
 		case gen.GsLexerSAFE_LBRACK:
-			brNil := vm.NewStackInstr(vm.InstrBRNil, placeholder)
+			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 			brNils = append(brNils, brNil)
 			s.WriteInstr(brNil)
 			fallthrough
@@ -145,19 +157,16 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			expr.Accept(s)
 			switch curType.Kind() {
 			case reflect.Map:
-				s.Write(vm.InstrRMapIndex)
+				s.Write(consts.InstrRMapIndex)
 				curType = curType.Elem()
 			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(vm.InstrRIndex)
+				s.Write(consts.InstrRIndex)
 				curType = curType.Elem()
 			case reflect.Interface:
-				s.Write(vm.InstrIndexLoad)
+				s.Write(consts.InstrIndexLoad)
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
-			}
-			if i == len(query)-1 && curType.Kind() != reflect.Interface {
-				s.Write(vm.InstrInterface) // convert reflect.Value to interface
 			}
 		}
 	}
@@ -176,6 +185,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 	var ids []string
 	var query []int // tokenType
 	var qExprs []*gen.ExprContext
+	var j int // index of qExprs
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
 			ids = append(ids, "$")
@@ -195,101 +205,95 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			qExprs = append(qExprs, e)
 		}
 	}
-	s.Write(vm.InstrLoadEnv)
-	s.Write(vm.InstrRV)
-	if len(ids) == 1 {
-		s.Write(vm.InstrRSet)
+	s.Write(consts.InstrLoadEnv)
+	if len(query) == 0 {
+		s.Write(consts.InstrRSet)
 		return
 	}
 	var curType = s.Env.RType
 	var indexId strings.Builder
 	indexId.WriteString("$")
-	for i := 0; i < len(query)-1; i++ {
+	for i := 0; i < len(query); i++ {
+		curType = dePointer(curType)
+		var fieldPath []*reflect.StructField
+		// short path for fieldLoad
+		for query[i] == gen.GsLexerDOT && curType.Kind() == reflect.Struct && i < len(query)-1 {
+			indexId.WriteString("." + ids[i+1])
+			f, err := s.Env.IndexField(ids[i+1], curType)
+			if err != nil {
+				s.Log.ErrorToken(qid.GetStart(), err.Error())
+				return
+			}
+			fieldPath = append(fieldPath, f)
+			curType = dePointer(f.Type)
+			i++
+		}
+		if len(fieldPath) > 0 {
+			s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
+			fieldPath = fieldPath[:0]
+		}
 		switch query[i] {
 		case gen.GsLexerDOT:
 			// fieldLoad
 			indexId.WriteString("." + ids[i+1])
 			fieldName := ids[i+1]
-			if curType.Kind() == reflect.Pointer {
-				curType = curType.Elem()
-				s.Write(vm.InstrRElem)
-			}
 			switch curType.Kind() {
 			case reflect.Struct:
+				// must be the last field in path
+				if i != len(query)-1 {
+					panic("field path must be the last in assign left side")
+				}
 				f, err := s.Env.IndexField(fieldName, curType)
 				if err != nil {
 					s.Log.ErrorToken(qid.GetStart(), err.Error())
 					return
 				}
-				curType = f.Type
-				s.Write(vm.InstrRFByIndex, defineFieldIndexConst(indexId.String(), f, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrRSetField, defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+				return
 			case reflect.Interface:
 				// interface Load
-				s.Write(vm.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
 			}
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad
-			expr := qExprs[i]
+			expr := qExprs[j]
+			j++
 			expr.Accept(s)
 			indexId.WriteString("[" + expr.GetText() + "]")
 			switch curType.Kind() {
 			case reflect.Map:
-				s.Write(vm.InstrRMapIndex)
-				curType = curType.Elem()
+				if i == len(query)-1 {
+					s.Write(consts.InstrRSetMapIndex)
+				} else {
+					s.Write(consts.InstrRMapIndex)
+					curType = curType.Elem()
+				}
 			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(vm.InstrRIndex)
+				s.Write(consts.InstrRIndex)
 				curType = curType.Elem()
+				if i == len(query)-1 {
+					s.Write(consts.InstrRSet)
+				}
 			case reflect.Interface:
-				s.Write(vm.InstrIndexLoad)
+				if i == len(query)-1 {
+					s.Write(consts.InstrIndexStore)
+				} else {
+					s.Write(consts.InstrIndexLoad)
+				}
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
 			}
 		}
 	}
-	// lastQuery
-	switch query[len(query)-1] {
-	case gen.GsLexerDOT:
-		fieldName := ids[len(ids)-1]
-		if curType.Kind() == reflect.Pointer {
-			curType = curType.Elem()
-			s.Write(vm.InstrRElem)
-		}
-		switch curType.Kind() {
-		case reflect.Struct:
-			f, err := s.Env.IndexField(fieldName, curType)
-			if err != nil {
-				s.Log.ErrorToken(qid.GetStart(), err.Error())
-				return
-			}
-			curType = f.Type
-			s.Write(vm.InstrRFByIndex, defineFieldIndexConst(indexId.String(), f, s.GlobalScope).GetAddress())
-			s.Write(vm.InstrRSet) //
-		case reflect.Interface:
-			// interface Load
-			s.Write(vm.InstrFStore, defineStringConst(fieldName, s.GlobalScope).GetAddress())
-		default:
-			s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-			return
-		}
-	case gen.GsLexerLBRACK:
-		// arrayStore/mapStore
-		expr := qExprs[len(qExprs)-1]
-		expr.Accept(s)
-		switch curType.Kind() {
-		case reflect.Map:
-			s.Write(vm.InstrRSetMapIndex)
-		case reflect.Array, reflect.Slice, reflect.String:
-			s.Write(vm.InstrRIndex)
-			s.Write(vm.InstrRSet)
-		case reflect.Interface:
-			s.Write(vm.InstrIndexStore)
-		default:
-			s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-			return
-		}
+}
+
+func dePointer(curType reflect.Type) reflect.Type {
+	if curType.Kind() == reflect.Pointer {
+		curType = curType.Elem()
 	}
+	return curType
 }

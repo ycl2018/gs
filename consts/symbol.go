@@ -1,4 +1,4 @@
-package vm
+package consts
 
 type FunctionSymbol struct {
 	Name   string
@@ -9,7 +9,7 @@ type FunctionSymbol struct {
 
 type Instruction struct {
 	Name       string
-	OpRandType []int // 最长3个操作数
+	OpRandType int // 最长3个操作数
 }
 
 type Const struct {
