@@ -29,6 +29,10 @@ func (s StackInstr) Dump() string {
 	}
 }
 
+func (s StackInstr) String() string {
+	return s.Dump()
+}
+
 // ConstKind 常量类型，存储于全局常量池
 type ConstKind uint8
 

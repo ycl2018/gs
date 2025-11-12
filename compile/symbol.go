@@ -51,8 +51,6 @@ type FunctionSymbol struct {
 	FormalArgs []Symbol
 	BodyScope  *LocalScope
 	Code       []consts2.StackInstr
-	Results    int
-	CodeAddr   int // 函数入口
 }
 
 func NewFunctionSymbol(funcName string, t antlr.Token) *FunctionSymbol {
@@ -238,8 +236,8 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 		case consts2.ConstMapInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: map[%s] {\n", s.Address, s.Name))
-			m := s.Value.(*consts2.MapLiteralConst)
-			for k, v := range m.Map {
+			m := s.Value.(map[any]any)
+			for k, v := range m {
 				sb.WriteString(fmt.Sprintf("    %v: %v;\n", k, v))
 			}
 			sb.WriteString("}\n")
@@ -247,8 +245,8 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 		case consts2.ConstSliceInit:
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: slice[%s]\n", s.Address, s.Name))
-			m := s.Value.(*consts2.SliceLiteralConst)
-			bytes, _ := json.Marshal(m.Value)
+			m := s.Value.([]any)
+			bytes, _ := json.Marshal(m)
 			sb.WriteString("    " + string(bytes) + "\n")
 			return sb.String()
 		default:
@@ -274,7 +272,7 @@ func defineFloatConst(fval float64, scope *GlobalScope) Symbol {
 func defineSliceConst(sliceInit *consts2.SliceLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
 		Name:  fmt.Sprintf("%s::%s", consts2.ConstSliceInit, sliceInit.Name),
-		Value: sliceInit,
+		Value: sliceInit.Value,
 		Kind:  consts2.ConstSliceInit,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
@@ -284,7 +282,7 @@ func defineSliceConst(sliceInit *consts2.SliceLiteralConst, scope *GlobalScope) 
 func defineMapConst(mapInit *consts2.MapLiteralConst, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
 		Name:  fmt.Sprintf("%s::%s", consts2.ConstMapInit, mapInit.Name),
-		Value: mapInit,
+		Value: mapInit.Map,
 		Kind:  consts2.ConstMapInit,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
@@ -312,7 +310,7 @@ func defineFieldIndexConst(id string, fieldIndex []*reflect.StructField, scope *
 }
 
 func defineFuncConst(name string, paramCount, localCount int, scope *GlobalScope) Symbol {
-	val := &consts2.FunctionConst{
+	val := consts2.FunctionConst{
 		Name:       name,
 		ParamCount: paramCount,
 		LocalCount: localCount,
@@ -327,7 +325,7 @@ func defineFuncConst(name string, paramCount, localCount int, scope *GlobalScope
 }
 
 func defineStructConst(constName, name string, fields []string, scope *GlobalScope) Symbol {
-	val := &consts2.StructConst{
+	val := consts2.StructConst{
 		Name:   name,
 		Fields: fields,
 	}

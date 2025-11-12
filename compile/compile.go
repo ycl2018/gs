@@ -571,10 +571,10 @@ func (s *StackCompileVisitor) VisitNotAtom(ctx *gen.NotAtomContext) interface{} 
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
-	s.loadQid(ctx.Qid())
-	return nil
-}
+//func (s *StackCompileVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
+//	s.loadQid(ctx.Qid())
+//	return nil
+//}
 
 func (s *StackCompileVisitor) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interface{} {
 	// arrayLiteral : '[' (expr (',' expr)* ','?)? ']' ;

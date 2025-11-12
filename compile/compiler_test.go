@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/vm"
 )
 
 func TestGsInterpreter_Interp(t *testing.T) {
@@ -284,12 +285,15 @@ b=["111","222","333"]
 if a[1] == "11" {
 print a
 }
+for i = range b {
+	print b[i]
+}
 `,
 		},
 		{
 			name: "env_map.gs",
 			program: `
-return $["a"]["name"] + $["a"]["addr"]
+print $["a"]["name"] + $["a"]["addr"]
 `,
 			env: map[string]any{
 				"a": map[string]any{
@@ -300,9 +304,9 @@ return $["a"]["name"] + $["a"]["addr"]
 		},
 		{
 			name: "env_slice.gs",
-			env:  []any{},
+			env:  []any{"a", "b", "c"},
 			program: `
-return $[1]+$[2]+$[3]
+print $[0]+$[1]+$[2]
 `,
 		},
 		{
@@ -311,9 +315,14 @@ return $[1]+$[2]+$[3]
 				A string
 				B string
 				C map[string]string
-			}{},
+			}{
+				A: "a",
+				B: "b",
+				C: map[string]string{},
+			},
 			program: `
 $.C["A+B"] = $.A + $.B
+print $.C["A+B"]
 `,
 		},
 		{
@@ -341,11 +350,12 @@ $.E["A+D"] = $.A + $.D?.X
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewGsCompiler()
-			_, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
+			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
+			t.Log(p.Dump())
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Log(p.Dump())
+			vm.NewInterpreter(code, vm.WithEnv(tt.env)).Run()
 		})
 	}
 }

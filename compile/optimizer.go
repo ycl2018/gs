@@ -97,7 +97,7 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	if len(allEntries) == 0 {
 		return nil
 	}
-	var m = map[consts.ConstNode]*consts.ConstNode{}
+	var m = map[any]any{}
 	for _, entry := range allEntries {
 		constKey, ok := entry.(*gen.ConstKeyEntryContext)
 		if !ok {
@@ -113,28 +113,23 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 		switch keyType {
 		case gen.GsLexerSTRING:
 			str := keyTerminal.GetText()[1 : len(keyTerminal.GetText())-1]
-			keyValue := consts.NewConstNode(consts.ConstNodeKindString, str)
-			m[*keyValue] = constValue
+			m[str] = constValue.Value
 		case gen.GsLexerINT:
 			intValue, err := strconv.ParseInt(keyTerminal.GetText(), 0, 64)
 			if err != nil {
 				panic(err)
 			}
-			keyValue := consts.NewConstNode(consts.ConstNodeKindInt, int(intValue))
-			m[*keyValue] = constValue
+			m[int(intValue)] = constValue.Value
 		case gen.GsLexerFLOAT:
 			floatValue, err := strconv.ParseFloat(keyTerminal.GetText(), 64)
 			if err != nil {
 				panic(err)
 			}
-			keyValue := consts.NewConstNode(consts.ConstNodeKindFloat, floatValue)
-			m[*keyValue] = constValue
+			m[floatValue] = constValue.Value
 		case gen.GsLexerTRUE:
-			keyValue := consts.NewConstNode(consts.ConstNodeKindBool, true)
-			m[*keyValue] = constValue
+			m[true] = constValue.Value
 		case gen.GsLexerFALSE:
-			keyValue := consts.NewConstNode(consts.ConstNodeKindBool, false)
-			m[*keyValue] = constValue
+			m[false] = constValue.Value
 		default:
 			panic(fmt.Sprintf("unknown key: %s", keyTerminal))
 		}
