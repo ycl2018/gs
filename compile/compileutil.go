@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/consts"
@@ -79,7 +80,7 @@ func (s *StackCompileVisitor) Write(code consts.Instr, operands ...int) {
 	if len(operands) > 0 {
 		operand = operands[0]
 	}
-	s.CurFunc.Code = append(s.CurFunc.Code, *consts.NewStackInstr(code, operand))
+	s.CurFunc.Code = append(s.CurFunc.Code, consts.NewStackInstr(code, operand))
 }
 
 func (s *StackCompileVisitor) FillTarget(instrs ...*consts.StackInstr) {
@@ -250,19 +251,31 @@ func (s *StackCompileVisitor) Code() vm.Code {
 		return cs[i].Address < cs[j].Address
 	})
 	// fill const poll
-	for _, c := range cs {
+	toFuncConst := func(f *FunctionSymbol, addr int) consts.FunctionConst {
+		var codes = make([]consts.StackInstr, len(f.Code))
+		for i, instr := range f.Code {
+			codes[i] = *instr
+		}
+		return consts.FunctionConst{
+			Name:       f.Name,
+			ParamCount: len(f.FormalArgs),
+			LocalCount: f.LocalNums(),
+			Addr:       addr,
+			Code:       codes,
+		}
+	}
+	for i, c := range cs {
+		if c.Kind == consts.ConstFunc {
+			// fill code
+			name := c.Name[strings.Index(c.Name, "::")+2:]
+			c.Value = toFuncConst(s.GlobalScope.Resolve(name).(*FunctionSymbol), i)
+		}
 		constPoll = append(constPoll, consts.Const{
 			Value: c.Value,
 			Kind:  c.Kind,
 		})
 	}
 
-	toFuncConst := func(f *FunctionSymbol) consts.FunctionConst {
-		return consts.FunctionConst{
-			Name: f.Name,
-			Code: f.Code,
-		}
-	}
 	var envType reflect.Type
 	if s.Env != nil {
 		envType = s.Env.RType
@@ -270,7 +283,7 @@ func (s *StackCompileVisitor) Code() vm.Code {
 	return vm.Code{
 		Globals:      int(s.GlobalScope.LocalVarAllocator),
 		ConstPool:    constPoll,
-		MainFunc:     toFuncConst(s.MainFunc),
+		MainFunc:     toFuncConst(s.MainFunc, -1),
 		BuildEnvType: envType,
 	}
 }

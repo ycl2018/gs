@@ -127,9 +127,9 @@ var Instructions = []*Instruction{
 	{"slice_const", POLL},
 	{"map_const", POLL},
 	{"nil", NIL},
+	{"load", INT},
 	{"gload", INT},
 	// 41-50
-	{"load", INT},
 	{"fload", POLL},
 	{"store", INT},
 	{"gstore", INT},

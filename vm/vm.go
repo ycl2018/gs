@@ -131,13 +131,13 @@ func (i *Interpreter) PushOpStack(v any) {
 func (i *Interpreter) cpu() {
 	// 取指令，并执行
 	instr := i.Code[i.IP]
-	for i.IP < len(i.Code) && instr.OpCode != consts.InstrHalt {
+	for i.IP < len(i.Code) {
 		if i.enableTrace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand
 		switch instr.OpCode {
-		case consts.InstrAdd, consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT, consts.InstrBitOR, consts.InstrBitAND, consts.InstrXOR:
+		case consts.InstrAdd, consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT, consts.InstrMod, consts.InstrBitOR, consts.InstrBitAND, consts.InstrXOR:
 			i.Op(instr.OpCode)
 		case consts.InstrOR:
 			i.PushOpStack(i.PopOpStack().(bool) || i.PopOpStack().(bool))
@@ -227,7 +227,7 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(sliceConst)
 		case consts.InstrMapConst:
 			poolIndex := instr.Operands
-			mapConst := i.ConstPool[poolIndex].Value.(map[consts.ConstNode]*consts.ConstNode)
+			mapConst := i.ConstPool[poolIndex].Value
 			i.PushOpStack(mapConst)
 		case consts.InstrNil:
 			i.PushOpStack(nil)
@@ -256,13 +256,17 @@ func (i *Interpreter) cpu() {
 			i.IndexStore()
 		case consts.InstrPrint:
 			printNums := instr.Operands
+			var toPrint []any = make([]any, printNums)
 			for i2 := 0; i2 < printNums; i2++ {
-				fmt.Print(i.PopOpStack())
+				toPrint[i2] = i.PopOpStack()
+			}
+			for j := printNums - 1; j >= 0; j-- {
+				fmt.Print(toPrint[j])
 			}
 			fmt.Printf("\n")
 		case consts.InstrStruct:
 			// push struct
-			def := i.ConstPool[instr.Operands].Value.(consts.ConstStructDef)
+			def := i.ConstPool[instr.Operands].Value.(consts.StructConst)
 			s := NewStructSpace(&def)
 			i.PushOpStack(s)
 		case consts.InstrPop:
@@ -282,15 +286,22 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.Iter(i.PopOpStack()))
 		case consts.InstrIterNext:
 			iterNum := instr.Operands
-			iter := i.PopOpStack().(consts.Iter)
-			iter1, iter2 := iter.Next()
+			iter := i.Peek().(*consts.Iter)
+			var iter1, iter2 any
+			if iterNum == 1 {
+				iter1 = iter.Next1()
+			} else {
+				iter1, iter2 = iter.Next()
+			}
 			if iterNum == 1 {
 				i.PushOpStack(iter1)
 			} else {
+				i.PushOpStack(iter1)
 				i.PushOpStack(iter2)
 			}
 		case consts.InstrIterDone:
-			i.PushOpStack(i.Peek().(consts.Iter).Done())
+			c := i.Peek().(*consts.Iter)
+			i.PushOpStack(c.Done())
 		case consts.InstrHalt:
 			return
 		case consts.InstrLoadEnv:
@@ -405,8 +416,6 @@ func neg(v any) any {
 }
 
 func (i *Interpreter) trace() {
-	// asm code
-	fmt.Println(i.Code[i.IP])
 	// operand stack
 	fmt.Printf("\tstack=[")
 	for j := (0); j <= i.SP; j++ {
@@ -419,9 +428,10 @@ func (i *Interpreter) trace() {
 		for j := (0); j <= i.FP; j++ {
 			fmt.Printf(" " + i.Calls[j].FuncConsts.Name)
 		}
-		fmt.Print(" ]")
+		fmt.Print(" ]\n")
 	}
 	fmt.Println()
+	fmt.Print(i.Code[i.IP])
 }
 
 func (i *Interpreter) Dump() {
@@ -509,6 +519,13 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
+		start, end = toInt(start), toInt(end)
+		if start == -1 {
+			start = 0
+		}
+		if end == -1 {
+			end = rv.Len()
+		}
 		return rv.Slice(toInt(start), toInt(end)).Interface()
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice split", obj))
@@ -547,17 +564,18 @@ func (i *Interpreter) FieldLoad(field string) any {
 	}
 }
 
-func (i *Interpreter) FieldStore(field string) any {
+func (i *Interpreter) FieldStore(field string) {
 	// build-in type
-	obj := i.PopOpStack()
+	obj, val := i.PopOpStack(), i.PopOpStack()
 	if structSpace, ok := obj.(*StructSpace); ok {
-		return structSpace.Fields[field]
+		structSpace.Fields[field] = val
+		return
 	}
 	// reflect
 	objStruct := assertValidObj(obj)
 	switch objStruct.Kind() {
 	case reflect.Struct:
-		return objStruct.FieldByName(field).Interface()
+		objStruct.FieldByName(field).Set(reflect.ValueOf(val))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for field load", field))
 	}
@@ -603,19 +621,19 @@ func (i *Interpreter) Iter(obj any) any {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		return consts.Iter{
+		return &consts.Iter{
 			Obj:  rv,
 			Len:  rv.Len(),
 			Kind: "slice",
 		}
 	case reflect.Map:
-		return consts.Iter{
+		return &consts.Iter{
 			Obj:  rv.MapRange(),
 			Len:  rv.Len(),
 			Kind: "map",
 		}
 	case reflect.Int:
-		return consts.Iter{
+		return &consts.Iter{
 			Obj:  rv,
 			Len:  int(rv.Int()),
 			Kind: "int",
@@ -695,7 +713,7 @@ func (i *Interpreter) RSetMapIndex(k, m, val any) {
 type StructSpace struct {
 	Name         string
 	Fields       map[string]any
-	Define       *consts.ConstStructDef
+	Define       *consts.StructConst
 	AllowDynamic bool
 }
 
@@ -703,18 +721,18 @@ func (s *StructSpace) String() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("struct %s { ", s.Name))
 	var first = true
-	for _, name := range s.Define.MemberNames {
+	for _, name := range s.Define.Fields {
 		if !first {
 			sb.WriteString(", ")
 		}
 		fmt.Fprintf(&sb, "%s: %v", name, s.Fields[name])
 		first = false
 	}
-	if s.AllowDynamic && len(s.Fields) > len(s.Define.MemberNames) {
+	if s.AllowDynamic && len(s.Fields) > len(s.Define.Fields) {
 		// 动态添加？
 	OUTER:
 		for k, v := range s.Fields {
-			for _, n := range s.Define.MemberNames {
+			for _, n := range s.Define.Fields {
 				if n == k {
 					continue OUTER
 				}
@@ -730,8 +748,8 @@ func (s *StructSpace) String() string {
 	return sb.String()
 }
 
-func NewStructSpace(structDef *consts.ConstStructDef) *StructSpace {
-	s := &StructSpace{Fields: make(map[string]any, len(structDef.MemberNames))}
+func NewStructSpace(structDef *consts.StructConst) *StructSpace {
+	s := &StructSpace{Fields: make(map[string]any, len(structDef.Fields))}
 	s.Define = structDef
 	s.Name = structDef.Name
 	return s

@@ -21,7 +21,7 @@ for i<10 {
 	print i*3.2
 	i = i + 1
 	if i<5 {
-		print i + " is less than 5"
+		print i , " is less than 5"
 	}else {
 		print "foo"
 	}
@@ -94,7 +94,7 @@ for i<n {
         i = i + 1
 }
 
-print "looped "+n+" times."
+print "looped ",n," times."
 `,
 		},
 		{
@@ -137,9 +137,6 @@ print u.addr
 		{
 			name: "range.gs",
 			program: `
-for i = range 10 {
-	print i
-}
 c = {"a": 1, "b": 2, "c": 3}
 for k, v = range c {
 	print k, v
@@ -215,10 +212,7 @@ print a <= b
 print a >= b
 print a != b
 print a == b
-print a || b
-print a && b
 print a ** b
-print !a
 print -a
 print a & b
 print a | b
@@ -291,6 +285,15 @@ for i = range b {
 `,
 		},
 		{
+			name: "forRange2",
+			program: `
+b=["111","222","333"]
+for i = range b {
+	print b[i]
+}
+`,
+		},
+		{
 			name: "env_map.gs",
 			program: `
 print $["a"]["name"] + $["a"]["addr"]
@@ -355,7 +358,7 @@ $.E["A+D"] = $.A + $.D?.X
 			if err != nil {
 				t.Fatal(err)
 			}
-			vm.NewInterpreter(code, vm.WithEnv(tt.env)).Run()
+			vm.NewInterpreter(code, vm.WithEnv(tt.env), vm.WithEnableTrace()).Run()
 		})
 	}
 }

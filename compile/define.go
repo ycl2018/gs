@@ -33,7 +33,7 @@ func (g *GsDefineVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) interf
 func (g *GsDefineVisitor) VisitSingleIter(ctx *gen.SingleIterContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
 	g.CurScope.Define(NewVariableSymbol(ctx.ID().GetText(), ctx.ID().GetSymbol()))
-	return g.VisitChildren(ctx)
+	return nil
 }
 
 func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{} {
@@ -41,7 +41,7 @@ func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{
 	for _, node := range ctx.AllID() {
 		g.CurScope.Define(NewVariableSymbol(node.GetText(), node.GetSymbol()))
 	}
-	return g.VisitChildren(ctx)
+	return nil
 }
 
 func (g *GsDefineVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
@@ -51,14 +51,13 @@ func (g *GsDefineVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
 
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
-	if ctx.Primary().ID() == nil {
-		return nil // env node
+	if ctx.Primary().ID() != nil {
+		refName := ctx.Primary().ID().GetText()
+		if g.CurScope.Resolve(refName) == nil {
+			g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
+		}
 	}
-	refName := ctx.Primary().ID().GetText()
-	if g.CurScope.Resolve(refName) == nil {
-		g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
-	}
-	return nil
+	return g.VisitChildren(ctx)
 }
 
 func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {

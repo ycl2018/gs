@@ -50,7 +50,7 @@ type FunctionSymbol struct {
 	BaseSymbol
 	FormalArgs []Symbol
 	BodyScope  *LocalScope
-	Code       []consts2.StackInstr
+	Code       []*consts2.StackInstr
 }
 
 func NewFunctionSymbol(funcName string, t antlr.Token) *FunctionSymbol {
@@ -217,11 +217,11 @@ func DumpSymbol(s Symbol, consts []Symbol) string {
 	case *ConstSymbol:
 		switch s.Kind {
 		case consts2.ConstFunc:
-			val := s.Value.(*consts2.FunctionConst)
+			val := s.Value.(consts2.FunctionConst)
 			return fmt.Sprintf("#%04d: func %s(args:%d, locals:%d)\n", s.Address, val.Name, val.ParamCount, val.LocalCount)
 		case consts2.ConstStruct:
 			// 结构体常量
-			val := s.Value.(*consts2.StructConst)
+			val := s.Value.(consts2.StructConst)
 			var sb strings.Builder
 			sb.WriteString(fmt.Sprintf("#%04d: struct %s {\n", s.Address, val.Name))
 			for _, field := range val.Fields {

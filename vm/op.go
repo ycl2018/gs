@@ -84,6 +84,12 @@ func (i *Interpreter) Op(op consts.Instr) {
 			panic(err)
 		}
 		i.PushOpStack(v)
+	case consts.InstrMod:
+		v, err := Mod(op1, op2)
+		if err != nil {
+			panic(err)
+		}
+		i.PushOpStack(v)
 	default:
 		panic("unhandled default case")
 	}

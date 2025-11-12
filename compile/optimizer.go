@@ -149,7 +149,7 @@ func toConstNode(valueExpr *gen.ExprContext) (*consts.ConstNode, bool) {
 	if !ok2 {
 		return nil, false
 	}
-	return constValue, false
+	return constValue, true
 }
 
 func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {

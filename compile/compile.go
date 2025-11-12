@@ -39,7 +39,7 @@ func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScop
 }
 
 func (s *StackCompileVisitor) WriteInstr(instr *consts.StackInstr) {
-	s.CurFunc.Code = append(s.CurFunc.Code, *instr)
+	s.CurFunc.Code = append(s.CurFunc.Code, instr)
 }
 
 func (s *StackCompileVisitor) AllocTag() int {
@@ -51,7 +51,7 @@ func (s *StackCompileVisitor) VisitProgram(ctx *gen.ProgramContext) interface{} 
 	s.VisitChildren(ctx)
 	// 补充主函数Halt指令IR
 	if len(s.MainFunc.Code) == 0 || s.MainFunc.Code[len(s.MainFunc.Code)-1].OpCode != consts.InstrHalt {
-		s.MainFunc.Code = append(s.MainFunc.Code, consts.StackInstr{
+		s.MainFunc.Code = append(s.MainFunc.Code, &consts.StackInstr{
 			OpCode: consts.InstrHalt,
 		})
 	}
@@ -446,37 +446,24 @@ func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) 
 		// must be constNode
 		return s.VisitChildren(ctx)
 	}
-	var brts []*consts.StackInstr
 	for i, andExpr := range allLogicalAndExpr {
 		andExpr.Accept(s)
 		if i != 0 {
 			s.Write(consts.InstrOR)
 		}
-		if i < len(allLogicalAndExpr)-1 {
-			brt := consts.NewStackInstr(consts.InstrBRT, placeholder)
-			s.WriteInstr(brt)
-			brts = append(brts, brt)
-		}
+
 	}
-	s.FillTarget(brts...)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) interface{} {
 	allComparisonExpr := ctx.AllComparisonExpr()
-	brfs := make([]*consts.StackInstr, 0, len(allComparisonExpr)-1)
 	for i, cmpExpr := range allComparisonExpr {
 		cmpExpr.Accept(s)
 		if i != 0 {
 			s.Write(consts.InstrAND)
 		}
-		if i < len(allComparisonExpr)-1 {
-			brf := consts.NewStackInstr(consts.InstrBRF, placeholder)
-			s.WriteInstr(brf)
-			brfs = append(brfs, brf)
-		}
 	}
-	s.FillTarget(brfs...)
 	return nil
 }
 
@@ -527,8 +514,8 @@ func (s *StackCompileVisitor) VisitMulExpr(ctx *gen.MulExprContext) interface{} 
 	var preOp *gen.MulOpContext
 	for _, tree := range ctx.GetChildren() {
 		switch tree := tree.(type) {
-		case *gen.PowExprContext:
-			tree.Accept(s)
+		default:
+			tree.(antlr.RuleContext).Accept(s)
 			if preOp != nil {
 				preOp.Accept(s)
 			}
@@ -625,12 +612,12 @@ func (s *StackCompileVisitor) VisitSliceExpr(ctx *gen.SliceExprContext) interfac
 	if l != nil {
 		l.Accept(s)
 	} else {
-		s.Write(consts.InstrIConst, 0)
+		s.Write(consts.InstrIConst, -1)
 	}
 	if r != nil {
 		r.Accept(s)
 	} else {
-		s.Write(consts.InstrIConst, 0)
+		s.Write(consts.InstrIConst, -1)
 	}
 	// qidValue | l | r | InstrSlice
 	s.Write(consts.InstrSliceSplit)
