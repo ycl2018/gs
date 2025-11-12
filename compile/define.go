@@ -22,8 +22,7 @@ func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 		varName := qid.Primary().GetText()
 		g.CurScope.Define(NewVariableSymbol(varName, qid.GetStart()))
 	}
-	g.VisitChildren(ctx)
-	return nil
+	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) interface{} {
@@ -34,7 +33,7 @@ func (g *GsDefineVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) interf
 func (g *GsDefineVisitor) VisitSingleIter(ctx *gen.SingleIterContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
 	g.CurScope.Define(NewVariableSymbol(ctx.ID().GetText(), ctx.ID().GetSymbol()))
-	return nil
+	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{} {
@@ -42,7 +41,12 @@ func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{
 	for _, node := range ctx.AllID() {
 		g.CurScope.Define(NewVariableSymbol(node.GetText(), node.GetSymbol()))
 	}
-	return nil
+	return g.VisitChildren(ctx)
+}
+
+func (g *GsDefineVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
+	g.SaveScope(ctx, g.CurScope)
+	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {

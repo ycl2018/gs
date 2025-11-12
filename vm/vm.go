@@ -2,7 +2,9 @@ package vm
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/ycl2018/gs/consts"
@@ -22,23 +24,29 @@ func WithEnableDump() Option {
 	}
 }
 
+func WithEnv(env any) Option {
+	return func(i *Interpreter) {
+		i.Env = env
+	}
+}
+
 type Interpreter struct {
-	IP           int32               // 指令地址
+	IP           int                 // 指令地址
 	Code         []consts.StackInstr // 代码
 	ConstPool    []consts.Const
-	MainFunc     consts.FunctionConst   // Main函数入口地址
-	AllFuncs     []consts.FunctionConst // 所有函数入口地址
+	MainFunc     consts.FunctionConst // Main函数入口地址
 	BuildEnvType reflect.Type
 	// 函数调用栈
 	Calls []*StackFrame
-	FP    int32 // 栈桢计数器
+	FP    int // 栈桢计数器
 
 	Operands []any // 操作数栈，全局复用
-	SP       int32 // 操作数栈计数器
+	SP       int   // 操作数栈计数器
 
 	// 虚拟全局内存
 	Globals  []any
 	DataSize int
+	Env      any
 
 	// ops
 	enableTrace bool
@@ -48,16 +56,16 @@ type Interpreter struct {
 const DefaultOperandStackSize = 100
 
 type StackFrame struct {
-	ReturnAddr int32               // 返回值地址
+	ReturnAddr int                 // 返回值地址
 	ReturnCode []consts.StackInstr // 之前函数的指令，用于返回时恢复
 	FuncConsts *consts.FunctionConst
 	Locals     []any // 参数和本地变量
 }
 
-func NewStackFrame(f *consts.FunctionConst, returnAddr int32) *StackFrame {
+func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackInstr) *StackFrame {
 	return &StackFrame{
 		ReturnAddr: returnAddr,
-		ReturnCode: []consts.StackInstr{},
+		ReturnCode: code,
 		FuncConsts: f,
 		Locals:     make([]any, f.LocalCount+f.ParamCount),
 	}
@@ -67,11 +75,10 @@ type Code struct {
 	Globals      int
 	ConstPool    []consts.Const
 	MainFunc     consts.FunctionConst
-	AllFuncs     []consts.FunctionConst
 	BuildEnvType reflect.Type
 }
 
-func NewInterpreter(code Code, ops ...Option) *Interpreter {
+func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 	// 编译
 	i := &Interpreter{
 		IP:           -1,
@@ -83,7 +90,6 @@ func NewInterpreter(code Code, ops ...Option) *Interpreter {
 		Code:         code.MainFunc.Code,
 		ConstPool:    code.ConstPool,
 		MainFunc:     code.MainFunc,
-		AllFuncs:     code.AllFuncs,
 		BuildEnvType: code.BuildEnvType,
 	}
 	for _, op := range ops {
@@ -92,14 +98,14 @@ func NewInterpreter(code Code, ops ...Option) *Interpreter {
 	return i
 }
 
-func (i *Interpreter) Run(env any) error {
+func (i *Interpreter) Run() {
+	i.IP = 0
 	sf := NewStackFrame(&consts.FunctionConst{
 		Name: "main",
 		Code: i.MainFunc.Code,
-	}, i.IP)
+	}, i.IP, i.Code)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
-	i.IP = 0
 	if i.enableTrace {
 		fmt.Printf("\ntrace:\n")
 	}
@@ -108,7 +114,7 @@ func (i *Interpreter) Run(env any) error {
 	if i.dump {
 		i.Dump()
 	}
-	return nil
+	return
 }
 
 func (i *Interpreter) PopOpStack() any {
@@ -122,189 +128,185 @@ func (i *Interpreter) PushOpStack(v any) {
 	i.Operands[i.SP] = v
 }
 
-func (i *Interpreter) NextOperand() int32 {
-	//val := asm.GetInt(int(i.IP), i.Code)
-
-	i.IP += 4
-	return 0
-}
-
 func (i *Interpreter) cpu() {
 	// 取指令，并执行
 	instr := i.Code[i.IP]
-	for i.IP < int32(len(i.Code)) && instr.OpCode != consts.InstrHalt {
+	for i.IP < len(i.Code) && instr.OpCode != consts.InstrHalt {
 		if i.enableTrace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand
 		switch instr.OpCode {
-		case consts.InstrAdd:
-			// support auto type convert
-			// int32 + float32 = int32
-			// int32 + string = string
-			// float32 + string = string
+		case consts.InstrAdd, consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT, consts.InstrBitOR, consts.InstrBitAND, consts.InstrXOR:
+			i.Op(instr.OpCode)
+		case consts.InstrOR:
+			i.PushOpStack(i.PopOpStack().(bool) || i.PopOpStack().(bool))
+		case consts.InstrAND:
+			i.PushOpStack(i.PopOpStack().(bool) && i.PopOpStack().(bool))
+		case consts.InstrPow:
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			op1Type, op2Type := reflect.TypeOf(op1), reflect.TypeOf(op2)
-			if op1Type.Kind() == reflect.String || op2Type.Kind() == reflect.String {
-				i.PushOpStack(toString(op1) + toString(op2))
-			} else if op1Type.Kind() == reflect.Float32 && op2Type.Kind() == reflect.Float32 {
-				i.PushOpStack(toFloat32(op2) + toFloat32(op1))
-			} else {
-				i.PushOpStack(toInt32(op2) + toInt32(op1))
+			i.PushOpStack(math.Pow(toFloat64(op1), toFloat64(op2)))
+		case consts.InstrNeg:
+			i.PushOpStack(neg(i.PopOpStack()))
+		case consts.InstrTrue:
+			i.PushOpStack(true)
+		case consts.InstrFalse:
+			i.PushOpStack(false)
+		case consts.InstrNot:
+			i.PushOpStack(!i.PopOpStack().(bool))
+		case consts.InstrArray:
+			arrLen := instr.Operands
+			arr := make([]any, arrLen)
+			for i2 := int(arrLen) - 1; i2 >= 0; i2-- {
+				arr[i2] = i.PopOpStack()
 			}
-		case consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT:
-			// 弹出两个操作数，相加，push
-			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			t2, t1 := reflect.TypeOf(op2), reflect.TypeOf(op1)
-			if t1.Kind() == reflect.Float32 || t2.Kind() == reflect.Float32 {
-				op1, op2 = toFloat32(op1), toFloat32(op2)
-				t1, t2 = reflect.TypeOf(op1), reflect.TypeOf(op2)
-			}
-			switch instr.OpCode {
-			case consts.InstrSub:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) - toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) - toFloat32(op2))
-				}
-			case consts.InstrMul:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) * toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) * toFloat32(op2))
-				}
-			case consts.InstrDiv:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) / toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) / toFloat32(op2))
-				}
-			case consts.InstrLT:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) < toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) < toFloat32(op2))
-				}
-			case consts.InstrEQ:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) == toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) == toFloat32(op2))
-				}
-			case consts.InstrLEQ:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) <= toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) <= toFloat32(op2))
-				}
-			case consts.InstrNEQ:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) != toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) != toFloat32(op2))
-				}
-			case consts.InstrGEQ:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) >= toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) >= toFloat32(op2))
-				}
-			case consts.InstrGT:
-				if t1.Kind() == reflect.Int32 {
-					i.PushOpStack(toInt32(op1) > toInt32(op2))
-				} else {
-					i.PushOpStack(toFloat32(op1) > toFloat32(op2))
-				}
-			default:
-				panic("unhandled default case")
-			}
-
+			i.PushOpStack(arr)
+		case consts.InstrIndexLoad:
+			index, obj := i.PopOpStack(), i.PopOpStack()
+			i.PushOpStack(i.Index(obj, index))
+		case consts.InstrSliceSplit:
+			end, start := i.PopOpStack(), i.PopOpStack()
+			obj := i.PopOpStack()
+			i.PushOpStack(i.SplitSlice(obj, start, end))
+		case consts.InstrDict:
+			dictLen := instr.Operands
+			i.PushOpStack(i.MakeMap(dictLen))
 		case consts.InstrCall:
 			// 函数调用
-			funcIndex := i.NextOperand()
-			fs := i.ConstPool[funcIndex].Value.(consts.FunctionSymbol)
-			funcStack := NewStackFrame(&fs, i.IP)
+			funcIndex := instr.Operands
+			fs := i.ConstPool[funcIndex].Value.(consts.FunctionConst)
+			funcStack := NewStackFrame(&fs, i.IP, i.Code)
 			i.FP++
 			i.Calls = append(i.Calls, funcStack)
 			// 拷贝操作数到参数中
 			// move args from operand stack to top frame on call stack
-			for a := int(fs.Args) - 1; a >= 0; a-- {
+			for a := int(fs.ParamCount) - 1; a >= 0; a-- {
 				funcStack.Locals[a] = i.PopOpStack()
 			}
-			i.IP = fs.Addr
+			i.IP, i.Code = 0, fs.Code
 		case consts.InstrReturn:
+			if i.FP < 0 {
+				// main return
+				return
+			}
 			curFs := i.Calls[i.FP]
 			i.Calls = i.Calls[:i.FP]
 			i.FP--
-			i.IP = curFs.ReturnAddr
+			i.IP, i.Code = curFs.ReturnAddr, curFs.ReturnCode
 		case consts.InstrBR:
-			toAddr := i.NextOperand()
+			toAddr := instr.Operands
 			i.IP = toAddr
 		case consts.InstrBRT:
-			toAddr := i.NextOperand()
+			toAddr := instr.Operands
 			if i.PopOpStack().(bool) {
 				i.IP = toAddr
 			}
 		case consts.InstrBRF:
-			toAddr := i.NextOperand()
+			toAddr := instr.Operands
 			if !i.PopOpStack().(bool) {
 				i.IP = toAddr
 			}
+		case consts.InstrBRNil:
+			obj := i.Peek()
+			if obj == nil {
+				i.IP = instr.Operands
+			}
 		case consts.InstrCConst, consts.InstrIConst:
-			val := i.NextOperand()
-			i.PushOpStack(val)
+			i.PushOpStack(instr.Operands)
 		case consts.InstrFConst:
-			poolIndex := i.NextOperand()
-			fConst := i.ConstPool[poolIndex].Value.(float32)
+			poolIndex := instr.Operands
+			fConst := i.ConstPool[poolIndex].Value.(float64)
 			i.PushOpStack(fConst)
 		case consts.InstrSConst:
-			poolIndex := i.NextOperand()
+			poolIndex := instr.Operands
 			fConst := i.ConstPool[poolIndex].Value.(string)
 			i.PushOpStack(fConst)
+		case consts.InstrSliceConst:
+			poolIndex := instr.Operands
+			sliceConst := i.ConstPool[poolIndex].Value.([]any)
+			i.PushOpStack(sliceConst)
+		case consts.InstrMapConst:
+			poolIndex := instr.Operands
+			mapConst := i.ConstPool[poolIndex].Value.(map[consts.ConstNode]*consts.ConstNode)
+			i.PushOpStack(mapConst)
+		case consts.InstrNil:
+			i.PushOpStack(nil)
 		case consts.InstrLoad:
-			argIndex := i.NextOperand()
+			argIndex := instr.Operands
 			curStack := i.Calls[i.FP]
 			i.PushOpStack(curStack.Locals[argIndex])
 		case consts.InstrGLoad:
-			argIndex := i.NextOperand()
+			argIndex := instr.Operands
 			gVal := i.Globals[argIndex]
 			i.PushOpStack(gVal)
 		case consts.InstrFLoad:
 			// 字段加载,字段地址在操作数栈中，字段index为下个操作数
-			s := i.PopOpStack().(*StructSpace)
-			index := i.NextOperand()
-			fieldName := i.ConstPool[index].Value.(string)
-			i.PushOpStack(s.Field(fieldName))
+			index := instr.Operands
+			i.PushOpStack(i.FieldLoad(i.ConstPool[index].Value.(string)))
 		case consts.InstrStore:
-			addr := i.NextOperand()
+			addr := instr.Operands
 			i.Calls[i.FP].Locals[addr] = i.PopOpStack()
 		case consts.InstrGStore:
-			addr := i.NextOperand()
+			addr := instr.Operands
 			i.Globals[addr] = i.PopOpStack()
 		case consts.InstrFStore:
-			s := i.PopOpStack().(*StructSpace)
-			index := i.NextOperand()
-			fieldName := i.ConstPool[index].Value.(string)
-			s.Set(fieldName, i.PopOpStack())
+			index := instr.Operands
+			i.FieldStore(i.ConstPool[index].Value.(string))
+		case consts.InstrIndexStore:
+			i.IndexStore()
 		case consts.InstrPrint:
-			val := i.PopOpStack()
-			switch v := val.(type) {
-			case *StructSpace:
-				fmt.Println(v.String())
-			default:
-				fmt.Println(v)
+			printNums := instr.Operands
+			for i2 := 0; i2 < printNums; i2++ {
+				fmt.Print(i.PopOpStack())
 			}
+			fmt.Printf("\n")
 		case consts.InstrStruct:
 			// push struct
-			def := i.ConstPool[int(i.NextOperand())].Value.(consts.ConstStructDef)
+			def := i.ConstPool[instr.Operands].Value.(consts.ConstStructDef)
 			s := NewStructSpace(&def)
 			i.PushOpStack(s)
-		case consts.InstrNil:
-			i.PushOpStack(nil)
 		case consts.InstrPop:
 			i.PopOpStack()
+		case consts.InstrBuildTuple:
+			i.PushOpStack(i.BuildTuple(instr.Operands))
+		case consts.InstrUnpack:
+			t := i.PopOpStack().(consts.Tuple)
+			num := instr.Operands
+			if num != t.Num {
+				panic(fmt.Sprintf("unpack tuple %d items to %d variables", t.Num, num))
+			}
+			for i2 := num - 1; i2 >= 0; i2-- {
+				i.PushOpStack(t.Values[i2])
+			}
+		case consts.InstrIter:
+			i.PushOpStack(i.Iter(i.PopOpStack()))
+		case consts.InstrIterNext:
+			iterNum := instr.Operands
+			iter := i.PopOpStack().(consts.Iter)
+			iter1, iter2 := iter.Next()
+			if iterNum == 1 {
+				i.PushOpStack(iter1)
+			} else {
+				i.PushOpStack(iter2)
+			}
+		case consts.InstrIterDone:
+			i.PushOpStack(i.Peek().(consts.Iter).Done())
 		case consts.InstrHalt:
 			return
+		case consts.InstrLoadEnv:
+			i.PushOpStack(i.Env)
+		case consts.InstrRFByIndex:
+			i.PushOpStack(i.FieldByIndex(i.ConstPool[instr.Operands].Value.([]*reflect.StructField)))
+		case consts.InstrRSetField:
+			i.RSetField(i.ConstPool[instr.Operands].Value.([]*reflect.StructField))
+		case consts.InstrRMapIndex:
+			i.PushOpStack(i.MapIndex(i.PopOpStack(), i.PopOpStack()))
+		case consts.InstrRIndex:
+			i.PushOpStack(i.RIndex(i.PopOpStack(), i.PopOpStack()))
+		case consts.InstrRSet:
+			i.RSet(i.PopOpStack(), i.PopOpStack())
+		case consts.InstrRSetMapIndex:
+			i.RSetMapIndex(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		default:
 			panic(fmt.Sprintf("unknown opcode:%d", instr))
 		}
@@ -312,64 +314,114 @@ func (i *Interpreter) cpu() {
 	}
 }
 
-func toInt32(x any) int32 {
-	switch x.(type) {
+func toInt(v any) int {
+	switch v := v.(type) {
+	case uint:
+		return int(v)
+	case uint8:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint64:
+		return int(v)
+	case int:
+		return int(v)
+	case int8:
+		return int(v)
+	case int16:
+		return int(v)
 	case int32:
-		return x.(int32)
+		return int(v)
+	case int64:
+		return int(v)
 	case float32:
-		return int32(x.(float32))
-	default:
-		return 0
+		return int(v)
+	case float64:
+		return int(v)
 	}
+	panic(fmt.Sprintf("unexpected type %T for conversion to float64", v))
 }
 
-func toString(x any) string {
-	switch x.(type) {
-	case string:
-		return x.(string)
+func toFloat64(v any) float64 {
+	switch v := v.(type) {
+	case uint:
+		return float64(v)
+	case uint8:
+		return float64(v)
+	case uint16:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case uint64:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int8:
+		return float64(v)
+	case int16:
+		return float64(v)
 	case int32:
-		return fmt.Sprintf("%d", x.(int32))
+		return float64(v)
+	case int64:
+		return float64(v)
 	case float32:
-		return fmt.Sprintf("%f", x.(float32))
-	default:
-		return ""
+		return float64(v)
+	case float64:
+		return float64(v)
 	}
+	panic(fmt.Sprintf("unexpected type %T for conversion to float64", v))
 }
 
-func toFloat32(x any) float32 {
-	switch x.(type) {
-	case float32:
-		return x.(float32)
+func neg(v any) any {
+	switch v := v.(type) {
+	case uint:
+		return -(v)
+	case uint8:
+		return -(v)
+	case uint16:
+		return -(v)
+	case uint32:
+		return -(v)
+	case uint64:
+		return -(v)
+	case int:
+		return -(v)
+	case int8:
+		return -(v)
+	case int16:
+		return -(v)
 	case int32:
-		return float32(x.(int32))
-	default:
-		return 0
+		return -(v)
+	case int64:
+		return -(v)
+	case float32:
+		return -(v)
+	case float64:
+		return -(v)
 	}
+	panic(fmt.Sprintf("unexpected type %T for negation", v))
 }
 
 func (i *Interpreter) trace() {
 	// asm code
-	//_, str, err := i.disAssembler.DisAssembleInstruction(int(i.IP))
-	//if err != nil {
-	//	fmt.Printf("disAssemble instruction err:%v on ip:%d", err, i.IP)
-	//	return
-	//}
-	//fmt.Println(str)
-	//// operand stack
-	//fmt.Printf("\tstack=[")
-	//for j := int32(0); j <= i.SP; j++ {
-	//	fmt.Printf(" %v", i.Operands[j])
-	//}
-	//fmt.Print(" ]")
-	//// call stack
-	//if i.FP >= 0 {
-	//	fmt.Printf(", calls=[")
-	//	for j := int32(0); j <= i.FP; j++ {
-	//		fmt.Printf(" " + i.Calls[j].FuncSymbol.Name)
-	//	}
-	//	fmt.Print(" ]")
-	//}
-	//fmt.Println()
+	fmt.Println(i.Code[i.IP])
+	// operand stack
+	fmt.Printf("\tstack=[")
+	for j := (0); j <= i.SP; j++ {
+		fmt.Printf(" %v", i.Operands[j])
+	}
+	fmt.Print(" ]")
+	// call stack
+	if i.FP >= 0 {
+		fmt.Printf(", calls=[")
+		for j := (0); j <= i.FP; j++ {
+			fmt.Printf(" " + i.Calls[j].FuncConsts.Name)
+		}
+		fmt.Print(" ]")
+	}
+	fmt.Println()
 }
 
 func (i *Interpreter) Dump() {
@@ -398,7 +450,7 @@ func (i *Interpreter) dumpCodeMemory() {
 		if j%8 == 0 {
 			fmt.Printf("%04d:", j)
 		}
-		fmt.Printf(" %3d", (int)(i.Code[j]))
+		fmt.Printf(" %3s", i.Code[j].OpCode.String())
 	}
 	fmt.Println()
 }
@@ -413,6 +465,231 @@ func (i *Interpreter) dumpDataMemory() {
 		}
 	}
 	fmt.Println()
+}
+
+func (i *Interpreter) Index(obj any, index any) any {
+	switch obj := obj.(type) {
+	case []any:
+		return obj[toInt(index)]
+	case map[any]any:
+		return obj[index]
+	case map[string]any:
+		return obj[index.(string)]
+	default:
+		rv := assertValidObj(obj)
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			return rv.Index(toInt(index)).Interface()
+		case reflect.Map:
+			return rv.MapIndex(reflect.ValueOf(index)).Interface()
+		default:
+			panic(fmt.Sprintf("unexpected type %T for index", obj))
+		}
+	}
+}
+
+func assertValidObj(obj any) reflect.Value {
+	if obj == nil {
+		panic("obj is nil")
+	}
+	rv := reflect.ValueOf(obj)
+	if rv.Kind() == reflect.Invalid {
+		panic("obj is invalid")
+	}
+	for rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+		if rv.Kind() == reflect.Invalid {
+			panic("obj is invalid")
+		}
+	}
+	return rv
+}
+
+func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
+	rv := assertValidObj(obj)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		return rv.Slice(toInt(start), toInt(end)).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for slice split", obj))
+	}
+}
+
+func (i *Interpreter) MakeMap(dictLen int) any {
+	m := make(map[any]any, dictLen)
+	for i2 := 0; i2 < dictLen; i2++ {
+		t := i.PopOpStack().(consts.Tuple)
+		if t.Num != 2 {
+			panic(fmt.Sprintf("unexpected tuple num %d for map init", t.Num))
+		}
+		m[t.Values[0]] = t.Values[1]
+	}
+	return m
+}
+
+func (i *Interpreter) Peek() any {
+	return i.Operands[i.SP]
+}
+
+func (i *Interpreter) FieldLoad(field string) any {
+	// build-in type
+	if structSpace, ok := i.PopOpStack().(*StructSpace); ok {
+		return structSpace.Fields[field]
+	}
+	// reflect
+	obj := reflect.ValueOf(i.PopOpStack())
+	assertValidObj(obj)
+	switch obj.Kind() {
+	case reflect.Struct:
+		return obj.FieldByName(field).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for field load", field))
+	}
+}
+
+func (i *Interpreter) FieldStore(field string) any {
+	// build-in type
+	obj := i.PopOpStack()
+	if structSpace, ok := obj.(*StructSpace); ok {
+		return structSpace.Fields[field]
+	}
+	// reflect
+	objStruct := assertValidObj(obj)
+	switch objStruct.Kind() {
+	case reflect.Struct:
+		return objStruct.FieldByName(field).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for field load", field))
+	}
+}
+
+func (i *Interpreter) IndexStore() {
+	val, index, obj := i.PopOpStack(), i.PopOpStack(), i.PopOpStack()
+	rv := assertValidObj(obj)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		rv.Index(toInt(index)).Set(reflect.ValueOf(val))
+	case reflect.Map:
+		rv.MapIndex(reflect.ValueOf(index)).Set(reflect.ValueOf(val))
+	default:
+		panic(fmt.Sprintf("unexpected type %T for index store", obj))
+	}
+}
+
+func (i *Interpreter) BuildTuple(operands int) any {
+	var ret []any
+	unpack := func(t consts.Tuple) {
+		for i2 := t.Num - 1; i2 >= 0; i2-- {
+			ret = append(ret, t.Values[i2])
+		}
+	}
+	for i2 := operands - 1; i2 >= 0; i2-- {
+		val := i.PopOpStack()
+		if t, ok := val.(consts.Tuple); ok {
+			unpack(t)
+		} else {
+			ret = append(ret, val)
+		}
+	}
+	slices.Reverse(ret)
+	return consts.Tuple{
+		Values: ret,
+		Num:    len(ret),
+	}
+}
+
+func (i *Interpreter) Iter(obj any) any {
+	// map/slices/int/array
+	rv := assertValidObj(obj)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		return consts.Iter{
+			Obj:  rv,
+			Len:  rv.Len(),
+			Kind: "slice",
+		}
+	case reflect.Map:
+		return consts.Iter{
+			Obj:  rv.MapRange(),
+			Len:  rv.Len(),
+			Kind: "map",
+		}
+	case reflect.Int:
+		return consts.Iter{
+			Obj:  rv,
+			Len:  int(rv.Int()),
+			Kind: "int",
+		}
+	default:
+		panic(fmt.Sprintf("unexpected type %T for iter", obj))
+	}
+
+}
+
+func (i *Interpreter) FieldByIndex(fields []*reflect.StructField) any {
+	obj := i.PopOpStack()
+	rv := assertValidObj(obj)
+	var index []int
+	for _, f := range fields {
+		index = append(index, f.Index...)
+	}
+	value, err := rv.FieldByIndexErr(index)
+	if err != nil {
+		panic("null pointer")
+	}
+	return value.Interface()
+}
+
+func (i *Interpreter) RSetField(fields []*reflect.StructField) {
+	value, rv := i.PopOpStack(), assertValidObj(i.PopOpStack())
+	var index []int
+	for _, f := range fields {
+		index = append(index, f.Index...)
+	}
+	obj, err := rv.FieldByIndexErr(index)
+	if err != nil {
+		panic("null pointer")
+	}
+	obj.Set(reflect.ValueOf(value))
+}
+
+func (i *Interpreter) MapIndex(key any, m any) any {
+	rv := assertValidObj(m)
+	switch rv.Kind() {
+	case reflect.Map:
+		return rv.MapIndex(reflect.ValueOf(key)).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for map index", m))
+	}
+}
+
+func (i *Interpreter) RIndex(index any, slice any) any {
+	rv := assertValidObj(slice)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array, reflect.String:
+		return rv.Index(toInt(index)).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
+	}
+}
+
+func (i *Interpreter) RSet(val any, obj any) {
+	rv := assertValidObj(obj)
+	if rv.CanSet() {
+		rv.Set(reflect.ValueOf(val))
+		return
+	}
+	panic(fmt.Sprintf("unexpected type %T for Rset", obj))
+}
+
+func (i *Interpreter) RSetMapIndex(k, m, val any) {
+	rv := assertValidObj(m)
+	switch rv.Kind() {
+	case reflect.Map:
+		rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(val))
+	default:
+		panic(fmt.Sprintf("unexpected type %T for map index store", m))
+	}
 }
 
 type StructSpace struct {

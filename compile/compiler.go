@@ -8,6 +8,7 @@ import (
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/gen"
+	"github.com/ycl2018/gs/vm"
 )
 
 type GsCompiler struct {
@@ -27,7 +28,7 @@ func NewGsCompiler() *GsCompiler {
 	}
 }
 
-func (p *GsCompiler) Compile(input antlr.CharStream, env any) ([]byte, error) {
+func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) {
 	lexer := gen.NewGsLexer(input)
 	tokens := antlr.NewCommonTokenStream(lexer, 0)
 	ps := gen.NewGsParser(tokens)
@@ -55,7 +56,8 @@ func (p *GsCompiler) Compile(input antlr.CharStream, env any) ([]byte, error) {
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())
 	}
-	return nil, nil
+	code := p.compileVisitor.Code()
+	return &code, nil
 }
 
 func (p *GsCompiler) Dump() string {

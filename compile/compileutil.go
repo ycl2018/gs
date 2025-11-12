@@ -2,10 +2,13 @@ package compile
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
+	"github.com/ycl2018/gs/vm"
 )
 
 const placeholder = -1
@@ -196,6 +199,9 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			return
 		}
 	} else {
+		if s.Scopes[qid] == nil {
+			panic("scope not found")
+		}
 		primarySymbol, ok := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
 		if !ok {
 			s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", ids[0])
@@ -231,4 +237,40 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		}
 	}
 	s.FillTarget(brNils...)
+}
+
+func (s *StackCompileVisitor) Code() vm.Code {
+	var constPoll []consts.Const
+	var cs []*ConstSymbol
+	for _, c := range s.GlobalScope.Consts {
+		cs = append(cs, c)
+	}
+	// sort
+	sort.Slice(cs, func(i, j int) bool {
+		return cs[i].Address < cs[j].Address
+	})
+	// fill const poll
+	for _, c := range cs {
+		constPoll = append(constPoll, consts.Const{
+			Value: c.Value,
+			Kind:  c.Kind,
+		})
+	}
+
+	toFuncConst := func(f *FunctionSymbol) consts.FunctionConst {
+		return consts.FunctionConst{
+			Name: f.Name,
+			Code: f.Code,
+		}
+	}
+	var envType reflect.Type
+	if s.Env != nil {
+		envType = s.Env.RType
+	}
+	return vm.Code{
+		Globals:      int(s.GlobalScope.LocalVarAllocator),
+		ConstPool:    constPoll,
+		MainFunc:     toFuncConst(s.MainFunc),
+		BuildEnvType: envType,
+	}
 }

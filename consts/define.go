@@ -57,7 +57,7 @@ const (
 	InstrLoad
 	InstrGLoad // global load
 
-	InstrFLoad      // filed load by name,need reflect by vm[*StructSpace or reflect.Value or Any type]
+	InstrFLoad      // filed load by name,need reflect by vm[*StructSpace or Any type]
 	InstrStore      // local store
 	InstrGStore     // global store
 	InstrFStore     // field store

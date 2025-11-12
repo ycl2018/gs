@@ -73,6 +73,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 	var ids []string
 	var query []int // tokenType
 	var qExprs []*gen.ExprContext
+	var j int
 	for i, child := range qid.GetChildren() {
 		if i == 0 {
 			ids = append(ids, "$")
@@ -152,7 +153,8 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			fallthrough
 		case gen.GsLexerLBRACK:
 			// arrayLoad/mapLoad
-			expr := qExprs[i]
+			expr := qExprs[j]
+			j++
 			indexId.WriteString("[" + expr.GetText() + "]")
 			expr.Accept(s)
 			switch curType.Kind() {
