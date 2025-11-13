@@ -20,7 +20,10 @@ func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	// qid (',' qid)* assignOp expr (',' expr)*
 	for _, qid := range ctx.AllQid() {
 		varName := qid.Primary().GetText()
-		g.CurScope.Define(NewVariableSymbol(varName, qid.GetStart()))
+		if g.CurScope.Resolve(varName) == nil {
+			// 优先使用全局变量
+			g.CurScope.Define(NewVariableSymbol(varName, qid.GetStart()))
+		}
 	}
 	return g.VisitChildren(ctx)
 }

@@ -85,25 +85,6 @@ func (c *ConstNode) Atom(i int) gen.IAtomContext {
 	return c
 }
 
-func (c *ConstNode) AllPOW() []antlr.TerminalNode {
-	return []antlr.TerminalNode{}
-}
-
-func (c *ConstNode) POW(i int) antlr.TerminalNode {
-	return nil
-}
-
-func (c *ConstNode) IsPowExprContext() {
-}
-
-func (c *ConstNode) AllPowExpr() []gen.IPowExprContext {
-	return []gen.IPowExprContext{c}
-}
-
-func (c *ConstNode) PowExpr(i int) gen.IPowExprContext {
-	return c
-}
-
 func (c *ConstNode) AllMulOp() []gen.IMulOpContext {
 	return []gen.IMulOpContext{}
 }

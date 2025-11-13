@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 // A complete Visitor for a parse tree produced by GsParser.
 type GsVisitor interface {
@@ -122,9 +121,6 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#mulExpr.
 	VisitMulExpr(ctx *MulExprContext) interface{}
 
-	// Visit a parse tree produced by GsParser#powExpr.
-	VisitPowExpr(ctx *PowExprContext) interface{}
-
 	// Visit a parse tree produced by GsParser#negAtom.
 	VisitNegAtom(ctx *NegAtomContext) interface{}
 
@@ -170,6 +166,15 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#parenAtom.
 	VisitParenAtom(ctx *ParenAtomContext) interface{}
 
+	// Visit a parse tree produced by GsParser#derefAtom.
+	VisitDerefAtom(ctx *DerefAtomContext) interface{}
+
+	// Visit a parse tree produced by GsParser#addrAtom.
+	VisitAddrAtom(ctx *AddrAtomContext) interface{}
+
+	// Visit a parse tree produced by GsParser#lvalue.
+	VisitLvalue(ctx *LvalueContext) interface{}
+
 	// Visit a parse tree produced by GsParser#arrayLiteral.
 	VisitArrayLiteral(ctx *ArrayLiteralContext) interface{}
 
@@ -208,8 +213,4 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#mulOp.
 	VisitMulOp(ctx *MulOpContext) interface{}
-
-	// Visit a parse tree produced by GsParser#powOp.
-	VisitPowOp(ctx *PowOpContext) interface{}
-
 }

@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 type BaseGsVisitor struct {
 	antlr.ParseTreeVisitor
@@ -160,10 +159,6 @@ func (v *BaseGsVisitor) VisitMulExpr(ctx *MulExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitPowExpr(ctx *PowExprContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitNegAtom(ctx *NegAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -224,6 +219,18 @@ func (v *BaseGsVisitor) VisitParenAtom(ctx *ParenAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitDerefAtom(ctx *DerefAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitAddrAtom(ctx *AddrAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitLvalue(ctx *LvalueContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitArrayLiteral(ctx *ArrayLiteralContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -273,9 +280,5 @@ func (v *BaseGsVisitor) VisitBitOp(ctx *BitOpContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitMulOp(ctx *MulOpContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitPowOp(ctx *PowOpContext) interface{} {
 	return v.VisitChildren(ctx)
 }

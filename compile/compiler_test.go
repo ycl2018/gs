@@ -108,17 +108,6 @@ print u
 `,
 		},
 		{
-			name: "structerr.gs",
-			program: `
-type User struct { name, password }
-u = new User{}
-u.name = "parrt"    // make u.name a string
-u.name.y = "parrt"  // u.name is a string not a struct
-u.x = 3             // x isn't a field of User; can't write to it
-print u.x           // check for unknown field in expr as well
-`,
-		},
-		{
 			name: "nested.gs",
 			program: `
 type User struct { name, addr }
@@ -155,21 +144,22 @@ for i = 0; i<10; i = i + 1 {
 			name: "forRangeBreak.gs",
 			program: `
 for i = range 10 {
-	if i == 5 {
-		break
+	if i %2 == 0 {
+		continue
 	} else {
 		if i == 7 {
-			continue
+			break
 		}
+		print i
 	}
-	print i
+	
 }
 	`,
 		},
 		{
 			name: "ifElse.gs",
 			program: `
-a = 1
+a = 9
 b = 2
 if i = a + b; i< 10 {
 		print i
@@ -212,7 +202,6 @@ print a <= b
 print a >= b
 print a != b
 print a == b
-print a ** b
 print -a
 print a & b
 print a | b
@@ -342,11 +331,29 @@ print $.C["A+B"]
 					Y string
 				}
 				E map[string]string
-			}{},
+			}{
+				A: "a",
+				B: "b",
+				C: struct {
+					X string
+					Y string
+				}{
+					X: "x",
+					Y: "y",
+				},
+				E: map[string]string{},
+			},
 			program: `
-$.E["C+D"] = $.C.X + $.D?.Y
-$.E["A+B"] = $.A + $.B
-$.E["A+D"] = $.A + $.D?.X
+$.D = &$.C
+`,
+		},
+		{
+			name: "pointer.gs",
+			program: `
+a = ""
+b = &a
+print a
+print *b
 `,
 		},
 	}

@@ -318,6 +318,10 @@ func (i *Interpreter) cpu() {
 			i.RSet(i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSetMapIndex:
 			i.RSetMapIndex(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
+		case consts.InstrDeref:
+			i.PushOpStack(i.Deref(i.PopOpStack()))
+		case consts.InstrAddr:
+			i.PushOpStack(i.Addr(i.PopOpStack()))
 		default:
 			panic(fmt.Sprintf("unknown opcode:%d", instr))
 		}
@@ -708,6 +712,22 @@ func (i *Interpreter) RSetMapIndex(k, m, val any) {
 	default:
 		panic(fmt.Sprintf("unexpected type %T for map index store", m))
 	}
+}
+
+func (i *Interpreter) Deref(ptr any) any {
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Ptr {
+		panic(fmt.Sprintf("unexpected type %T for dereference", ptr))
+	}
+	return rv.Elem().Interface()
+}
+
+func (i *Interpreter) Addr(value any) any {
+	rv := reflect.ValueOf(value)
+	if !rv.CanAddr() {
+		panic(fmt.Sprintf("can't address value:%v", value))
+	}
+	return rv.Addr().Interface()
 }
 
 type StructSpace struct {

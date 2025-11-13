@@ -324,8 +324,8 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 		s.EmitStore(iter)
 	case *gen.DoubleIterContext:
 		s.Write(consts.InstrIterNext, 2) //push k,v on stack
-		second := scope.Resolve(iterVar.ID(0).GetText()).(*VariableSymbol)
-		first := scope.Resolve(iterVar.ID(1).GetText()).(*VariableSymbol)
+		first := scope.Resolve(iterVar.ID(0).GetText()).(*VariableSymbol)
+		second := scope.Resolve(iterVar.ID(1).GetText()).(*VariableSymbol)
 		s.EmitStore(second)
 		s.EmitStore(first)
 	}
@@ -526,16 +526,6 @@ func (s *StackCompileVisitor) VisitMulExpr(ctx *gen.MulExprContext) interface{} 
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
-	for i := range ctx.AllAtom() {
-		ctx.Atom(i).Accept(s)
-		if i != 0 {
-			s.Write(consts.InstrPow)
-		}
-	}
-	return nil
-}
-
 func (s *StackCompileVisitor) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
 	ctx.Atom().Accept(s)
 	s.Write(consts.InstrNeg)
@@ -707,8 +697,33 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitPowOp(ctx *gen.PowOpContext) interface{} {
-	// powOp : POW ;
-	s.Write(consts.InstrPow)
+func (s *StackCompileVisitor) VisitAddrAtom(ctx *gen.AddrAtomContext) interface{} {
+	ctx.Lvalue().Accept(s)
+	s.Write(consts.InstrAddr)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitDerefAtom(ctx *gen.DerefAtomContext) interface{} {
+	ctx.Lvalue().Accept(s)
+	s.Write(consts.InstrDeref)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitLvalue(ctx *gen.LvalueContext) interface{} {
+	// if start by */&
+	if v, ok := ctx.GetChild(0).(antlr.TerminalNode); ok {
+		switch v.GetText() {
+		case "*":
+			s.Visit(ctx.Lvalue())
+			s.Write(consts.InstrDeref)
+			return nil
+		case "&":
+			s.Visit(ctx.Lvalue())
+			s.Write(consts.InstrAddr)
+			return nil
+		default:
+		}
+	}
+	s.VisitChildren(ctx)
 	return nil
 }

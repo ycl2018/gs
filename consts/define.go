@@ -80,6 +80,9 @@ const (
 	InstrRIndex       // reflect slice index
 	InstrRSet         // reflect set value
 	InstrRSetMapIndex // reflect set map index
+
+	InstrAddr
+	InstrDeref
 )
 
 // 基于栈的指令集
@@ -153,4 +156,7 @@ var Instructions = []*Instruction{
 	{"rindex", NIL},
 	{"rset", NIL},
 	{"rset_map_index", NIL},
+
+	{"addr", NIL},
+	{"deref", NIL},
 }

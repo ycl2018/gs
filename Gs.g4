@@ -79,8 +79,7 @@ comparisonExpr : addExpr (compOp addExpr)? ;
 
 addExpr : binExpr (addOp binExpr)* ;
 binExpr : mulExpr (bitOp mulExpr)* ;
-mulExpr : powExpr (mulOp powExpr)* ;
-powExpr : atom (POW atom)* ;
+mulExpr : atom (mulOp atom)* ;
 
 // 原子表达式
 atom
@@ -99,6 +98,15 @@ atom
     |   indexAccess             #indexAccessAtom  // 统一数组/字典访问
     |   dictLiteral             #dictAtom
     |   '(' expr ')'            #parenAtom
+    |   '*' lvalue              #derefAtom
+    |   '&' lvalue              #addrAtom
+    ;
+
+lvalue
+    : qid
+    | indexAccess
+    | '*' lvalue
+    | '&' lvalue
     ;
 
 // 数组字面量（支持末尾逗号）
@@ -127,7 +135,6 @@ compOp  : EQ | LT | GT | NEQ | GEQ | LEQ ;
 addOp   : ADD | SUB ;
 bitOp   : BITAND | BITOR | XOR ;
 mulOp   : MUL | DIV | MOD ;
-powOp   : POW ;
 
 // 关键字（全部放在ID前，利用优先级匹配）
 ENV     : '$' ;
@@ -158,7 +165,6 @@ SUB        : '-' ;
 MUL        : '*' ;
 DIV        : '/' ;
 MOD        : '%' ;
-POW        : '**' ;
 EQ         : '==' ;
 LT         : '<' ;
 GT         : '>' ;
