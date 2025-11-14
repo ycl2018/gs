@@ -9,10 +9,11 @@ import (
 )
 
 type MyEnv struct {
-	A     string
-	B     *string
-	Map   map[any]any
-	Slice []any
+	A         string
+	B         *string
+	Map       map[any]any
+	Slice     []any
+	StructMap map[*MyEnv]string
 }
 
 func TestGsInterpreter_Interp(t *testing.T) {
@@ -355,6 +356,28 @@ print "m=", m
 			env: &MyEnv{
 				A:   "a",
 				Map: nil,
+			},
+		},
+		{
+			name: "copy_map.gs",
+			program: `
+for k,v = range $.Map {
+	$.StructMap[k] = v
+}
+for k,v = range $.StructMap {
+	print "k=", k, " v=", v
+}
+		`,
+			env: &MyEnv{
+				Map: map[any]any{
+					&MyEnv{
+						A: "A",
+					}: "A",
+					&MyEnv{
+						A: "B",
+					}: "B",
+				},
+				StructMap: make(map[*MyEnv]string),
 			},
 		},
 	}
