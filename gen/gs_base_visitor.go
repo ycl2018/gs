@@ -1,7 +1,8 @@
-// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
+
 
 type BaseGsVisitor struct {
 	antlr.ParseTreeVisitor
@@ -207,10 +208,6 @@ func (v *BaseGsVisitor) VisitArrayAtom(ctx *ArrayAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitIndexAccessAtom(ctx *IndexAccessAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitDictAtom(ctx *DictAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -223,19 +220,11 @@ func (v *BaseGsVisitor) VisitDerefAtom(ctx *DerefAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitAddrAtom(ctx *AddrAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitLvalue(ctx *LvalueContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseGsVisitor) VisitArrayLiteral(ctx *ArrayLiteralContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitIndexAccess(ctx *IndexAccessContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -260,6 +249,14 @@ func (v *BaseGsVisitor) VisitInstance(ctx *InstanceContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitQid(ctx *QidContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitPropertyAccess(ctx *PropertyAccessContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitIndexAccess(ctx *IndexAccessContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

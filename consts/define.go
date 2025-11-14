@@ -81,8 +81,8 @@ const (
 	InstrRSet         // reflect set value
 	InstrRSetMapIndex // reflect set map index
 
-	InstrAddr
 	InstrDeref
+	InstrNewPtrValue // create pointer reflect value
 )
 
 // 基于栈的指令集
@@ -157,6 +157,6 @@ var Instructions = []*Instruction{
 	{"rset", NIL},
 	{"rset_map_index", NIL},
 
-	{"addr", NIL},
 	{"deref", NIL},
+	{"new_ptr_value", NIL},
 }

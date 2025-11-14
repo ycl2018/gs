@@ -38,8 +38,8 @@ statement
     |   'continue'                                #continueStmt
     ;
 
-assign: qid (',' qid)* '=' expr (',' expr)*;
-incrDecr: qid (INCR | DECR);
+assign: lvalue (',' lvalue)* '=' expr (',' expr)*;
+incrDecr: lvalue (INCR | DECR);
 
 
 
@@ -54,7 +54,7 @@ forInit : assign;
 
 forUpdate : updateItem ;
 
-selfAssign: qid selfAssignOp expr;
+selfAssign: lvalue selfAssignOp expr;
 
 updateItem
     :   selfAssign                        #selfUpdate
@@ -95,39 +95,38 @@ atom
     |   call                    #callAtom
     |   instance                #instanceAtom
     |   arrayLiteral            #arrayAtom
-    |   indexAccess             #indexAccessAtom  // 统一数组/字典访问
     |   dictLiteral             #dictAtom
     |   '(' expr ')'            #parenAtom
     |   '*' lvalue              #derefAtom
-    |   '&' lvalue              #addrAtom
     ;
 
 lvalue
     : qid
-    | indexAccess
     | '*' lvalue
-    | '&' lvalue
     ;
 
 // 数组字面量（支持末尾逗号）
 arrayLiteral : '[' (expr (',' expr)* ','?)? ']' ;
 
-// 索引访问（合并数组/字典访问，支持切片）
-indexAccess : qid '[' (expr | sliceExpr) ']' ;
 sliceExpr : expr? COLON expr? ;
 
 // 字典相关（支持末尾逗号）
 dictLiteral : '{' (dictEntry (',' dictEntry)* ','?)? '}' ;
 dictEntry
     :   (STRING|INT|FLOAT|TRUE|FALSE) ':' expr         #constKeyEntry
-    |   qid ':' expr             #idKeyEntry  // 支持qid作为键
+    |   lvalue ':' expr             #idKeyEntry  // 支持qid作为键
     ;
 
 // 结构体实例化（支持末尾逗号）
 instance : 'new' ID '{' (ID ':' expr (',' ID ':' expr)* ','?)? '}' ;
 
-// 限定标识符（修正：引用可选链词法规则）
-qid : primary ( (DOT | SAFE_DOT ) ID | (LBRACK | SAFE_LBRACK) expr ']' )* ;
+// 限定标识符
+qid : primary accessor* ;
+accessor
+    :   (DOT | SAFE_DOT) ID                            #propertyAccess
+    |   (LBRACK | SAFE_LBRACK) (expr | sliceExpr) ']'  #indexAccess
+    ;
+
 primary : ID | ENV ;
 
 // 运算符集合

@@ -1,11 +1,19 @@
-package compile
+package gs
 
 import (
 	"testing"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/compile"
 	"github.com/ycl2018/gs/vm"
 )
+
+type MyEnv struct {
+	A     string
+	B     *string
+	Map   map[any]any
+	Slice []any
+}
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
@@ -128,7 +136,7 @@ print u.addr
 			program: `
 c = {"a": 1, "b": 2, "c": 3}
 for k, v = range c {
-	print k, v
+	print "k=", k, " v=", v
 }
 	`,
 		},
@@ -169,7 +177,7 @@ if i = a + b; i< 10 {
 	`,
 		},
 		{
-			name: "slice.gs",
+			name: "slice_split.gs",
 			program: `
 s = ["a", "b", "c"]
 print s[0]
@@ -222,8 +230,11 @@ print c
 			program: `
 a = 0
 a+=1
+print a
 a-=2
+print a
 a*=3
+print a
 a%=4
 print a
 		`,
@@ -233,6 +244,7 @@ print a
 			program: `
 a = 0
 a++
+print a
 a--
 print a
 		`,
@@ -263,6 +275,7 @@ a={
 2: "22",
 3: "33"
 }
+
 b=["111","222","333"]
 
 if a[1] == "11" {
@@ -289,7 +302,7 @@ print $["a"]["name"] + $["a"]["addr"]
 `,
 			env: map[string]any{
 				"a": map[string]any{
-					"name": "parrt",
+					"name": "chenglong",
 					"addr": "123 Main St",
 				},
 			},
@@ -318,54 +331,42 @@ print $.C["A+B"]
 `,
 		},
 		{
-			name: "env_struct2.gs",
-			env: &struct {
-				A string
-				B string
-				C struct {
-					X string
-					Y string
-				}
-				D *struct {
-					X string
-					Y string
-				}
-				E map[string]string
-			}{
-				A: "a",
-				B: "b",
-				C: struct {
-					X string
-					Y string
-				}{
-					X: "x",
-					Y: "y",
-				},
-				E: map[string]string{},
-			},
-			program: `
-$.D = &$.C
-`,
-		},
-		{
 			name: "pointer.gs",
 			program: `
-a = ""
-b = &a
-print a
-print *b
-`,
+a = "chenglong"
+*$.B = a
+print *$.B
+		`,
+			env: &MyEnv{
+				A: "a",
+				B: nil,
+			},
+		},
+		{
+			name: "map.gs",
+			program: `
+m = {"a": 1, "b": 2, "c": 3}
+$.Map = m
+print $.Map
+m["d"] = 4
+print "$.Map=", $.Map
+print "m=", m
+		`,
+			env: &MyEnv{
+				A:   "a",
+				Map: nil,
+			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewGsCompiler()
+			p := compile.NewGsCompiler()
 			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
-			t.Log(p.Dump())
 			if err != nil {
 				t.Fatal(err)
 			}
-			vm.NewInterpreter(code, vm.WithEnv(tt.env), vm.WithEnableTrace()).Run()
+			vm.NewInterpreter(code, vm.WithEnv(tt.env)).Run()
 		})
 	}
 }

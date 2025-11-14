@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 	"github.com/ycl2018/gs/vm"
@@ -89,152 +88,148 @@ func (s *StackCompileVisitor) FillTarget(instrs ...*consts.StackInstr) {
 	}
 }
 
-func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
-	var ids []string
-	var query []int // tokenType
-	var qExprs []*gen.ExprContext
-	var j int // index of qExprs
-	for i, child := range qid.GetChildren() {
-		if i == 0 {
-			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
-				if s.Env != nil {
-					s.storeQidToEnv(qid)
-					return
-				} else {
-					ids = append(ids, "$")
-					continue
-				}
-			} else {
-				ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
-			}
-			continue
-		}
-		if node, ok := child.(antlr.TerminalNode); ok {
-			switch t := node.GetSymbol().GetTokenType(); t {
-			case gen.GsLexerDOT, gen.GsLexerLBRACK:
-				query = append(query, t)
-			case gen.GsLexerSAFE_DOT, gen.GsLexerSAFE_LBRACK:
-				s.Log.ErrorToken(node.GetSymbol(), "syntax error:can't use %s in assign left side", node.GetSymbol().GetText())
-				return
-			case gen.GsLexerID:
-				ids = append(ids, node.GetText())
-			}
-		} else if e, ok := child.(*gen.ExprContext); ok {
-			qExprs = append(qExprs, e)
-		}
+func (s *StackCompileVisitor) storeLvalue(lvalue *gen.LvalueContext) {
+	// lvalue: qid | * lvalue;
+	if len(lvalue.GetChildren()) == 2 {
+		s.Write(consts.InstrNewPtrValue)
+		s.storeLvalue(lvalue.Lvalue().(*gen.LvalueContext))
+		return
 	}
-	if ids[0] == "$" {
+	qid := lvalue.Qid()
+	s.storeQid(qid)
+}
+
+func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
+	var primaryText string
+	primary, accessors := qid.Primary().(*gen.PrimaryContext), qid.AllAccessor()
+	if env := primary.ENV(); env != nil {
+		if s.Env != nil {
+			s.storeQidToEnv(qid)
+			return
+		} else {
+			primaryText = env.GetText()
+		}
+	} else {
+		primaryText = primary.ID().GetText()
+	}
+	// qid: primary accessor*
+	if primaryText == "$" {
 		s.Write(consts.InstrLoadEnv)
 	} else {
-		primarySymbol := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
-		if len(ids) == 1 {
+		primarySymbol := s.Scopes[qid].Resolve(primaryText).(*VariableSymbol)
+		if len(accessors) == 0 {
 			// no need load primarySymbol
 			s.EmitStore(primarySymbol)
 			return
 		}
 		s.EmitLoad(primarySymbol)
 	}
-	for i := 0; i < len(query)-1; i++ {
-		switch query[i] {
-		case gen.GsLexerDOT:
+	for i, accessor := range accessors {
+		switch a := accessor.(type) {
+		case *gen.PropertyAccessContext:
 			// fieldLoad
-			fieldName := ids[i+1]
+			// checkDOT
+			if a.SAFE_DOT() != nil {
+				s.Log.ErrorToken(a.SAFE_DOT().GetSymbol(), "syntax error:can't use ? in assign left side")
+				return
+			}
+			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
-			s.Write(consts.InstrFLoad, operand)
-		case gen.GsLexerLBRACK:
-			// arrayLoad/mapLoad
-			expr := qExprs[j]
-			j++
-			expr.Accept(s)
-			s.Write(consts.InstrIndexLoad)
+			if i < len(accessors)-1 {
+				s.Write(consts.InstrFLoad, operand)
+			} else {
+				s.Write(consts.InstrFStore, operand)
+			}
+		case *gen.IndexAccessContext:
+			// checkLBRACK
+			if a.SAFE_LBRACK() != nil {
+				s.Log.ErrorToken(a.SAFE_LBRACK().GetSymbol(), "syntax error:can't use ? in assign left side")
+				return
+			}
+
+			switch t := a.GetChild(1).(type) {
+			case *gen.ExprContext:
+				t.Accept(s)
+				if i < len(accessors)-1 {
+					s.Write(consts.InstrIndexLoad)
+				} else {
+					s.Write(consts.InstrIndexStore)
+				}
+			case *gen.SliceExprContext:
+				if i == len(accessors)-1 {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to slice split")
+					return
+				}
+				t.Accept(s)
+			}
 		}
-	}
-	// lastQuery
-	switch query[len(query)-1] {
-	case gen.GsLexerDOT:
-		fieldName := ids[len(ids)-1]
-		operand := s.defineStringConst(fieldName)
-		s.Write(consts.InstrFStore, operand)
-	case gen.GsLexerLBRACK:
-		// arrayStore/mapStore
-		expr := qExprs[j]
-		expr.Accept(s)
-		s.Write(consts.InstrIndexStore)
 	}
 }
 
-func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
-	var ids []string
-	var query []int // tokenType
-	var qExprs []*gen.ExprContext
-	var j int // index of qExprs
-	for i, child := range qid.GetChildren() {
-		if i == 0 {
-			if env := child.(*gen.PrimaryContext).ENV(); env != nil {
-				if s.Env != nil {
-					s.loadQidFromEnv(qid)
-					return
-				} else {
-					ids = append(ids, "$")
-					continue
-				}
-			} else {
-				ids = append(ids, child.(*gen.PrimaryContext).ID().GetText())
-			}
-			continue
-		}
-		if node, ok := child.(antlr.TerminalNode); ok {
-			switch t := node.GetSymbol().GetTokenType(); t {
-			case gen.GsLexerDOT, gen.GsLexerSAFE_DOT, gen.GsLexerLBRACK, gen.GsLexerSAFE_LBRACK:
-				query = append(query, t)
-			case gen.GsLexerID:
-				ids = append(ids, node.GetText())
-			}
-		} else if e, ok := child.(*gen.ExprContext); ok {
-			qExprs = append(qExprs, e)
-		}
+func (s *StackCompileVisitor) loadLvalue(lvalue *gen.LvalueContext) {
+	// lvalue: qid | * lvalue;
+	if len(lvalue.GetChildren()) == 2 {
+		s.storeLvalue(lvalue.Lvalue().(*gen.LvalueContext))
+		s.Write(consts.InstrDeref)
+		return
 	}
-	if ids[0] == "$" {
-		if len(query) == 0 {
-			s.Write(consts.InstrLoadEnv)
+	qid := lvalue.Qid()
+	s.loadQid(qid)
+}
+
+func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
+	var primaryText string
+	primary, accessors := qid.Primary().(*gen.PrimaryContext), qid.AllAccessor()
+	if env := primary.ENV(); env != nil {
+		if s.Env != nil {
+			s.loadQidFromEnv(qid)
 			return
+		} else {
+			primaryText = env.GetText()
 		}
 	} else {
-		if s.Scopes[qid] == nil {
-			panic("scope not found")
-		}
-		primarySymbol, ok := s.Scopes[qid].Resolve(ids[0]).(*VariableSymbol)
+		primaryText = primary.ID().GetText()
+	}
+	// qid: primary accessor*
+	if primaryText == "$" {
+		s.Write(consts.InstrLoadEnv)
+	} else {
+		primarySymbol, ok := s.Scopes[qid].Resolve(primaryText).(*VariableSymbol)
 		if !ok {
-			s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", ids[0])
+			s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", primaryText)
 			return
 		}
 		s.EmitLoad(primarySymbol)
 	}
 	var brNils []*consts.StackInstr
-	for i := 0; i < len(query); i++ {
-		switch query[i] {
-		case gen.GsLexerSAFE_DOT:
-			// if true, then fieldLoad
-			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
-			brNils = append(brNils, brNil)
-			s.WriteInstr(brNil)
-			fallthrough
-		case gen.GsLexerDOT:
+	for _, accessor := range accessors {
+		switch a := accessor.(type) {
+		case *gen.PropertyAccessContext:
 			// fieldLoad
-			fieldName := ids[i+1]
+			// checkDOT
+			if a.SAFE_DOT() != nil {
+				// if true, then fieldLoad
+				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
+				brNils = append(brNils, brNil)
+				s.WriteInstr(brNil)
+			}
+			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
 			s.Write(consts.InstrFLoad, operand)
-		case gen.GsLexerSAFE_LBRACK:
-			brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
-			brNils = append(brNils, brNil)
-			s.WriteInstr(brNil)
-			fallthrough
-		case gen.GsLexerLBRACK:
-			// arrayLoad/mapLoad
-			expr := qExprs[j]
-			j++
-			expr.Accept(s)
-			s.Write(consts.InstrIndexLoad)
+		case *gen.IndexAccessContext:
+			// checkLBRACK
+			if a.SAFE_LBRACK() != nil {
+				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
+				brNils = append(brNils, brNil)
+				s.WriteInstr(brNil)
+			}
+			switch t := a.GetChild(1).(type) {
+			case *gen.ExprContext:
+				t.Accept(s)
+				s.Write(consts.InstrIndexLoad)
+			case *gen.SliceExprContext:
+				t.Accept(s)
+			}
 		}
 	}
 	s.FillTarget(brNils...)

@@ -320,8 +320,8 @@ func (i *Interpreter) cpu() {
 			i.RSetMapIndex(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrDeref:
 			i.PushOpStack(i.Deref(i.PopOpStack()))
-		case consts.InstrAddr:
-			i.PushOpStack(i.Addr(i.PopOpStack()))
+		case consts.InstrNewPtrValue:
+			i.PushOpStack(i.NewPtrValue(i.PopOpStack()))
 		default:
 			panic(fmt.Sprintf("unknown opcode:%d", instr))
 		}
@@ -523,14 +523,14 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		start, end = toInt(start), toInt(end)
+		start, end := toInt(start), toInt(end)
 		if start == -1 {
 			start = 0
 		}
 		if end == -1 {
 			end = rv.Len()
 		}
-		return rv.Slice(toInt(start), toInt(end)).Interface()
+		return rv.Slice(start, end).Interface()
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice split", obj))
 	}
@@ -570,7 +570,8 @@ func (i *Interpreter) FieldLoad(field string) any {
 
 func (i *Interpreter) FieldStore(field string) {
 	// build-in type
-	obj, val := i.PopOpStack(), i.PopOpStack()
+	obj := i.PopOpStack()
+	val := i.PopOpStack()
 	if structSpace, ok := obj.(*StructSpace); ok {
 		structSpace.Fields[field] = val
 		return
@@ -586,13 +587,26 @@ func (i *Interpreter) FieldStore(field string) {
 }
 
 func (i *Interpreter) IndexStore() {
-	val, index, obj := i.PopOpStack(), i.PopOpStack(), i.PopOpStack()
+	val := i.PopOpStack()
+	obj := i.PopOpStack()
+	index := i.PopOpStack()
+	switch obj := obj.(type) {
+	case map[any]any:
+		obj[index] = val
+		return
+	case map[string]any:
+		obj[index.(string)] = val
+		return
+	case []any:
+		obj[toInt(index)] = val
+		return
+	}
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
 		rv.Index(toInt(index)).Set(reflect.ValueOf(val))
 	case reflect.Map:
-		rv.MapIndex(reflect.ValueOf(index)).Set(reflect.ValueOf(val))
+		rv.SetMapIndex(reflect.ValueOf(index), reflect.ValueOf(val))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for index store", obj))
 	}
@@ -663,19 +677,26 @@ func (i *Interpreter) FieldByIndex(fields []*reflect.StructField) any {
 }
 
 func (i *Interpreter) RSetField(fields []*reflect.StructField) {
-	value, rv := i.PopOpStack(), assertValidObj(i.PopOpStack())
+	obj := assertValidObj(i.PopOpStack())
+	value := i.PopOpStack()
 	var index []int
 	for _, f := range fields {
 		index = append(index, f.Index...)
 	}
-	obj, err := rv.FieldByIndexErr(index)
+	fieldObj, err := obj.FieldByIndexErr(index)
 	if err != nil {
 		panic("null pointer")
 	}
-	obj.Set(reflect.ValueOf(value))
+	fieldObj.Set(reflect.ValueOf(value))
 }
 
 func (i *Interpreter) MapIndex(key any, m any) any {
+	switch m := m.(type) {
+	case map[any]any:
+		return m[key]
+	case map[string]any:
+		return m[key.(string)]
+	}
 	rv := assertValidObj(m)
 	switch rv.Kind() {
 	case reflect.Map:
@@ -686,6 +707,10 @@ func (i *Interpreter) MapIndex(key any, m any) any {
 }
 
 func (i *Interpreter) RIndex(index any, slice any) any {
+	switch slice := slice.(type) {
+	case []any:
+		return slice[toInt(index)]
+	}
 	rv := assertValidObj(slice)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.String:
@@ -728,6 +753,13 @@ func (i *Interpreter) Addr(value any) any {
 		panic(fmt.Sprintf("can't address value:%v", value))
 	}
 	return rv.Addr().Interface()
+}
+
+func (i *Interpreter) NewPtrValue(val any) any {
+	of := reflect.ValueOf(val)
+	rv := reflect.New(of.Type())
+	rv.Elem().Set(of)
+	return rv.Interface()
 }
 
 type StructSpace struct {

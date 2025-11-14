@@ -190,11 +190,12 @@ func (s *StackCompileVisitor) VisitChildren(node antlr.RuleNode) interface{} {
 }
 
 func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
-	var qids []*gen.QidContext
+	// lvalue (',' lvalue)* assignOp expr (',' expr)*
+	var lvalues []*gen.LvalueContext
 	var exprs []gen.IExprContext
 	for _, child := range ctx.GetChildren() {
-		if qid, ok := child.(*gen.QidContext); ok {
-			qids = append(qids, qid)
+		if qid, ok := child.(*gen.LvalueContext); ok {
+			lvalues = append(lvalues, qid)
 		} else if e, ok := child.(*gen.ExprContext); ok {
 			exprs = append(exprs, e)
 		}
@@ -208,15 +209,13 @@ func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 		s.Write(consts.InstrBuildTuple, len(exprs))
 	}
 	// unpack tuple
-	if len(qids) > 1 {
-		s.Write(consts.InstrUnpack, len(qids))
+	if len(lvalues) > 1 {
+		s.Write(consts.InstrUnpack, len(lvalues))
 	}
-	// qids from left to right
-	//  qid (',' qid)* assignOp expr (',' expr)*
-	// qid : primary ( (DOT | SAFE_DOT ) ID | (LBRACK | SAFE_LBRACK) expr ']' )* ;
-	for i := len(qids) - 1; i >= 0; i-- {
-		qid := ctx.Qid(i)
-		s.storeQid(qid)
+	// lvalues from left to right
+	//  lvalue (',' lvalue)* assignOp expr (',' expr)*
+	for i := len(lvalues) - 1; i >= 0; i-- {
+		s.storeLvalue(lvalues[i])
 	}
 	return nil
 }
@@ -397,26 +396,26 @@ func (s *StackCompileVisitor) VisitContinueStmt(ctx *gen.ContinueStmtContext) in
 
 func (s *StackCompileVisitor) VisitIncrDecr(ctx *gen.IncrDecrContext) interface{} {
 	// qid (INCR | DECR)
-	qid := ctx.Qid()
 	incr := ctx.INCR() != nil
 	if incr {
 		s.Write(consts.InstrIConst, 1)
 	} else {
 		s.Write(consts.InstrIConst, -1)
 	}
-	s.loadQid(qid)
+	lvalue := ctx.Lvalue().(*gen.LvalueContext)
+	s.loadLvalue(lvalue)
 	s.Write(consts.InstrAdd)
-	s.storeQid(qid)
+	s.storeLvalue(lvalue)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitSelfAssign(ctx *gen.SelfAssignContext) interface{} {
 	// qid selfAssignOp expr
-	qid := ctx.Qid()
+	lvalue := ctx.Lvalue().(*gen.LvalueContext)
+	s.loadLvalue(lvalue)
 	ctx.Expr().Accept(s)
-	s.loadQid(qid)
 	ctx.SelfAssignOp().Accept(s)
-	s.storeQid(qid)
+	s.storeLvalue(lvalue)
 	return nil
 }
 
@@ -567,20 +566,6 @@ func (s *StackCompileVisitor) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) in
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitIndexAccess(ctx *gen.IndexAccessContext) interface{} {
-	// indexAccess : qid '[' (expr | sliceExpr) ']' ;
-	s.loadQid(ctx.Qid())
-	expr := ctx.Expr()
-	if expr != nil {
-		expr.Accept(s)
-		s.Write(consts.InstrIndexLoad)
-	} else {
-		ctx.SliceExpr().Accept(s)
-	}
-
-	return nil
-}
-
 func (s *StackCompileVisitor) VisitSliceExpr(ctx *gen.SliceExprContext) interface{} {
 	// sliceExpr : start=expr? ':' end=expr? ;
 	var isLeft = true
@@ -662,7 +647,8 @@ func (s *StackCompileVisitor) VisitConstKeyEntry(ctx *gen.ConstKeyEntryContext) 
 
 func (s *StackCompileVisitor) VisitIdKeyEntry(ctx *gen.IdKeyEntryContext) interface{} {
 	// idKeyEntry : ID ':' expr ;
-	s.loadQid(ctx.Qid())
+	lvalue := ctx.Lvalue().(*gen.LvalueContext)
+	s.loadLvalue(lvalue)
 	ctx.Expr().Accept(s)
 	return nil
 }
@@ -697,12 +683,6 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitAddrAtom(ctx *gen.AddrAtomContext) interface{} {
-	ctx.Lvalue().Accept(s)
-	s.Write(consts.InstrAddr)
-	return nil
-}
-
 func (s *StackCompileVisitor) VisitDerefAtom(ctx *gen.DerefAtomContext) interface{} {
 	ctx.Lvalue().Accept(s)
 	s.Write(consts.InstrDeref)
@@ -716,10 +696,6 @@ func (s *StackCompileVisitor) VisitLvalue(ctx *gen.LvalueContext) interface{} {
 		case "*":
 			s.Visit(ctx.Lvalue())
 			s.Write(consts.InstrDeref)
-			return nil
-		case "&":
-			s.Visit(ctx.Lvalue())
-			s.Write(consts.InstrAddr)
 			return nil
 		default:
 		}

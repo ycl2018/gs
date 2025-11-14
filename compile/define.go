@@ -17,12 +17,17 @@ type GsDefineVisitor struct {
 }
 
 func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
-	// qid (',' qid)* assignOp expr (',' expr)*
-	for _, qid := range ctx.AllQid() {
-		varName := qid.Primary().GetText()
-		if g.CurScope.Resolve(varName) == nil {
-			// 优先使用全局变量
-			g.CurScope.Define(NewVariableSymbol(varName, qid.GetStart()))
+	// lvalue (',' lvalue)* assignOp expr (',' expr)*
+	for _, lvalue := range ctx.AllLvalue() {
+		if qid := lvalue.Qid(); qid != nil {
+			varName := qid.Primary().GetText()
+			if varName == "$" {
+				continue
+			}
+			if g.CurScope.Resolve(varName) == nil {
+				// 优先使用全局变量
+				g.CurScope.Define(NewVariableSymbol(varName, lvalue.GetStart()))
+			}
 		}
 	}
 	return g.VisitChildren(ctx)
@@ -56,8 +61,10 @@ func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
 	if ctx.Primary().ID() != nil {
 		refName := ctx.Primary().ID().GetText()
-		if g.CurScope.Resolve(refName) == nil {
-			g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
+		if refName != "$" {
+			if g.CurScope.Resolve(refName) == nil {
+				g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
+			}
 		}
 	}
 	return g.VisitChildren(ctx)

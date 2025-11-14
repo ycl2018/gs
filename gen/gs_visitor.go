@@ -1,7 +1,8 @@
-// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
+
 
 // A complete Visitor for a parse tree produced by GsParser.
 type GsVisitor interface {
@@ -157,9 +158,6 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#arrayAtom.
 	VisitArrayAtom(ctx *ArrayAtomContext) interface{}
 
-	// Visit a parse tree produced by GsParser#indexAccessAtom.
-	VisitIndexAccessAtom(ctx *IndexAccessAtomContext) interface{}
-
 	// Visit a parse tree produced by GsParser#dictAtom.
 	VisitDictAtom(ctx *DictAtomContext) interface{}
 
@@ -169,17 +167,11 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#derefAtom.
 	VisitDerefAtom(ctx *DerefAtomContext) interface{}
 
-	// Visit a parse tree produced by GsParser#addrAtom.
-	VisitAddrAtom(ctx *AddrAtomContext) interface{}
-
 	// Visit a parse tree produced by GsParser#lvalue.
 	VisitLvalue(ctx *LvalueContext) interface{}
 
 	// Visit a parse tree produced by GsParser#arrayLiteral.
 	VisitArrayLiteral(ctx *ArrayLiteralContext) interface{}
-
-	// Visit a parse tree produced by GsParser#indexAccess.
-	VisitIndexAccess(ctx *IndexAccessContext) interface{}
 
 	// Visit a parse tree produced by GsParser#sliceExpr.
 	VisitSliceExpr(ctx *SliceExprContext) interface{}
@@ -199,6 +191,12 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#qid.
 	VisitQid(ctx *QidContext) interface{}
 
+	// Visit a parse tree produced by GsParser#propertyAccess.
+	VisitPropertyAccess(ctx *PropertyAccessContext) interface{}
+
+	// Visit a parse tree produced by GsParser#indexAccess.
+	VisitIndexAccess(ctx *IndexAccessContext) interface{}
+
 	// Visit a parse tree produced by GsParser#primary.
 	VisitPrimary(ctx *PrimaryContext) interface{}
 
@@ -213,4 +211,5 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#mulOp.
 	VisitMulOp(ctx *MulOpContext) interface{}
+
 }
