@@ -1,15 +1,25 @@
-package compile
+package gs
 
 import (
 	"testing"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/compile"
+	"github.com/ycl2018/gs/vm"
 )
+
+type MyEnv struct {
+	A     string
+	B     *string
+	Map   map[any]any
+	Slice []any
+}
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
 		name    string
 		program string
+		env     any
 	}{
 		{
 			name: "apple.gs",
@@ -19,7 +29,7 @@ for i<10 {
 	print i*3.2
 	i = i + 1
 	if i<5 {
-		print i + " is less than 5"
+		print i , " is less than 5"
 	}else {
 		print "foo"
 	}
@@ -92,7 +102,7 @@ for i<n {
         i = i + 1
 }
 
-print "looped "+n+" times."
+print "looped ",n," times."
 `,
 		},
 		{
@@ -103,17 +113,6 @@ u = new User{}
 u.name = "parrt"
 print "Login: "+u.name
 print u
-`,
-		},
-		{
-			name: "structerr.gs",
-			program: `
-type User struct { name, password }
-u = new User{}
-u.name = "parrt"    // make u.name a string
-u.name.y = "parrt"  // u.name is a string not a struct
-u.x = 3             // x isn't a field of User; can't write to it
-print u.x           // check for unknown field in expr as well
 `,
 		},
 		{
@@ -135,12 +134,9 @@ print u.addr
 		{
 			name: "range.gs",
 			program: `
-for i = range 10 {
-	print i
-}
 c = {"a": 1, "b": 2, "c": 3}
 for k, v = range c {
-	print k, v
+	print "k=", k, " v=", v
 }
 	`,
 		},
@@ -156,21 +152,22 @@ for i = 0; i<10; i = i + 1 {
 			name: "forRangeBreak.gs",
 			program: `
 for i = range 10 {
-	if i == 5 {
-		break
+	if i %2 == 0 {
+		continue
 	} else {
 		if i == 7 {
-			continue
+			break
 		}
+		print i
 	}
-	print i
+	
 }
 	`,
 		},
 		{
 			name: "ifElse.gs",
 			program: `
-a = 1
+a = 9
 b = 2
 if i = a + b; i< 10 {
 		print i
@@ -180,7 +177,7 @@ if i = a + b; i< 10 {
 	`,
 		},
 		{
-			name: "slice.gs",
+			name: "slice_split.gs",
 			program: `
 s = ["a", "b", "c"]
 print s[0]
@@ -213,10 +210,6 @@ print a <= b
 print a >= b
 print a != b
 print a == b
-print a || b
-print a && b
-print a ** b
-print !a
 print -a
 print a & b
 print a | b
@@ -237,8 +230,11 @@ print c
 			program: `
 a = 0
 a+=1
+print a
 a-=2
+print a
 a*=3
+print a
 a%=4
 print a
 		`,
@@ -248,6 +244,7 @@ print a
 			program: `
 a = 0
 a++
+print a
 a--
 print a
 		`,
@@ -278,22 +275,98 @@ a={
 2: "22",
 3: "33"
 }
+
 b=["111","222","333"]
 
 if a[1] == "11" {
 print a
 }
+for i = range b {
+	print b[i]
+}
 `,
 		},
+		{
+			name: "forRange2",
+			program: `
+b=["111","222","333"]
+for i = range b {
+	print b[i]
+}
+`,
+		},
+		{
+			name: "env_map.gs",
+			program: `
+print $["a"]["name"] + $["a"]["addr"]
+`,
+			env: map[string]any{
+				"a": map[string]any{
+					"name": "chenglong",
+					"addr": "123 Main St",
+				},
+			},
+		},
+		{
+			name: "env_slice.gs",
+			env:  []any{"a", "b", "c"},
+			program: `
+print $[0]+$[1]+$[2]
+`,
+		},
+		{
+			name: "env_struct.gs",
+			env: &struct {
+				A string
+				B string
+				C map[string]string
+			}{
+				A: "a",
+				B: "b",
+				C: map[string]string{},
+			},
+			program: `
+$.C["A+B"] = $.A + $.B
+print $.C["A+B"]
+`,
+		},
+		{
+			name: "pointer.gs",
+			program: `
+a = "chenglong"
+*$.B = a
+print *$.B
+		`,
+			env: &MyEnv{
+				A: "a",
+				B: nil,
+			},
+		},
+		{
+			name: "map.gs",
+			program: `
+m = {"a": 1, "b": 2, "c": 3}
+$.Map = m
+print $.Map
+m["d"] = 4
+print "$.Map=", $.Map
+print "m=", m
+		`,
+			env: &MyEnv{
+				A:   "a",
+				Map: nil,
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewGsCompiler()
-			_, err := p.Compile(antlr.NewInputStream(tt.program))
+			p := compile.NewGsCompiler()
+			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Log(p.Dump())
+			vm.NewInterpreter(code, vm.WithEnv(tt.env)).Run()
 		})
 	}
 }

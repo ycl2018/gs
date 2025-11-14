@@ -1,27 +1,36 @@
-package vm
+package consts
 
 import (
 	"fmt"
 )
 
 type StackInstr struct {
-	OpCode   int
-	Operands []int
+	OpCode   Instr
+	Operands int
 }
 
-func NewStackInstr(opCode int, operands ...int) *StackInstr {
+func NewStackInstr(opCode Instr, operand int) *StackInstr {
 	return &StackInstr{
 		OpCode:   opCode,
-		Operands: operands,
+		Operands: operand,
 	}
 }
 
 func (s StackInstr) Dump() string {
-	if len(s.Operands) > 0 {
-		return fmt.Sprintf("%-11s\t%v\n", Instr(s.OpCode), s.Operands[0])
-	} else {
+	switch Instructions[s.OpCode].OpRandType {
+	case NIL:
 		return fmt.Sprintf("%-11s\t\n", Instr(s.OpCode))
+	case INT:
+		return fmt.Sprintf("%-11s\t%v\n", Instr(s.OpCode), s.Operands)
+	case POLL:
+		return fmt.Sprintf("%-11s\tconst#%v\n", Instr(s.OpCode), s.Operands)
+	default:
+		panic(fmt.Sprintf("unknown op rand type %d", Instructions[s.OpCode].OpRandType))
 	}
+}
+
+func (s StackInstr) String() string {
+	return s.Dump()
 }
 
 // ConstKind 常量类型，存储于全局常量池
@@ -34,6 +43,7 @@ const (
 	ConstFunc
 	ConstMapInit
 	ConstSliceInit
+	ConstFieldIndex
 )
 
 func (c ConstKind) String() string {
@@ -50,19 +60,9 @@ func (c ConstKind) String() string {
 		return "map"
 	case ConstSliceInit:
 		return "slice"
+	case ConstFieldIndex:
+		return "fieldIndex"
 	default:
 		panic(fmt.Sprintf("unknown const kind %d", c))
 	}
-}
-
-type StructDecl struct {
-	Name   string
-	Fields []string
-}
-type FuncDecl struct {
-	FuncName string
-	NArgs    int32
-	NLocals  int32
-	Structs  []StructDecl
-	BodyCode []StackInstr
 }

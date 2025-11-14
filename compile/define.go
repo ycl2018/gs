@@ -17,13 +17,20 @@ type GsDefineVisitor struct {
 }
 
 func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
-	// qid (',' qid)* assignOp expr (',' expr)*
-	for _, qid := range ctx.AllQid() {
-		varName := qid.Primary().GetText()
-		g.CurScope.Define(NewVariableSymbol(varName, qid.GetStart()))
+	// lvalue (',' lvalue)* assignOp expr (',' expr)*
+	for _, lvalue := range ctx.AllLvalue() {
+		if qid := lvalue.Qid(); qid != nil {
+			varName := qid.Primary().GetText()
+			if varName == "$" {
+				continue
+			}
+			if g.CurScope.Resolve(varName) == nil {
+				// 优先使用全局变量
+				g.CurScope.Define(NewVariableSymbol(varName, lvalue.GetStart()))
+			}
+		}
 	}
-	g.VisitChildren(ctx)
-	return nil
+	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) interface{} {
@@ -45,13 +52,22 @@ func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{
 	return nil
 }
 
+func (g *GsDefineVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
+	g.SaveScope(ctx, g.CurScope)
+	return g.VisitChildren(ctx)
+}
+
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 	g.SaveScope(ctx, g.CurScope)
-	refName := ctx.Primary().ID().GetText()
-	if g.CurScope.Resolve(refName) == nil {
-		g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
+	if ctx.Primary().ID() != nil {
+		refName := ctx.Primary().ID().GetText()
+		if refName != "$" {
+			if g.CurScope.Resolve(refName) == nil {
+				g.Log.ErrorToken(ctx.GetStart(), "undefined variable: %s", refName)
+			}
+		}
 	}
-	return nil
+	return g.VisitChildren(ctx)
 }
 
 func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {

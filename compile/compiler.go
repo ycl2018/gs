@@ -8,11 +8,7 @@ import (
 
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/gen"
-)
-
-const (
-	Version     uint16 = 1
-	MagicNumber int32  = 0x25504446 // %Gs
+	"github.com/ycl2018/gs/vm"
 )
 
 type GsCompiler struct {
@@ -32,7 +28,7 @@ func NewGsCompiler() *GsCompiler {
 	}
 }
 
-func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
+func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) {
 	lexer := gen.NewGsLexer(input)
 	tokens := antlr.NewCommonTokenStream(lexer, 0)
 	ps := gen.NewGsParser(tokens)
@@ -55,13 +51,13 @@ func (p *GsCompiler) Compile(input antlr.CharStream) ([]byte, error) {
 		}
 	}
 	// 执行
-	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log)
+	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log, env)
 	p.compileVisitor.Visit(programContext)
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())
 	}
-	//assembler := NewAssembler(defVisitor.GlobalScope, p.compileVisitor.MainFunc, p.compileVisitor.AllFuncs, p.compileVisitor.ToBeFilled)
-	return nil, nil
+	code := p.compileVisitor.Code()
+	return &code, nil
 }
 
 func (p *GsCompiler) Dump() string {
