@@ -1,6 +1,8 @@
 package gs
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -16,32 +18,58 @@ type MyEnv struct {
 	StructMap map[*MyEnv]string
 }
 
+type BasicValue struct {
+	Uint     uint
+	Uint8    uint8
+	Uint16   uint16
+	Uint32   uint32
+	Uint64   uint64
+	Int8     int8
+	Int16    int16
+	Int32    int32
+	Int      int
+	Int64    int64
+	Float32  float32
+	Float64  float64
+	String   string
+	SliceAny []any
+	MapAny   map[any]any
+}
+
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
 		name    string
 		program string
 		env     any
+		expect  string
 	}{
 		{
 			name: "apple.gs",
 			program: `
 i = 0
-for i<10 {
-	print i*3.2
+for i<5 {
 	i = i + 1
-	if i<5 {
-		print i , " is less than 5"
+	if i<3 {
+		print i , " is less than 3"
 	}else {
 		print "foo"
 	}
 }
-	`},
+	`,
+			expect: `
+1 is less than 3
+2 is less than 3
+foo
+foo
+foo
+`},
 		{
 			name: "cheery.gs",
 			program: `
 func f(x) {return 2*x}
 print f(4)
 `,
+			expect: "8",
 		},
 		{
 			name: "factorials.gs",
@@ -55,6 +83,7 @@ func fact(n) {
 
 print fact(10)
 `,
+			expect: "3628800",
 		},
 		{
 			name: "forward.gs",
@@ -63,6 +92,10 @@ print f(4)           // references definition on next line
 func f(x) {return 2*x}
 print new User{}       // references definition on next line
 type User struct { name, password }
+`,
+			expect: `
+8
+struct User { name: <nil>, password: <nil> }
 `,
 		},
 		{
@@ -76,6 +109,10 @@ func f() {                       // define f
  }                            // end body of f
 print new User{}                 // prints "{name=null, password=null}"
 f()                            // call f
+`,
+			expect: `
+struct User { name: <nil>, password: <nil> }
+struct User { x: <nil>, y: <nil> }
 `,
 		},
 		{
@@ -93,6 +130,10 @@ f(10)
 g()
 print x         // prints 3 (g alters global value)
 `,
+			expect: `
+10
+3
+`,
 		},
 		{
 			name: "loop.gs",
@@ -100,20 +141,24 @@ print x         // prints 3 (g alters global value)
 n = 100
 i = 0
 for i<n {
-        i = i + 1
+	i = i + 1
 }
-
 print "looped ",n," times."
 `,
+			expect: "looped 100 times.",
 		},
 		{
 			name: "struct.gs",
 			program: `
 type User struct { name, password }
 u = new User{}
-u.name = "parrt"
+u.name = "chenglong"
 print "Login: "+u.name
 print u
+`,
+			expect: `
+Login: chenglong
+struct User { name: chenglong, password: <nil> }
 `,
 		},
 		{
@@ -131,26 +176,41 @@ print u.addr.street
 print u.addr.city
 print u.addr
 `,
+			expect: `
+123 Main St
+Chicago
+struct Address { street: 123 Main St, city: Chicago, state: <nil>, zip: <nil> }
+ `,
 		},
 		{
-			name: "range.gs",
+			name: "range_kv.gs",
 			program: `
 c = {"a": 1, "b": 2, "c": 3}
+sum = 0
 for k, v = range c {
-	print "k=", k, " v=", v
+	sum += v
 }
+print sum
 	`,
+			expect: `
+6
+`,
 		},
 		{
-			name: "cStyleRange.gs",
+			name: "cstyle_for.gs",
 			program: `
-for i = 0; i<10; i = i + 1 {
+for i = 0; i<3; i = i + 1 {
 	print i
 }
 	`,
+			expect: `
+0
+1
+2
+`,
 		},
 		{
-			name: "forRangeBreak.gs",
+			name: "continue_break.gs",
 			program: `
 for i = range 10 {
 	if i %2 == 0 {
@@ -164,18 +224,23 @@ for i = range 10 {
 	
 }
 	`,
+			expect: `
+1
+3
+5`,
 		},
 		{
-			name: "ifElse.gs",
+			name: "if_else.gs",
 			program: `
 a = 9
 b = 2
-if i = a + b; i< 10 {
-		print i
+if i = a + b; i < 10 {
+	print i
 } else {
-		print "i is not less than 10"
+	print "i is not less than 10"
 }
 	`,
+			expect: `i is not less than 10`,
 		},
 		{
 			name: "slice_split.gs",
@@ -187,16 +252,24 @@ print s[:2]
 print s[1:2]
 print s[:]
 	`,
+			expect: `
+a
+[b c]
+[a b]
+[b]
+[a b c]
+`,
 		},
 		{
-			name: "dict.gs",
+			name: "map.gs",
 			program: `
 d = {"a": 1, "b": 2, "c": 3}
 print d["a"]
 	`,
+			expect: "1",
 		},
 		{
-			name: "expression.gs",
+			name: "calculate.gs",
 			program: `
 a = 1
 b = 2
@@ -216,6 +289,23 @@ print a & b
 print a | b
 print a ^ b
 		`,
+			expect: `
+3
+-1
+2
+0
+1
+true
+false
+true
+false
+true
+false
+-1
+0
+3
+3
+`,
 		},
 		{
 			name: "expression2.gs",
@@ -225,9 +315,10 @@ b = 2
 c = a + b == 0 || a + b == 1 && a + b == 3
 print c
 		`,
+			expect: "false",
 		},
 		{
-			name: "selfUpdate.gs",
+			name: "self_update.gs",
 			program: `
 a = 0
 a+=1
@@ -239,9 +330,15 @@ print a
 a%=4
 print a
 		`,
+			expect: `
+1
+-1
+-3
+-3
+`,
 		},
 		{
-			name: "selfIncrDecr.gs",
+			name: "incr_decr.gs",
 			program: `
 a = 0
 a++
@@ -249,9 +346,13 @@ print a
 a--
 print a
 		`,
+			expect: `
+1
+0
+`,
 		},
 		{
-			name: "safeAccess.gs",
+			name: "safe_access.gs",
 			program: `
 type Student struct {
 x,y,z
@@ -261,39 +362,34 @@ s = new Student{}
 a = s.x?.z
 print a
 `,
+			expect: "<nil>",
 		},
 		{
-			name: "constOptimizer.gs",
+			name: "const_optimizer.gs",
 			program: `
 a= (1*2+3*3) + 100 // 111
+print a
 `,
+			expect: "111",
 		},
 		{
 			name: "slice.gs",
 			program: `
-a={
-1: "11",
-2: "22",
-3: "33"
-}
-
 b=["111","222","333"]
-
-if a[1] == "11" {
-print a
-}
 for i = range b {
 	print b[i]
+}
+for i, v = range b {
+ print i," ",v
 }
 `,
-		},
-		{
-			name: "forRange2",
-			program: `
-b=["111","222","333"]
-for i = range b {
-	print b[i]
-}
+			expect: `
+111
+222
+333
+0 111
+1 222
+2 333
 `,
 		},
 		{
@@ -307,6 +403,7 @@ print $["a"]["name"] + $["a"]["addr"]
 					"addr": "123 Main St",
 				},
 			},
+			expect: `chenglong123 Main St`,
 		},
 		{
 			name: "env_slice.gs",
@@ -314,6 +411,7 @@ print $["a"]["name"] + $["a"]["addr"]
 			program: `
 print $[0]+$[1]+$[2]
 `,
+			expect: `abc`,
 		},
 		{
 			name: "env_struct.gs",
@@ -330,9 +428,10 @@ print $[0]+$[1]+$[2]
 $.C["A+B"] = $.A + $.B
 print $.C["A+B"]
 `,
+			expect: `ab`,
 		},
 		{
-			name: "pointer.gs",
+			name: "pointer_access.gs",
 			program: `
 a = "chenglong"
 *$.B = a
@@ -342,6 +441,7 @@ print *$.B
 				A: "a",
 				B: nil,
 			},
+			expect: `chenglong`,
 		},
 		{
 			name: "map.gs",
@@ -357,6 +457,11 @@ print "m=", m
 				A:   "a",
 				Map: nil,
 			},
+			expect: `
+map[a:1 b:2 c:3]
+$.Map=map[a:1 b:2 c:3 4:d]
+m=map[a:1 b:2 c:3 4:d]
+`,
 		},
 		{
 			name: "copy_map.gs",
@@ -364,10 +469,16 @@ print "m=", m
 for k,v = range $.Map {
 	$.StructMap[k] = v
 }
+vsum = ""
 for k,v = range $.StructMap {
-	print "k=", k, " v=", v
+	vsum += v
 }
+
+print vsum == "AB" || vsum == "BA"
 		`,
+			expect: `
+true
+`,
 			env: &MyEnv{
 				Map: map[any]any{
 					&MyEnv{
@@ -380,16 +491,47 @@ for k,v = range $.StructMap {
 				StructMap: make(map[*MyEnv]string),
 			},
 		},
+		{
+			name: "set_value.gs",
+			program: `
+$.Uint 	   = 1
+$.Uint     = 1
+$.Uint8    = 2
+$.Uint16   = 3
+$.Uint32   = 4
+$.Uint64   = 5
+$.Int8     = 6
+$.Int16    = 7
+$.Int32    = 8
+$.Int	   = 9
+$.Int64    = 10
+$.Float32  = .2
+$.Float64  = .3
+$.String   = "str"
+$.SliceAny = [1,"sss",.2]
+$.MapAny   = {1:"1",true:false,"string":"string"}
+print $
+`,
+			env: &BasicValue{},
+			expect: `
+&{1 2 3 4 5 6 7 8 9 10 0.2 0.3 str [1 sss 0.2] map[string:string 1:1 true:false]}
+`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			out := &bytes.Buffer{}
 			p := compile.NewGsCompiler()
 			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
 			if err != nil {
 				t.Fatal(err)
 			}
-			vm.NewInterpreter(code, vm.WithEnv(tt.env)).Run()
+			vm.NewInterpreter(code, vm.WithEnv(tt.env), vm.WithPrintTo(out)).Run()
+			got := out.String()
+			if strings.TrimSpace(got) != strings.TrimSpace(tt.expect) {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.expect)
+			}
 		})
 	}
 }

@@ -77,8 +77,8 @@
 
 ## 内置函数支持
 
-|函数|作用|
-|--|--|
-|append(slice, any) slice|切片追加元素|
-|delete(map,any)|删除元素|
-|||
+| 函数                       | 作用     |
+|--------------------------|--------|
+| append(slice, any) slice | 切片追加元素 |
+| delete(map,any)          | 删除元素   |
+| len(slice/map/string)    | 获取长度   |
