@@ -192,7 +192,7 @@ func (s *StackCompileVisitor) VisitChildren(node antlr.RuleNode) interface{} {
 func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	// lvalue (',' lvalue)* assignOp expr (',' expr)*
 	var lvalues []*gen.LvalueContext
-	var exprs []gen.IExprContext
+	var exprs []*gen.ExprContext
 	for _, child := range ctx.GetChildren() {
 		if qid, ok := child.(*gen.LvalueContext); ok {
 			lvalues = append(lvalues, qid)
@@ -214,7 +214,7 @@ func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	}
 	// lvalues from left to right
 	//  lvalue (',' lvalue)* assignOp expr (',' expr)*
-	for i := len(lvalues) - 1; i >= 0; i-- {
+	for i := 0; i < len(lvalues); i++ {
 		s.storeLvalue(lvalues[i])
 	}
 	return nil

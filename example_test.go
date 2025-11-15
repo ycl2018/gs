@@ -11,11 +11,17 @@ import (
 )
 
 type MyEnv struct {
+	Embed
 	A         string
 	B         *string
 	Map       map[any]any
 	Slice     []any
 	StructMap map[*MyEnv]string
+}
+
+type Embed struct {
+	D string
+	C int
 }
 
 type BasicValue struct {
@@ -38,10 +44,11 @@ type BasicValue struct {
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
-		name    string
-		program string
-		env     any
-		expect  string
+		name        string
+		program     string
+		env         any
+		expect      string
+		enableTrace bool
 	}{
 		{
 			name: "apple.gs",
@@ -70,6 +77,36 @@ func f(x) {return 2*x}
 print f(4)
 `,
 			expect: "8",
+		},
+		{
+			name: "multi_return.gs",
+			program: `
+func swap (x,y) {
+	return y, x
+}
+
+print swap(1,2)
+x,y,z,w = swap(1,2),swap(3,4)
+print x,y,z,w // 2143
+`,
+			expect: `
+tuple2{2,1}
+2143
+`,
+		},
+		{
+			name: "embeded.gs",
+			program: `
+$.D = "chenglong"
+$.C = 5.2
+print $.D
+print $.C
+`,
+			expect: `
+chenglong
+5
+`,
+			env: &MyEnv{},
 		},
 		{
 			name: "factorials.gs",
@@ -527,7 +564,13 @@ print $
 			if err != nil {
 				t.Fatal(err)
 			}
-			vm.NewInterpreter(code, vm.WithEnv(tt.env), vm.WithPrintTo(out)).Run()
+			var ops = []vm.Option{
+				vm.WithEnv(tt.env), vm.WithPrintTo(out),
+			}
+			if tt.enableTrace {
+				ops = append(ops, vm.WithEnableTrace())
+			}
+			vm.NewInterpreter(code, ops...).Run()
 			got := out.String()
 			if strings.TrimSpace(got) != strings.TrimSpace(tt.expect) {
 				t.Errorf("got:\n%s\nwant:\n%s", got, tt.expect)
