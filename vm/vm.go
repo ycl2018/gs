@@ -2,7 +2,9 @@ package vm
 
 import (
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -30,6 +32,12 @@ func WithEnv(env any) Option {
 	}
 }
 
+func WithPrintTo(writer io.Writer) Option {
+	return func(i *Interpreter) {
+		i.Out = writer
+	}
+}
+
 type Interpreter struct {
 	IP           int                 // 指令地址
 	Code         []consts.StackInstr // 代码
@@ -47,6 +55,7 @@ type Interpreter struct {
 	Globals  []any
 	DataSize int
 	Env      any
+	Out      io.Writer
 
 	// ops
 	enableTrace bool
@@ -91,6 +100,7 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 		ConstPool:    code.ConstPool,
 		MainFunc:     code.MainFunc,
 		BuildEnvType: code.BuildEnvType,
+		Out:          os.Stdout,
 	}
 	for _, op := range ops {
 		op(i)
@@ -145,7 +155,7 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.PopOpStack().(bool) && i.PopOpStack().(bool))
 		case consts.InstrPow:
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			i.PushOpStack(math.Pow(toFloat64(op1), toFloat64(op2)))
+			i.PushOpStack(math.Pow(ToFloat64(op1), ToFloat64(op2)))
 		case consts.InstrNeg:
 			i.PushOpStack(neg(i.PopOpStack()))
 		case consts.InstrTrue:
@@ -224,11 +234,17 @@ func (i *Interpreter) cpu() {
 		case consts.InstrSliceConst:
 			poolIndex := instr.Operands
 			sliceConst := i.ConstPool[poolIndex].Value.([]any)
-			i.PushOpStack(sliceConst)
+			var copied = make([]any, len(sliceConst))
+			copy(copied, sliceConst)
+			i.PushOpStack(copied) // copied
 		case consts.InstrMapConst:
 			poolIndex := instr.Operands
-			mapConst := i.ConstPool[poolIndex].Value
-			i.PushOpStack(mapConst)
+			mapConst := i.ConstPool[poolIndex].Value.(map[any]any)
+			copied := make(map[any]any, len(mapConst))
+			for k, v := range mapConst {
+				copied[k] = v
+			}
+			i.PushOpStack(copied)
 		case consts.InstrNil:
 			i.PushOpStack(nil)
 		case consts.InstrLoad:
@@ -261,9 +277,9 @@ func (i *Interpreter) cpu() {
 				toPrint[i2] = i.PopOpStack()
 			}
 			for j := printNums - 1; j >= 0; j-- {
-				fmt.Print(toPrint[j])
+				fmt.Fprint(i.Out, toPrint[j])
 			}
-			fmt.Printf("\n")
+			fmt.Fprint(i.Out, "\n")
 		case consts.InstrStruct:
 			// push struct
 			def := i.ConstPool[instr.Operands].Value.(consts.StructConst)
@@ -302,8 +318,6 @@ func (i *Interpreter) cpu() {
 		case consts.InstrIterDone:
 			c := i.Peek().(*consts.Iter)
 			i.PushOpStack(c.Done())
-		case consts.InstrHalt:
-			return
 		case consts.InstrLoadEnv:
 			i.PushOpStack(i.Env)
 		case consts.InstrRFByIndex:
@@ -322,71 +336,13 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.Deref(i.PopOpStack()))
 		case consts.InstrNewPtrValue:
 			i.PushOpStack(i.NewPtrValue(i.PopOpStack()))
+		case consts.InstrHalt:
+			return
 		default:
 			panic(fmt.Sprintf("unknown opcode:%d", instr))
 		}
 		instr = i.Code[i.IP]
 	}
-}
-
-func toInt(v any) int {
-	switch v := v.(type) {
-	case uint:
-		return int(v)
-	case uint8:
-		return int(v)
-	case uint16:
-		return int(v)
-	case uint32:
-		return int(v)
-	case uint64:
-		return int(v)
-	case int:
-		return int(v)
-	case int8:
-		return int(v)
-	case int16:
-		return int(v)
-	case int32:
-		return int(v)
-	case int64:
-		return int(v)
-	case float32:
-		return int(v)
-	case float64:
-		return int(v)
-	}
-	panic(fmt.Sprintf("unexpected type %T for conversion to float64", v))
-}
-
-func toFloat64(v any) float64 {
-	switch v := v.(type) {
-	case uint:
-		return float64(v)
-	case uint8:
-		return float64(v)
-	case uint16:
-		return float64(v)
-	case uint32:
-		return float64(v)
-	case uint64:
-		return float64(v)
-	case int:
-		return float64(v)
-	case int8:
-		return float64(v)
-	case int16:
-		return float64(v)
-	case int32:
-		return float64(v)
-	case int64:
-		return float64(v)
-	case float32:
-		return float64(v)
-	case float64:
-		return float64(v)
-	}
-	panic(fmt.Sprintf("unexpected type %T for conversion to float64", v))
 }
 
 func neg(v any) any {
@@ -484,7 +440,7 @@ func (i *Interpreter) dumpDataMemory() {
 func (i *Interpreter) Index(obj any, index any) any {
 	switch obj := obj.(type) {
 	case []any:
-		return obj[toInt(index)]
+		return obj[ToInt(index)]
 	case map[any]any:
 		return obj[index]
 	case map[string]any:
@@ -493,7 +449,7 @@ func (i *Interpreter) Index(obj any, index any) any {
 		rv := assertValidObj(obj)
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
-			return rv.Index(toInt(index)).Interface()
+			return rv.Index(ToInt(index)).Interface()
 		case reflect.Map:
 			return rv.MapIndex(reflect.ValueOf(index)).Interface()
 		default:
@@ -523,7 +479,7 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		start, end := toInt(start), toInt(end)
+		start, end := ToInt(start), ToInt(end)
 		if start == -1 {
 			start = 0
 		}
@@ -594,17 +550,39 @@ func (i *Interpreter) IndexStore() {
 	case map[any]any:
 		obj[index] = val
 		return
+	case []any:
+		obj[ToInt(index)] = val
+		return
+	case []string:
+		obj[ToInt(index)] = val.(string)
+	case []int:
+		obj[ToInt(index)] = val.(int)
+	case []int64:
+		obj[ToInt(index)] = val.(int64)
 	case map[string]any:
 		obj[index.(string)] = val
 		return
-	case []any:
-		obj[toInt(index)] = val
-		return
+	case map[string]bool:
+		obj[index.(string)] = val.(bool)
+	case map[string]int:
+		obj[index.(string)] = val.(int)
+	case map[string]string:
+		obj[index.(string)] = val.(string)
+	case map[int]any:
+		obj[index.(int)] = val
+	case map[int]bool:
+		obj[index.(int)] = val.(bool)
+	case map[int]string:
+		obj[index.(int)] = val.(string)
+	case map[int64]any:
+		obj[index.(int64)] = val
+	case map[int64]bool:
+		obj[index.(int64)] = val.(bool)
 	}
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		rv.Index(toInt(index)).Set(reflect.ValueOf(val))
+		rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
 	case reflect.Map:
 		rv.SetMapIndex(reflect.ValueOf(index), reflect.ValueOf(val))
 	default:
@@ -687,7 +665,43 @@ func (i *Interpreter) RSetField(fields []*reflect.StructField) {
 	if err != nil {
 		panic("null pointer")
 	}
-	fieldObj.Set(reflect.ValueOf(value))
+	lastFiled := fields[len(fields)-1]
+	SetField(fieldObj, lastFiled.Type, value)
+}
+
+// SetField 设置结构体字段的值，支持类型转换
+func SetField(fieldObj reflect.Value, fieldType reflect.Type, value any) {
+	switch fieldType.Kind() {
+	case reflect.Int:
+		fieldObj.Set(reflect.ValueOf(ToInt(value)))
+	case reflect.Int8:
+		fieldObj.Set(reflect.ValueOf(ToInt8(value)))
+	case reflect.Int16:
+		fieldObj.Set(reflect.ValueOf(ToInt16(value)))
+	case reflect.Int32:
+		fieldObj.Set(reflect.ValueOf(ToInt32(value)))
+	case reflect.Int64:
+		fieldObj.Set(reflect.ValueOf(ToInt64(value)))
+	case reflect.Uint:
+		fieldObj.Set(reflect.ValueOf(ToUint(value)))
+	case reflect.Uint8:
+		fieldObj.Set(reflect.ValueOf(ToUint8(value)))
+	case reflect.Uint16:
+		fieldObj.Set(reflect.ValueOf(ToUint16(value)))
+	case reflect.Uint32:
+		fieldObj.Set(reflect.ValueOf(ToUint32(value)))
+	case reflect.Uint64:
+		fieldObj.Set(reflect.ValueOf(ToUint64(value)))
+	case reflect.Uintptr:
+		fieldObj.Set(reflect.ValueOf(ToUintptr(value)))
+	case reflect.Float32:
+		fieldObj.Set(reflect.ValueOf(ToFloat32(value)))
+	case reflect.Float64:
+		fieldObj.Set(reflect.ValueOf(ToFloat64(value)))
+	default:
+		// 对于其他类型，直接设置值
+		fieldObj.Set(reflect.ValueOf(value))
+	}
 }
 
 func (i *Interpreter) MapIndex(key any, m any) any {
@@ -696,6 +710,26 @@ func (i *Interpreter) MapIndex(key any, m any) any {
 		return m[key]
 	case map[string]any:
 		return m[key.(string)]
+	case map[string]bool:
+		return m[key.(string)]
+	case map[string]string:
+		return m[key.(string)]
+	case map[int]bool:
+		return m[ToInt(key)]
+	case map[int]string:
+		return m[ToInt(key)]
+	case map[int]int:
+		return m[ToInt(key)]
+	case map[int]any:
+		return m[ToInt(key)]
+	case map[int64]bool:
+		return m[ToInt64(key)]
+	case map[int64]string:
+		return m[ToInt64(key)]
+	case map[int64]int64:
+		return m[ToInt64(key)]
+	case map[int64]any:
+		return m[ToInt64(key)]
 	}
 	rv := assertValidObj(m)
 	switch rv.Kind() {
@@ -709,12 +743,26 @@ func (i *Interpreter) MapIndex(key any, m any) any {
 func (i *Interpreter) RIndex(index any, slice any) any {
 	switch slice := slice.(type) {
 	case []any:
-		return slice[toInt(index)]
+		return slice[ToInt(index)]
+	case []string:
+		return slice[ToInt(index)]
+	case []int:
+		return slice[ToInt(index)]
+	case []int32:
+		return slice[ToInt(index)]
+	case []int64:
+		return slice[ToInt(index)]
+	case []float32:
+		return slice[ToInt(index)]
+	case []float64:
+		return slice[ToInt(index)]
+	case []bool:
+		return slice[ToInt(index)]
 	}
 	rv := assertValidObj(slice)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.String:
-		return rv.Index(toInt(index)).Interface()
+		return rv.Index(ToInt(index)).Interface()
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
 	}
@@ -723,16 +771,44 @@ func (i *Interpreter) RIndex(index any, slice any) any {
 func (i *Interpreter) RSet(val any, obj any) {
 	rv := assertValidObj(obj)
 	if rv.CanSet() {
-		rv.Set(reflect.ValueOf(val))
+		SetField(rv, rv.Type(), val)
 		return
 	}
 	panic(fmt.Sprintf("unexpected type %T for Rset", obj))
 }
 
 func (i *Interpreter) RSetMapIndex(k, m, val any) {
+	switch m := m.(type) {
+	// fast path
+	case map[any]any:
+		m[k] = val
+	case map[string]any:
+		m[k.(string)] = val
+	case map[string]bool:
+		m[k.(string)] = val.(bool)
+	case map[string]string:
+		m[k.(string)] = val.(string)
+	case map[int]bool:
+		m[ToInt(k)] = val.(bool)
+	case map[int]string:
+		m[ToInt(k)] = val.(string)
+	case map[int]int:
+		m[ToInt(k)] = ToInt(val)
+	case map[int]any:
+		m[ToInt(k)] = val
+	case map[int64]bool:
+		m[ToInt64(val)] = val.(bool)
+	case map[int64]string:
+		m[ToInt64(val)] = val.(string)
+	case map[int64]int64:
+		m[ToInt64(k)] = ToInt64(val)
+	case map[int64]any:
+		m[ToInt64(k)] = val.(int64)
+	}
 	rv := assertValidObj(m)
 	switch rv.Kind() {
 	case reflect.Map:
+		rv.Type().Key()
 		rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(val))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for map index store", m))

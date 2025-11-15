@@ -146,7 +146,6 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 				s.Log.ErrorToken(a.SAFE_LBRACK().GetSymbol(), "syntax error:can't use ? in assign left side")
 				return
 			}
-
 			switch t := a.GetChild(1).(type) {
 			case *gen.ExprContext:
 				t.Accept(s)
@@ -169,7 +168,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 func (s *StackCompileVisitor) loadLvalue(lvalue *gen.LvalueContext) {
 	// lvalue: qid | * lvalue;
 	if len(lvalue.GetChildren()) == 2 {
-		s.storeLvalue(lvalue.Lvalue().(*gen.LvalueContext))
+		s.loadLvalue(lvalue.Lvalue().(*gen.LvalueContext))
 		s.Write(consts.InstrDeref)
 		return
 	}
