@@ -272,14 +272,50 @@ func (i *Interpreter) cpu() {
 			i.IndexStore()
 		case consts.InstrPrint:
 			printNums := instr.Operands
-			var toPrint []any = make([]any, printNums)
-			for i2 := 0; i2 < printNums; i2++ {
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
 				toPrint[i2] = i.PopOpStack()
 			}
-			for j := printNums - 1; j >= 0; j-- {
-				fmt.Fprint(i.Out, toPrint[j])
+			fmt.Fprint(i.Out, toPrint...)
+		case consts.InstrPrintf:
+			printNums := instr.Operands
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
+				toPrint[i2] = i.PopOpStack()
 			}
-			fmt.Fprint(i.Out, "\n")
+			fmtStr, ok := toPrint[0].(string)
+			if !ok {
+				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
+			}
+			fmt.Fprintf(i.Out, fmtStr, toPrint[1:])
+		case consts.InstrPrintln:
+			printNums := instr.Operands
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
+				toPrint[i2] = i.PopOpStack()
+			}
+			fmt.Fprintln(i.Out, toPrint...)
+		case consts.InstrLen:
+			i.PushOpStack(length(i.PopOpStack()))
+		case consts.InstrAppend:
+			appendNums := instr.Operands
+			var appendVals = make([]any, appendNums)
+			for i2 := appendNums - 1; i2 >= 0; i2++ {
+				appendVals[i2] = i.PopOpStack()
+			}
+			slice, vals := appendVals[0], appendVals[1:]
+			i.PushOpStack(appendSlice(slice, vals))
+		case consts.InstrDelete:
+			key := i.PopOpStack()
+			m := i.PopOpStack()
+			deleteMap(m, key)
+		case consts.InstrCopy:
+			val := i.PopOpStack()
+			i.PushOpStack(copySlice(val))
+		case consts.InstrToString:
+			i.PushOpStack(toString(i.PopOpStack()))
+		case consts.InstrConvert:
+			i.PushOpStack(convert(i.PopOpStack(), reflect.Kind(instr.Operands)))
 		case consts.InstrStruct:
 			// push struct
 			def := i.ConstPool[instr.Operands].Value.(consts.StructConst)

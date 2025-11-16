@@ -12,11 +12,12 @@ import (
 
 type MyEnv struct {
 	Embed
-	A         string
-	B         *string
-	Map       map[any]any
-	Slice     []any
-	StructMap map[*MyEnv]string
+	A           string
+	B           *string
+	Map         map[any]any
+	Slice       []any
+	StringSlice []string
+	StructMap   map[*MyEnv]string
 }
 
 type Embed struct {
@@ -44,11 +45,11 @@ type BasicValue struct {
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
-		name        string
-		program     string
-		env         any
-		expect      string
-		enableTrace bool
+		name    string
+		program string
+		env     any
+		expect  string
+		trace   bool
 	}{
 		{
 			name: "apple.gs",
@@ -57,15 +58,15 @@ i = 0
 for i<5 {
 	i = i + 1
 	if i<3 {
-		print i , " is less than 3"
+		println( i , " is less than 3" )
 	}else {
-		print "foo"
+		println( "foo" )
 	}
 }
 	`,
 			expect: `
-1 is less than 3
-2 is less than 3
+1  is less than 3
+2  is less than 3
 foo
 foo
 foo
@@ -74,7 +75,7 @@ foo
 			name: "cheery.gs",
 			program: `
 func f(x) {return 2*x}
-print f(4)
+println( f(4) )
 `,
 			expect: "8",
 		},
@@ -85,13 +86,13 @@ func swap (x,y) {
 	return y, x
 }
 
-print swap(1,2)
+println( swap(1,2) )
 x,y,z,w = swap(1,2),swap(3,4)
-print x,y,z,w // 2143
+println( x,y,z,w ) // 2143
 `,
 			expect: `
 tuple2{2,1}
-2143
+2 1 4 3
 `,
 		},
 		{
@@ -99,8 +100,8 @@ tuple2{2,1}
 			program: `
 $.D = "chenglong"
 $.C = 5.2
-print $.D
-print $.C
+println( $.D )
+println( $.C )
 `,
 			expect: `
 chenglong
@@ -118,16 +119,16 @@ func fact(n) {
 	return n * fact(n-1)
 }
 
-print fact(10)
+println( fact(10) )
 `,
 			expect: "3628800",
 		},
 		{
 			name: "forward.gs",
 			program: `
-print f(4)           // references definition on next line
+println( f(4) )           // references definition on next line
 func f(x) {return 2*x}
-print new User{}       // references definition on next line
+println( new User{} )       // references definition on next line
 type User struct { name, password }
 `,
 			expect: `
@@ -142,9 +143,9 @@ type User struct { name, password } // define global struct
 func f() {                       // define f
     type User struct { x, y }       // hides global User def
     u = new User{}               // create new User instance, put in local u
-    print u                    // prints "{x=null, y=null}"
+    println( u )                    // println(s "{x=null, y=null}"
  }                            // end body of f
-print new User{}                 // prints "{name=null, password=null}"
+println( new User{} )                 // println(s "{name=null, password=null}"
 f()                            // call f
 `,
 			expect: `
@@ -157,7 +158,7 @@ struct User { x: <nil>, y: <nil> }
 			program: `
 x = 1           // create global variable
 func f(x) {       // define f in global space
-    print x     // access parameter; prints 10
+    println( x )     // access parameter; println(s 10
     y = 2       // create local variable
 }
 func g() {        // define g in global space
@@ -165,7 +166,7 @@ func g() {        // define g in global space
 }
 f(10)
 g()
-print x         // prints 3 (g alters global value)
+println( x )         // println(s 3 (g alters global value)
 `,
 			expect: `
 10
@@ -180,9 +181,9 @@ i = 0
 for i<n {
 	i = i + 1
 }
-print "looped ",n," times."
+println( "looped ",n," times." )
 `,
-			expect: "looped 100 times.",
+			expect: "looped  100  times.",
 		},
 		{
 			name: "struct.gs",
@@ -190,8 +191,8 @@ print "looped ",n," times."
 type User struct { name, password }
 u = new User{}
 u.name = "chenglong"
-print "Login: "+u.name
-print u
+println( "Login: "+u.name )
+println( u )
 `,
 			expect: `
 Login: chenglong
@@ -209,9 +210,9 @@ addr = new Address{}
 addr.street = "123 Main St"
 u.addr =  addr
 u.addr.city = "Chicago"
-print u.addr.street
-print u.addr.city
-print u.addr
+println( u.addr.street )
+println( u.addr.city )
+println( u.addr )
 `,
 			expect: `
 123 Main St
@@ -227,7 +228,7 @@ sum = 0
 for k, v = range c {
 	sum += v
 }
-print sum
+println( sum )
 	`,
 			expect: `
 6
@@ -237,7 +238,7 @@ print sum
 			name: "cstyle_for.gs",
 			program: `
 for i = 0; i<3; i = i + 1 {
-	print i
+	println( i )
 }
 	`,
 			expect: `
@@ -256,7 +257,7 @@ for i = range 10 {
 		if i == 7 {
 			break
 		}
-		print i
+		println( i )
 	}
 	
 }
@@ -272,9 +273,9 @@ for i = range 10 {
 a = 9
 b = 2
 if i = a + b; i < 10 {
-	print i
+	println( i )
 } else {
-	print "i is not less than 10"
+	println( "i is not less than 10" )
 }
 	`,
 			expect: `i is not less than 10`,
@@ -283,11 +284,11 @@ if i = a + b; i < 10 {
 			name: "slice_split.gs",
 			program: `
 s = ["a", "b", "c"]
-print s[0]
-print s[1:]
-print s[:2]
-print s[1:2]
-print s[:]
+println( s[0] )
+println( s[1:] )
+println( s[:2] )
+println( s[1:2] )
+println( s[:] )
 	`,
 			expect: `
 a
@@ -301,7 +302,7 @@ a
 			name: "map.gs",
 			program: `
 d = {"a": 1, "b": 2, "c": 3}
-print d["a"]
+println( d["a"] )
 	`,
 			expect: "1",
 		},
@@ -310,21 +311,21 @@ print d["a"]
 			program: `
 a = 1
 b = 2
-print a + b
-print a - b
-print a * b
-print a / b
-print a % b
-print a < b
-print a > b
-print a <= b
-print a >= b
-print a != b
-print a == b
-print -a
-print a & b
-print a | b
-print a ^ b
+println( a + b )
+println( a - b )
+println( a * b )
+println( a / b )
+println( a % b )
+println( a < b )
+println( a > b )
+println( a <= b )
+println( a >= b )
+println( a != b )
+println( a == b )
+println( -a )
+println( a & b )
+println( a | b )
+println( a ^ b )
 		`,
 			expect: `
 3
@@ -350,7 +351,7 @@ false
 a = 1
 b = 2
 c = a + b == 0 || a + b == 1 && a + b == 3
-print c
+println( c )
 		`,
 			expect: "false",
 		},
@@ -359,13 +360,13 @@ print c
 			program: `
 a = 0
 a+=1
-print a
+println( a )
 a-=2
-print a
+println( a )
 a*=3
-print a
+println( a )
 a%=4
-print a
+println( a )
 		`,
 			expect: `
 1
@@ -379,9 +380,9 @@ print a
 			program: `
 a = 0
 a++
-print a
+println( a )
 a--
-print a
+println( a )
 		`,
 			expect: `
 1
@@ -397,7 +398,7 @@ x,y,z
 
 s = new Student{}
 a = s.x?.z
-print a
+println( a )
 `,
 			expect: "<nil>",
 		},
@@ -405,7 +406,7 @@ print a
 			name: "const_optimizer.gs",
 			program: `
 a= (1*2+3*3) + 100 // 111
-print a
+println( a )
 `,
 			expect: "111",
 		},
@@ -414,25 +415,25 @@ print a
 			program: `
 b=["111","222","333"]
 for i = range b {
-	print b[i]
+	println( b[i] )
 }
 for i, v = range b {
- print i," ",v
+ println( i," ",v )
 }
 `,
 			expect: `
 111
 222
 333
-0 111
-1 222
-2 333
+0   111
+1   222
+2   333
 `,
 		},
 		{
 			name: "env_map.gs",
 			program: `
-print $["a"]["name"] + $["a"]["addr"]
+println( $["a"]["name"] + $["a"]["addr"] )
 `,
 			env: map[string]any{
 				"a": map[string]any{
@@ -446,7 +447,7 @@ print $["a"]["name"] + $["a"]["addr"]
 			name: "env_slice.gs",
 			env:  []any{"a", "b", "c"},
 			program: `
-print $[0]+$[1]+$[2]
+println( $[0]+$[1]+$[2] )
 `,
 			expect: `abc`,
 		},
@@ -463,7 +464,7 @@ print $[0]+$[1]+$[2]
 			},
 			program: `
 $.C["A+B"] = $.A + $.B
-print $.C["A+B"]
+println( $.C["A+B"] )
 `,
 			expect: `ab`,
 		},
@@ -472,7 +473,7 @@ print $.C["A+B"]
 			program: `
 a = "chenglong"
 *$.B = a
-print *$.B
+println( *$.B )
 		`,
 			env: &MyEnv{
 				A: "a",
@@ -485,10 +486,10 @@ print *$.B
 			program: `
 m = {"a": 1, "b": 2, "c": 3}
 $.Map = m
-print $.Map
+println( $.Map )
 m["d"] = 4
-print "$.Map=", $.Map
-print "m=", m
+println( "$.Map=", $.Map )
+println( "m=", m )
 		`,
 			env: &MyEnv{
 				A:   "a",
@@ -496,8 +497,8 @@ print "m=", m
 			},
 			expect: `
 map[a:1 b:2 c:3]
-$.Map=map[a:1 b:2 c:3 4:d]
-m=map[a:1 b:2 c:3 4:d]
+$.Map= map[a:1 b:2 c:3 4:d]
+m= map[a:1 b:2 c:3 4:d]
 `,
 		},
 		{
@@ -511,7 +512,7 @@ for k,v = range $.StructMap {
 	vsum += v
 }
 
-print vsum == "AB" || vsum == "BA"
+println( vsum == "AB" || vsum == "BA" )
 		`,
 			expect: `
 true
@@ -547,11 +548,39 @@ $.Float64  = .3
 $.String   = "str"
 $.SliceAny = [1,"sss",.2]
 $.MapAny   = {1:"1",true:false,"string":"string"}
-print $
+println( $ )
 `,
 			env: &BasicValue{},
 			expect: `
 &{1 2 3 4 5 6 7 8 9 10 0.2 0.3 str [1 sss 0.2] map[string:string 1:1 true:false]}
+`,
+		},
+		{
+			name: "builtin.gs",
+			program: `
+println (len($.A)) // 3
+println (len($.Map)) // 3
+println (len($.StringSlice)) // 0
+println($.Map)
+delete($.Map, "1")
+println($.Map)
+delete($.Map, uint(4))
+println($.Map)
+`,
+			env: &MyEnv{
+				A:           "chenglong",
+				Map:         map[any]any{"1": 1, "2": 2, "3": 3, uint(4): "4"},
+				Slice:       []any{1, 2, 3},
+				StringSlice: nil,
+				StructMap:   nil,
+			},
+			expect: `
+9
+4
+0
+map[1:1 2:2 3:3 4:4]
+map[2:2 3:3 4:4]
+map[2:2 3:3]
 `,
 		},
 	}
@@ -567,12 +596,12 @@ print $
 			var ops = []vm.Option{
 				vm.WithEnv(tt.env), vm.WithPrintTo(out),
 			}
-			if tt.enableTrace {
+			if tt.trace {
 				ops = append(ops, vm.WithEnableTrace())
 			}
 			vm.NewInterpreter(code, ops...).Run()
-			got := out.String()
-			if strings.TrimSpace(got) != strings.TrimSpace(tt.expect) {
+			want, got := strings.TrimSpace(tt.expect), strings.TrimSpace(out.String())
+			if want != got {
 				t.Errorf("got:\n%s\nwant:\n%s", got, tt.expect)
 			}
 		})
