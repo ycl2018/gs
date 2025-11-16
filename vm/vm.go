@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"unsafe"
 
 	"github.com/ycl2018/gs/consts"
 )
@@ -58,11 +59,12 @@ type Interpreter struct {
 	Out      io.Writer
 
 	// ops
-	enableTrace bool
-	dump        bool
+	enableTrace     bool
+	dump            bool
+	initialStackCap int
 }
 
-const DefaultOperandStackSize = 100
+const DefaultOperandStackSize = 256
 
 type StackFrame struct {
 	ReturnAddr int                 // 返回值地址
@@ -92,7 +94,6 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 	i := &Interpreter{
 		IP:           -1,
 		FP:           -1,
-		Operands:     make([]any, DefaultOperandStackSize),
 		SP:           -1,
 		Globals:      make([]any, code.Globals),
 		DataSize:     code.Globals,
@@ -105,6 +106,10 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 	for _, op := range ops {
 		op(i)
 	}
+	if i.initialStackCap <= 0 {
+		i.initialStackCap = DefaultOperandStackSize
+	}
+	i.Operands = make([]any, i.initialStackCap)
 	return i
 }
 
@@ -135,7 +140,30 @@ func (i *Interpreter) PopOpStack() any {
 
 func (i *Interpreter) PushOpStack(v any) {
 	i.SP++
+	if i.SP >= i.initialStackCap {
+		i.Operands = append(i.Operands, v)
+		return
+	}
 	i.Operands[i.SP] = v
+}
+
+func FastGrowSlice(slice []any, newCapacity int) []any {
+	if newCapacity <= cap(slice) {
+		return slice[:newCapacity]
+	}
+
+	// 创建新 slice
+	newSlice := make([]any, len(slice), newCapacity)
+
+	// 使用 unsafe 进行内存复制（高性能，但危险）
+	if len(slice) > 0 {
+		src := unsafe.SliceData(slice)
+		dst := unsafe.SliceData(newSlice)
+		n := copy(unsafe.Slice(dst, len(slice)), unsafe.Slice(src, len(slice)))
+		_ = n // 使用 n 避免编译警告
+	}
+
+	return newSlice
 }
 
 func (i *Interpreter) cpu() {

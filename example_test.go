@@ -59,7 +59,7 @@ for i<5 {
 	i = i + 1
 	if i<3 {
 		println( i , " is less than 3" )
-	}else {
+	} else {
 		println( "foo" )
 	}
 }

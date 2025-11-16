@@ -48,7 +48,7 @@ builtinCall
     |   COPY '(' expr ')'                                 #copyCall // return a copy of value
     |   TOSTRING '(' expr ')'                             #toStringCall
     |   PRINT '(' expr (',' expr)* ')'                    #printCall
-    |   PRINTF '(' expr (',' expr)* ' )'                  #printfCall
+    |   PRINTF '(' expr (',' expr)* ')'                  #printfCall
     |   PRINTLN '(' expr (',' expr)* ')'                  #printlnCall
     |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')' #convertCall
     ;
