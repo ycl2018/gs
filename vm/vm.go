@@ -297,7 +297,7 @@ func (i *Interpreter) cpu() {
 			index := instr.Operands
 			i.FieldStore(i.ConstPool[index].Value.(string))
 		case consts.InstrIndexStore:
-			i.IndexStore()
+			i.IndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrPrint:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -608,10 +608,7 @@ func (i *Interpreter) FieldStore(field string) {
 	}
 }
 
-func (i *Interpreter) IndexStore() {
-	index := i.PopOpStack()
-	obj := i.PopOpStack()
-	val := i.PopOpStack()
+func (i *Interpreter) IndexStore(index, obj, val any) {
 	switch obj := obj.(type) {
 	case map[any]any:
 		obj[index] = val
@@ -622,16 +619,16 @@ func (i *Interpreter) IndexStore() {
 	case []string:
 		obj[ToInt(index)] = val.(string)
 	case []int:
-		obj[ToInt(index)] = val.(int)
+		obj[ToInt(index)] = ToInt(val)
 	case []int64:
-		obj[ToInt(index)] = val.(int64)
+		obj[ToInt(index)] = ToInt64(val)
 	case map[string]any:
 		obj[index.(string)] = val
 		return
 	case map[string]bool:
 		obj[index.(string)] = val.(bool)
 	case map[string]int:
-		obj[index.(string)] = val.(int)
+		obj[index.(string)] = ToInt(val)
 	case map[string]string:
 		obj[index.(string)] = val.(string)
 	case map[int]any:
