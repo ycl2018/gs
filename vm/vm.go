@@ -328,7 +328,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrAppend:
 			appendNums := instr.Operands
 			var appendVals = make([]any, appendNums)
-			for i2 := appendNums - 1; i2 >= 0; i2++ {
+			for i2 := appendNums - 1; i2 >= 0; i2-- {
 				appendVals[i2] = i.PopOpStack()
 			}
 			slice, vals := appendVals[0], appendVals[1:]

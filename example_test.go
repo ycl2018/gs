@@ -566,6 +566,8 @@ delete($.Map, "1")
 println($.Map)
 delete($.Map, uint(4))
 println($.Map)
+$.Slice = append($.Slice, 4)
+println($.Slice)
 `,
 			env: &MyEnv{
 				A:           "chenglong",
@@ -581,6 +583,7 @@ println($.Map)
 map[1:1 2:2 3:3 4:4]
 map[2:2 3:3 4:4]
 map[2:2 3:3]
+[1 2 3 4]
 `,
 		},
 	}
