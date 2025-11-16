@@ -405,7 +405,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrHalt:
 			return
 		default:
-			panic(fmt.Sprintf("unknown opcode:%d", instr))
+			panic(fmt.Sprintf("unknown opcode:%s", instr))
 		}
 		instr = i.Code[i.IP]
 	}
@@ -602,7 +602,7 @@ func (i *Interpreter) FieldStore(field string) {
 	objStruct := assertValidObj(obj)
 	switch objStruct.Kind() {
 	case reflect.Struct:
-		objStruct.FieldByName(field).Set(reflect.ValueOf(val))
+		SetField(objStruct, objStruct.Type(), val)
 	default:
 		panic(fmt.Sprintf("unexpected type %T for field load", field))
 	}
@@ -645,7 +645,8 @@ func (i *Interpreter) IndexStore(index, obj, val any) {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
+		//rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
+		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), val)
 	case reflect.Map:
 		rv.SetMapIndex(reflect.ValueOf(index), reflect.ValueOf(val))
 	default:
@@ -852,8 +853,8 @@ func (i *Interpreter) RIndexStore(index any, slice any, value any) {
 	}
 	rv := assertValidObj(slice)
 	switch rv.Kind() {
-	case reflect.Slice, reflect.Array, reflect.String:
-		rv.Index(ToInt(index)).Set(reflect.ValueOf(value))
+	case reflect.Slice, reflect.Array:
+		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), value)
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
 	}
@@ -899,7 +900,6 @@ func (i *Interpreter) RSetMapIndex(k, m, val any) {
 	rv := assertValidObj(m)
 	switch rv.Kind() {
 	case reflect.Map:
-		rv.Type().Key()
 		rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(val))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for map index store", m))
