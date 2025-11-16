@@ -151,7 +151,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 				s.Write(consts.InstrRMapIndex)
 				curType = curType.Elem()
 			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(consts.InstrRIndex)
+				s.Write(consts.InstrIndexLoad)
 				curType = curType.Elem()
 			case reflect.Interface:
 				s.Write(consts.InstrIndexLoad)
@@ -266,10 +266,11 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 					curType = curType.Elem()
 				}
 			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(consts.InstrRIndex)
 				curType = curType.Elem()
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrRSet)
+					s.Write(consts.InstrRIndexStore)
+				} else {
+					s.Write(consts.InstrRIndex)
 				}
 			case reflect.Interface:
 				if i == len(accessors)-1 {

@@ -392,6 +392,8 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.MapIndex(i.PopOpStack(), i.PopOpStack()))
 		case consts.InstrRIndex:
 			i.PushOpStack(i.RIndex(i.PopOpStack(), i.PopOpStack()))
+		case consts.InstrRIndexStore:
+			i.RIndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSet:
 			i.RSet(i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSetMapIndex:
@@ -607,9 +609,9 @@ func (i *Interpreter) FieldStore(field string) {
 }
 
 func (i *Interpreter) IndexStore() {
-	val := i.PopOpStack()
-	obj := i.PopOpStack()
 	index := i.PopOpStack()
+	obj := i.PopOpStack()
+	val := i.PopOpStack()
 	switch obj := obj.(type) {
 	case map[any]any:
 		obj[index] = val
@@ -827,6 +829,34 @@ func (i *Interpreter) RIndex(index any, slice any) any {
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.String:
 		return rv.Index(ToInt(index)).Interface()
+	default:
+		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
+	}
+}
+
+func (i *Interpreter) RIndexStore(index any, slice any, value any) {
+	switch slice := slice.(type) {
+	case []any:
+		slice[ToInt(index)] = value
+	case []string:
+		slice[ToInt(index)] = value.(string)
+	case []int:
+		slice[ToInt(index)] = ToInt(value)
+	case []int32:
+		slice[ToInt(index)] = ToInt32(value)
+	case []int64:
+		slice[ToInt(index)] = ToInt64(value)
+	case []float32:
+		slice[ToInt(index)] = ToFloat32(value)
+	case []float64:
+		slice[ToInt(index)] = ToFloat64(value)
+	case []bool:
+		slice[ToInt(index)] = (value).(bool)
+	}
+	rv := assertValidObj(slice)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array, reflect.String:
+		rv.Index(ToInt(index)).Set(reflect.ValueOf(value))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
 	}

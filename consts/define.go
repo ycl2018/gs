@@ -73,10 +73,11 @@ const (
 	InstrHalt
 
 	InstrLoadEnv
-	InstrRFByIndex    // reflect load field by index
-	InstrRSetField    // reflect set field value
-	InstrRMapIndex    // reflect map index
-	InstrRIndex       // reflect slice index
+	InstrRFByIndex // reflect load field by index
+	InstrRSetField // reflect set field value
+	InstrRMapIndex // reflect map index
+	InstrRIndex
+	InstrRIndexStore  // slice index store
 	InstrRSet         // reflect set value
 	InstrRSetMapIndex // reflect set map index
 
@@ -162,7 +163,8 @@ var Instructions = []*Instruction{
 	{"rf_by_index", POLL},
 	{"r_set_field", POLL},
 	{"rmap_index", NIL},
-	{"rindex", NIL},
+	{"r_index", NIL},
+	{"rindex_store", NIL},
 	{"rset", NIL},
 	{"rset_map_index", NIL},
 

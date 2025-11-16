@@ -221,6 +221,24 @@ struct Address { street: 123 Main St, city: Chicago, state: <nil>, zip: <nil> }
  `,
 		},
 		{
+			name: "slice.gs",
+			program: `
+arr = []
+for i = range 10 {
+	arr = append(arr, i)
+}
+println(arr)
+println(arr[0])
+arr[0] = "a"
+println(arr)
+`,
+			expect: `
+[0 1 2 3 4 5 6 7 8 9]
+0
+[a 1 2 3 4 5 6 7 8 9]
+`,
+		},
+		{
 			name: "range_kv.gs",
 			program: `
 c = {"a": 1, "b": 2, "c": 3}
@@ -497,8 +515,8 @@ println( "m=", m )
 			},
 			expect: `
 map[a:1 b:2 c:3]
-$.Map= map[a:1 b:2 c:3 4:d]
-m= map[a:1 b:2 c:3 4:d]
+$.Map= map[a:1 b:2 c:3 d:4]
+m= map[a:1 b:2 c:3 d:4]
 `,
 		},
 		{
@@ -568,6 +586,8 @@ delete($.Map, uint(4))
 println($.Map)
 $.Slice = append($.Slice, 4)
 println($.Slice)
+$.Slice[0] = 4
+println($.Slice)
 `,
 			env: &MyEnv{
 				A:           "chenglong",
@@ -584,6 +604,7 @@ map[1:1 2:2 3:3 4:4]
 map[2:2 3:3 4:4]
 map[2:2 3:3]
 [1 2 3 4]
+[4 2 3 4]
 `,
 		},
 	}
