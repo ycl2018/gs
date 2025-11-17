@@ -51,6 +51,7 @@ type FunctionSymbol struct {
 	FormalArgs []Symbol
 	BodyScope  *LocalScope
 	Code       []*consts2.StackInstr
+	ReturnNums int
 }
 
 func NewFunctionSymbol(funcName string, t antlr.Token) *FunctionSymbol {
@@ -59,6 +60,7 @@ func NewFunctionSymbol(funcName string, t antlr.Token) *FunctionSymbol {
 			Name:        funcName,
 			DefineToken: t,
 		},
+		ReturnNums: -1,
 	}
 }
 

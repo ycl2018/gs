@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 type BaseGsVisitor struct {
 	antlr.ParseTreeVisitor
@@ -48,14 +47,6 @@ func (v *BaseGsVisitor) VisitReturnStmt(ctx *ReturnStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitPrintStmt(ctx *PrintStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitPrintfStmt(ctx *PrintfStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitIfStmt(ctx *IfStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -69,6 +60,10 @@ func (v *BaseGsVisitor) VisitForRangeStmt(ctx *ForRangeStmtContext) interface{} 
 }
 
 func (v *BaseGsVisitor) VisitForCondStmt(ctx *ForCondStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitBuiltinStmt(ctx *BuiltinStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -89,6 +84,42 @@ func (v *BaseGsVisitor) VisitAssign(ctx *AssignContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitIncrDecr(ctx *IncrDecrContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitLenCall(ctx *LenCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitAppendCall(ctx *AppendCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitDeleteCall(ctx *DeleteCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitCopyCall(ctx *CopyCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitToStringCall(ctx *ToStringCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitPrintCall(ctx *PrintCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitPrintfCall(ctx *PrintfCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitPrintlnCall(ctx *PrintlnCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitConvertCall(ctx *ConvertCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -193,6 +224,10 @@ func (v *BaseGsVisitor) VisitNotAtom(ctx *NotAtomContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitQidAtom(ctx *QidAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitBuiltinAtom(ctx *BuiltinAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -25,7 +26,7 @@ type StackCompileVisitor struct {
 }
 
 func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
-	mainFunc := NewFunctionSymbol("main", nil)
+	mainFunc := globalScope.Resolve("main").(*FunctionSymbol)
 	s := &StackCompileVisitor{
 		Env:         NewEnv(env),
 		Log:         log,
@@ -80,12 +81,16 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 }
 
 func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
-	for _, context := range ctx.AllExpr() {
+	allExpr := ctx.AllExpr()
+	for _, context := range allExpr {
 		context.Accept(s)
 	}
 	funcName := ctx.ID().GetText()
-	if s.Scopes[ctx].Resolve(funcName) == nil {
+	if fSymbol := s.Scopes[ctx].Resolve(funcName); fSymbol == nil {
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
+		return nil
+	} else if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("call func %s params count not match, expect %d, got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
 		return nil
 	}
 	fSymbol := s.Scopes[ctx].Resolve(funcName).(*FunctionSymbol)
@@ -237,12 +242,100 @@ func (s *StackCompileVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interf
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitPrintStmt(ctx *gen.PrintStmtContext) interface{} {
+func (s *StackCompileVisitor) VisitPrintCall(ctx *gen.PrintCallContext) interface{} {
 	exprs := ctx.AllExpr()
 	for _, expr := range exprs {
 		expr.Accept(s)
 	}
 	s.Write(consts.InstrPrint, len(exprs))
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitPrintfCall(ctx *gen.PrintfCallContext) interface{} {
+	exprs := ctx.AllExpr()
+	for _, expr := range exprs {
+		expr.Accept(s)
+	}
+	s.Write(consts.InstrPrintf, len(exprs))
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitPrintlnCall(ctx *gen.PrintlnCallContext) interface{} {
+	exprs := ctx.AllExpr()
+	for _, expr := range exprs {
+		expr.Accept(s)
+	}
+	s.Write(consts.InstrPrintln, len(exprs))
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitLenCall(ctx *gen.LenCallContext) interface{} {
+	ctx.Expr().Accept(s)
+	s.Write(consts.InstrLen)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitAppendCall(ctx *gen.AppendCallContext) interface{} {
+	for _, expr := range ctx.AllExpr() {
+		expr.Accept(s)
+	}
+	s.Write(consts.InstrAppend, len(ctx.AllExpr()))
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitDeleteCall(ctx *gen.DeleteCallContext) interface{} {
+	for _, expr := range ctx.AllExpr() {
+		expr.Accept(s)
+	}
+	s.Write(consts.InstrDelete)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitCopyCall(ctx *gen.CopyCallContext) interface{} {
+	ctx.Expr().Accept(s)
+	s.Write(consts.InstrCopy)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitToStringCall(ctx *gen.ToStringCallContext) interface{} {
+	ctx.Expr().Accept(s)
+	s.Write(consts.InstrToString)
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitConvertCall(ctx *gen.ConvertCallContext) interface{} {
+	ctx.Expr().Accept(s)
+	var oprand reflect.Kind
+	switch t := ctx.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType(); t {
+	case gen.GsParserUINT:
+		oprand = reflect.Uint
+	case gen.GsParserUINT16:
+		oprand = reflect.Uint16
+	case gen.GsParserUINT32:
+		oprand = reflect.Uint32
+	case gen.GsParserUINT64:
+		oprand = reflect.Uint64
+	case gen.GsParserINT:
+		oprand = reflect.Int
+	case gen.GsParserINT16:
+		oprand = reflect.Int16
+	case gen.GsParserINT32:
+		oprand = reflect.Int32
+	case gen.GsParserINT64:
+		oprand = reflect.Int64
+	case gen.GsParserFLOAT32:
+		oprand = reflect.Float32
+	case gen.GsParserFLOAT64:
+		oprand = reflect.Float64
+	case gen.GsParserBOOL:
+		oprand = reflect.Bool
+	case gen.GsParserSTRING:
+		oprand = reflect.String
+	default:
+		s.Log.ErrorToken(ctx.GetStart(), "unsupported convert to %d", t)
+		return nil
+	}
+	s.Write(consts.InstrConvert, int(oprand))
 	return nil
 }
 
@@ -608,10 +701,8 @@ func (s *StackCompileVisitor) VisitDictLiteral(ctx *gen.DictLiteralContext) inte
 	entries := ctx.AllDictEntry()
 	for i := range entries {
 		entries[i].Accept(s)
-		// pack tuple2 (key, value)
-		s.Write(consts.InstrBuildTuple, 2)
 	}
-	s.Write(consts.InstrDict, len(entries))
+	s.Write(consts.InstrDict, len(entries)*2)
 	return nil
 }
 

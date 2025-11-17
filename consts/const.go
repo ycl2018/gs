@@ -40,14 +40,14 @@ type Tuple struct {
 
 func (t Tuple) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("tuple%d{", t.Num))
+	sb.WriteString("(")
 	for i := 0; i < t.Num; i++ {
 		if i > 0 {
 			sb.WriteString(",")
 		}
 		sb.WriteString(fmt.Sprintf("%v", t.Values[i]))
 	}
-	sb.WriteString("}")
+	sb.WriteString(")")
 	return sb.String()
 }
 

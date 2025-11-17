@@ -1,8 +1,7 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from D:/go/src/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
-
 
 // A complete Visitor for a parse tree produced by GsParser.
 type GsVisitor interface {
@@ -38,12 +37,6 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#returnStmt.
 	VisitReturnStmt(ctx *ReturnStmtContext) interface{}
 
-	// Visit a parse tree produced by GsParser#printStmt.
-	VisitPrintStmt(ctx *PrintStmtContext) interface{}
-
-	// Visit a parse tree produced by GsParser#printfStmt.
-	VisitPrintfStmt(ctx *PrintfStmtContext) interface{}
-
 	// Visit a parse tree produced by GsParser#ifStmt.
 	VisitIfStmt(ctx *IfStmtContext) interface{}
 
@@ -55,6 +48,9 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#forCondStmt.
 	VisitForCondStmt(ctx *ForCondStmtContext) interface{}
+
+	// Visit a parse tree produced by GsParser#builtinStmt.
+	VisitBuiltinStmt(ctx *BuiltinStmtContext) interface{}
 
 	// Visit a parse tree produced by GsParser#callStmt.
 	VisitCallStmt(ctx *CallStmtContext) interface{}
@@ -70,6 +66,33 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#incrDecr.
 	VisitIncrDecr(ctx *IncrDecrContext) interface{}
+
+	// Visit a parse tree produced by GsParser#lenCall.
+	VisitLenCall(ctx *LenCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#appendCall.
+	VisitAppendCall(ctx *AppendCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#deleteCall.
+	VisitDeleteCall(ctx *DeleteCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#copyCall.
+	VisitCopyCall(ctx *CopyCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#toStringCall.
+	VisitToStringCall(ctx *ToStringCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#printCall.
+	VisitPrintCall(ctx *PrintCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#printfCall.
+	VisitPrintfCall(ctx *PrintfCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#printlnCall.
+	VisitPrintlnCall(ctx *PrintlnCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#convertCall.
+	VisitConvertCall(ctx *ConvertCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#singleIter.
 	VisitSingleIter(ctx *SingleIterContext) interface{}
@@ -149,6 +172,9 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#qidAtom.
 	VisitQidAtom(ctx *QidAtomContext) interface{}
 
+	// Visit a parse tree produced by GsParser#builtinAtom.
+	VisitBuiltinAtom(ctx *BuiltinAtomContext) interface{}
+
 	// Visit a parse tree produced by GsParser#callAtom.
 	VisitCallAtom(ctx *CallAtomContext) interface{}
 
@@ -211,5 +237,4 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#mulOp.
 	VisitMulOp(ctx *MulOpContext) interface{}
-
 }

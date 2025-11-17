@@ -58,11 +58,12 @@ type Interpreter struct {
 	Out      io.Writer
 
 	// ops
-	enableTrace bool
-	dump        bool
+	enableTrace     bool
+	dump            bool
+	initialStackCap int
 }
 
-const DefaultOperandStackSize = 100
+const DefaultOperandStackSize = 256
 
 type StackFrame struct {
 	ReturnAddr int                 // 返回值地址
@@ -92,7 +93,6 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 	i := &Interpreter{
 		IP:           -1,
 		FP:           -1,
-		Operands:     make([]any, DefaultOperandStackSize),
 		SP:           -1,
 		Globals:      make([]any, code.Globals),
 		DataSize:     code.Globals,
@@ -105,6 +105,10 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 	for _, op := range ops {
 		op(i)
 	}
+	if i.initialStackCap <= 0 {
+		i.initialStackCap = DefaultOperandStackSize
+	}
+	i.Operands = make([]any, i.initialStackCap)
 	return i
 }
 
@@ -135,6 +139,10 @@ func (i *Interpreter) PopOpStack() any {
 
 func (i *Interpreter) PushOpStack(v any) {
 	i.SP++
+	if i.SP >= i.initialStackCap {
+		i.Operands = append(i.Operands, v)
+		return
+	}
 	i.Operands[i.SP] = v
 }
 
@@ -269,31 +277,69 @@ func (i *Interpreter) cpu() {
 			index := instr.Operands
 			i.FieldStore(i.ConstPool[index].Value.(string))
 		case consts.InstrIndexStore:
-			i.IndexStore()
+			i.IndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrPrint:
 			printNums := instr.Operands
-			var toPrint []any = make([]any, printNums)
-			for i2 := 0; i2 < printNums; i2++ {
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
 				toPrint[i2] = i.PopOpStack()
 			}
-			for j := printNums - 1; j >= 0; j-- {
-				fmt.Fprint(i.Out, toPrint[j])
+			fmt.Fprint(i.Out, toPrint...)
+		case consts.InstrPrintf:
+			printNums := instr.Operands
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
+				toPrint[i2] = i.PopOpStack()
 			}
-			fmt.Fprint(i.Out, "\n")
+			fmtStr, ok := toPrint[0].(string)
+			if !ok {
+				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
+			}
+			fmt.Fprintf(i.Out, fmtStr, toPrint[1:])
+		case consts.InstrPrintln:
+			printNums := instr.Operands
+			var toPrint = make([]any, printNums)
+			for i2 := printNums - 1; i2 >= 0; i2-- {
+				toPrint[i2] = i.PopOpStack()
+			}
+			fmt.Fprintln(i.Out, toPrint...)
+		case consts.InstrLen:
+			i.PushOpStack(length(i.PopOpStack()))
+		case consts.InstrAppend:
+			appendNums := instr.Operands
+			var appendVals = make([]any, appendNums)
+			for i2 := appendNums - 1; i2 >= 0; i2-- {
+				appendVals[i2] = i.PopOpStack()
+			}
+			slice, vals := appendVals[0], appendVals[1:]
+			i.PushOpStack(appendSlice(slice, vals))
+		case consts.InstrDelete:
+			key := i.PopOpStack()
+			m := i.PopOpStack()
+			deleteMap(m, key)
+		case consts.InstrCopy:
+			val := i.PopOpStack()
+			i.PushOpStack(copySlice(val))
+		case consts.InstrToString:
+			i.PushOpStack(toString(i.PopOpStack()))
+		case consts.InstrConvert:
+			i.PushOpStack(convert(i.PopOpStack(), reflect.Kind(instr.Operands)))
 		case consts.InstrStruct:
 			// push struct
 			def := i.ConstPool[instr.Operands].Value.(consts.StructConst)
 			s := NewStructSpace(&def)
 			i.PushOpStack(s)
 		case consts.InstrPop:
-			i.PopOpStack()
+			for _ = range instr.Operands {
+				i.PopOpStack()
+			}
 		case consts.InstrBuildTuple:
 			i.PushOpStack(i.BuildTuple(instr.Operands))
 		case consts.InstrUnpack:
 			t := i.PopOpStack().(consts.Tuple)
 			num := instr.Operands
 			if num != t.Num {
-				panic(fmt.Sprintf("unpack tuple %d items to %d variables", t.Num, num))
+				panic(fmt.Sprintf("unpack %d items to %d variables", t.Num, num))
 			}
 			for i2 := num - 1; i2 >= 0; i2-- {
 				i.PushOpStack(t.Values[i2])
@@ -328,6 +374,8 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.MapIndex(i.PopOpStack(), i.PopOpStack()))
 		case consts.InstrRIndex:
 			i.PushOpStack(i.RIndex(i.PopOpStack(), i.PopOpStack()))
+		case consts.InstrRIndexStore:
+			i.RIndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSet:
 			i.RSet(i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSetMapIndex:
@@ -339,7 +387,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrHalt:
 			return
 		default:
-			panic(fmt.Sprintf("unknown opcode:%d", instr))
+			panic(fmt.Sprintf("unknown opcode:%s", instr))
 		}
 		instr = i.Code[i.IP]
 	}
@@ -493,13 +541,12 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 }
 
 func (i *Interpreter) MakeMap(dictLen int) any {
-	m := make(map[any]any, dictLen)
-	for i2 := 0; i2 < dictLen; i2++ {
-		t := i.PopOpStack().(consts.Tuple)
-		if t.Num != 2 {
-			panic(fmt.Sprintf("unexpected tuple num %d for map init", t.Num))
-		}
-		m[t.Values[0]] = t.Values[1]
+	mapLen := dictLen / 2
+	m := make(map[any]any, mapLen)
+	for i2 := 0; i2 < mapLen; i2++ {
+		v := i.PopOpStack()
+		k := i.PopOpStack()
+		m[k] = v
 	}
 	return m
 }
@@ -536,16 +583,13 @@ func (i *Interpreter) FieldStore(field string) {
 	objStruct := assertValidObj(obj)
 	switch objStruct.Kind() {
 	case reflect.Struct:
-		objStruct.FieldByName(field).Set(reflect.ValueOf(val))
+		SetField(objStruct, objStruct.Type(), val)
 	default:
 		panic(fmt.Sprintf("unexpected type %T for field load", field))
 	}
 }
 
-func (i *Interpreter) IndexStore() {
-	val := i.PopOpStack()
-	obj := i.PopOpStack()
-	index := i.PopOpStack()
+func (i *Interpreter) IndexStore(index, obj, val any) {
 	switch obj := obj.(type) {
 	case map[any]any:
 		obj[index] = val
@@ -556,16 +600,16 @@ func (i *Interpreter) IndexStore() {
 	case []string:
 		obj[ToInt(index)] = val.(string)
 	case []int:
-		obj[ToInt(index)] = val.(int)
+		obj[ToInt(index)] = ToInt(val)
 	case []int64:
-		obj[ToInt(index)] = val.(int64)
+		obj[ToInt(index)] = ToInt64(val)
 	case map[string]any:
 		obj[index.(string)] = val
 		return
 	case map[string]bool:
 		obj[index.(string)] = val.(bool)
 	case map[string]int:
-		obj[index.(string)] = val.(int)
+		obj[index.(string)] = ToInt(val)
 	case map[string]string:
 		obj[index.(string)] = val.(string)
 	case map[int]any:
@@ -582,7 +626,8 @@ func (i *Interpreter) IndexStore() {
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
+		//rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
+		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), val)
 	case reflect.Map:
 		rv.SetMapIndex(reflect.ValueOf(index), reflect.ValueOf(val))
 	default:
@@ -768,6 +813,34 @@ func (i *Interpreter) RIndex(index any, slice any) any {
 	}
 }
 
+func (i *Interpreter) RIndexStore(index any, slice any, value any) {
+	switch slice := slice.(type) {
+	case []any:
+		slice[ToInt(index)] = value
+	case []string:
+		slice[ToInt(index)] = value.(string)
+	case []int:
+		slice[ToInt(index)] = ToInt(value)
+	case []int32:
+		slice[ToInt(index)] = ToInt32(value)
+	case []int64:
+		slice[ToInt(index)] = ToInt64(value)
+	case []float32:
+		slice[ToInt(index)] = ToFloat32(value)
+	case []float64:
+		slice[ToInt(index)] = ToFloat64(value)
+	case []bool:
+		slice[ToInt(index)] = (value).(bool)
+	}
+	rv := assertValidObj(slice)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), value)
+	default:
+		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
+	}
+}
+
 func (i *Interpreter) RSet(val any, obj any) {
 	rv := assertValidObj(obj)
 	if rv.CanSet() {
@@ -808,7 +881,6 @@ func (i *Interpreter) RSetMapIndex(k, m, val any) {
 	rv := assertValidObj(m)
 	switch rv.Kind() {
 	case reflect.Map:
-		rv.Type().Key()
 		rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(val))
 	default:
 		panic(fmt.Sprintf("unexpected type %T for map index store", m))

@@ -62,7 +62,6 @@ const (
 	InstrGStore     // global store
 	InstrFStore     // field store
 	InstrIndexStore // slice/map store
-	InstrPrint
 	InstrStruct     // push struct on stack
 	InstrPop        // pop stack
 	InstrBuildTuple // build tuple
@@ -74,15 +73,26 @@ const (
 	InstrHalt
 
 	InstrLoadEnv
-	InstrRFByIndex    // reflect load field by index
-	InstrRSetField    // reflect set field value
-	InstrRMapIndex    // reflect map index
-	InstrRIndex       // reflect slice index
+	InstrRFByIndex // reflect load field by index
+	InstrRSetField // reflect set field value
+	InstrRMapIndex // reflect map index
+	InstrRIndex
+	InstrRIndexStore  // slice index store
 	InstrRSet         // reflect set value
 	InstrRSetMapIndex // reflect set map index
 
 	InstrDeref
 	InstrNewPtrValue // create pointer reflect value
+	// builtin call
+	InstrPrint
+	InstrPrintf
+	InstrPrintln
+	InstrLen
+	InstrAppend
+	InstrDelete
+	InstrCopy
+	InstrToString
+	InstrConvert
 )
 
 // 基于栈的指令集
@@ -138,7 +148,7 @@ var Instructions = []*Instruction{
 	{"gstore", INT},
 	{"fstore", POLL},
 	{"index_store", NIL}, // slice: index value; map: key value
-	{"print", INT},       // print n values
+
 	{"struct", POLL},
 	{"pop", INT}, // pop n values
 	{"build_tuple", INT},
@@ -153,10 +163,21 @@ var Instructions = []*Instruction{
 	{"rf_by_index", POLL},
 	{"r_set_field", POLL},
 	{"rmap_index", NIL},
-	{"rindex", NIL},
+	{"r_index", NIL},
+	{"rindex_store", NIL},
 	{"rset", NIL},
 	{"rset_map_index", NIL},
 
 	{"deref", NIL},
 	{"new_ptr_value", NIL},
+
+	{"print", INT}, // print n values
+	{"printf", INT},
+	{"println", INT},
+	{"len", NIL},
+	{"append", INT},
+	{"delete", NIL},
+	{"copy", NIL},
+	{"toString", NIL},
+	{"convert", INT},
 }

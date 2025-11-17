@@ -21,27 +21,37 @@ block
 
 // 语句类型（新增自增/自减语句，标注为#incrDecrStmt）
 statement
-    :   ';'                                       #emptyStmt
-    |   structDefinition                          #structStmt
-    |   assign                                    #assignStmt
-    |   selfAssign                                #selfOpAssignStmt
-    |   incrDecr                                  #incrDecrStmt
-    |   'return' (expr (',' expr)* )?             #returnStmt
-    |   'print' expr (',' expr)*                  #printStmt
-    |   'printf' expr (',' expr)*                 #printfStmt
-    |   'if' (assign ';')? expr block ('else' block)?  #ifStmt
-    |   'for' forInit? ';' expr? ';' forUpdate? block  #forCStyleStmt  // C风格for（无括号）
-    |   'for' iterVar '=' 'range' expr block          #forRangeStmt     // 保留原有=，仅修复必须项
-    |   'for' expr block                          #forCondStmt      // 条件循环（最后匹配，避免歧义）
-    |   call                                      #callStmt
-    |   'break'                                   #breakStmt
-    |   'continue'                                #continueStmt
+    :   ';'                                             #emptyStmt
+    |   structDefinition                                #structStmt
+    |   assign                                          #assignStmt
+    |   selfAssign                                      #selfOpAssignStmt
+    |   incrDecr                                        #incrDecrStmt
+    |   'return' (expr (',' expr)* )?                   #returnStmt
+    |   'if' (assign ';')? expr block ('else' block)?   #ifStmt
+    |   'for' forInit? ';' expr? ';' forUpdate? block   #forCStyleStmt  // C风格for（无括号）
+    |   'for' iterVar '=' 'range' expr block            #forRangeStmt     // 保留原有=，仅修复必须项
+    |   'for' expr block                                #forCondStmt      // 条件循环（最后匹配，避免歧义）
+    |   builtinCall                                     #builtinStmt     // 内置函数调用语句
+    |   call                                            #callStmt
+    |   'break'                                         #breakStmt
+    |   'continue'                                      #continueStmt
     ;
 
 assign: lvalue (',' lvalue)* '=' expr (',' expr)*;
 incrDecr: lvalue (INCR | DECR);
 
-
+// 内置函数调用（使用关键字）
+builtinCall
+    :   LEN '(' expr ')'                                  #lenCall
+    |   APPEND '(' expr ',' expr (',' expr)* ')'          #appendCall
+    |   DELETE '(' expr ',' expr ')'                      #deleteCall
+    |   COPY '(' expr ')'                                 #copyCall // return a copy of value
+    |   TOSTRING '(' expr ')'                             #toStringCall
+    |   PRINT '(' expr (',' expr)* ')'                    #printCall
+    |   PRINTF '(' expr (',' expr)* ')'                  #printfCall
+    |   PRINTLN '(' expr (',' expr)* ')'                  #printlnCall
+    |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')' #convertCall
+    ;
 
 // 迭代变量
 iterVar
@@ -92,6 +102,7 @@ atom
     |   NIL                     #nilAtom
     |   NOT expr                #notAtom
     |   qid                     #qidAtom
+    |   builtinCall             #builtinAtom     // 内置函数调用表达式
     |   call                    #callAtom
     |   instance                #instanceAtom
     |   arrayLiteral            #arrayAtom
@@ -145,7 +156,7 @@ OR      : '||' ;
 NOT     : '!' ;
 IF      : 'if' ;
 ELSE    : 'else' ;
-PRINT   : 'print' ;
+
 FOR     : 'for' ;
 RANGE   : 'range' ;
 RETURN  : 'return' ;
@@ -155,6 +166,32 @@ STRUCT  : 'struct' ;
 NEW     : 'new' ;
 BREAK   : 'break' ;
 CONTINUE: 'continue' ;
+
+// ========== 内置函数关键字（禁止用户覆盖） ==========
+LEN     : 'len' ;
+APPEND  : 'append' ;
+DELETE  : 'delete' ;
+COPY    : 'copy' ;
+TOSTRING: 'toString' ;
+PRINT   : 'print' ;
+PRINTF  : 'printf';
+PRINTLN : 'println';
+
+// ==== convert
+UINT    : 'uint';
+UINT8   : 'uint8';
+UINT16  : 'uint16';
+UINT32  : 'uint32';
+UINT64  : 'uint64';
+INTS    : 'int';
+INT8    : 'int8';
+INT16   : 'int16';
+INT32   : 'int32';
+INT64   : 'int64';
+FLOAT32 : 'float32';
+FLOAT64 : 'float64';
+STRINGS : 'string';
+BOOL    : 'bool';
 
 // 运算符（必须修复项：补充可选链复合token，优先于单个符号）
 SAFE_DOT   : '?.' ;  // 可选链属性访问（新增）
