@@ -91,7 +91,7 @@ x,y,z,w = swap(1,2),swap(3,4)
 println( x,y,z,w ) // 2143
 `,
 			expect: `
-tuple2{2,1}
+(2,1)
 2 1 4 3
 `,
 		},
@@ -321,8 +321,14 @@ a
 			program: `
 d = {"a": 1, "b": 2, "c": 3}
 println( d["a"] )
+k, v = 1 + 2, d["a"]
+mm = {k:v}
+println( mm )
 	`,
-			expect: "1",
+			expect: `
+1
+map[3:1]
+`,
 		},
 		{
 			name: "calculate.gs",

@@ -14,6 +14,15 @@ type GsDefineVisitor struct {
 	Scopes         map[antlr.ParserRuleContext]Scope
 	GlobalScope    *GlobalScope
 	ScopeAllocator int32
+	CurFuncSymbol  *FunctionSymbol
+}
+
+func (g *GsDefineVisitor) VisitProgram(ctx *gen.ProgramContext) interface{} {
+	mainFunc := NewFunctionSymbol("main", nil)
+	g.GlobalScope.Define(mainFunc)
+	g.CurFuncSymbol = mainFunc
+	g.VisitChildren(ctx)
+	return nil
 }
 
 func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
@@ -102,10 +111,12 @@ func (g *GsDefineVisitor) VisitStructDefinition(ctx *gen.StructDefinitionContext
 func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionContext) interface{} {
 	// 'func' ID '(' (ID (',' ID)* )? ')'  block
 	preScope := g.CurScope
+	preFuncSymbol := g.CurFuncSymbol
 	g.SaveScope(ctx, g.CurScope)
 	funcName := ctx.ID(0).GetText()
 	funcSymbol := NewFunctionSymbol(funcName, ctx.ID(0).GetSymbol())
 	funcSymbol.SetScope(g.CurScope)
+	g.CurFuncSymbol = funcSymbol
 	// vardefs
 	for i := 1; i < len(ctx.AllID()); i++ {
 		arg := ctx.AllID()[i].GetText()
@@ -126,7 +137,22 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 	// 这里直接回退到funcSymbol的scope
 	g.CurScope = preScope
 	g.CurScope.Define(funcSymbol)
+	g.CurFuncSymbol = preFuncSymbol
 	return nil
+}
+
+func (g *GsDefineVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interface{} {
+	// 'return' (expr (',' expr )*)? NL
+	returns := len(ctx.AllExpr())
+	if g.CurFuncSymbol.ReturnNums == -1 {
+		g.CurFuncSymbol.ReturnNums = returns
+	} else if g.CurFuncSymbol.ReturnNums != returns {
+		g.Log.ErrorToken(ctx.GetStart(), "return nums %d not match pre define %d in function %s line %d",
+			returns, g.CurFuncSymbol.ReturnNums, g.CurFuncSymbol.Name, g.CurFuncSymbol.DefineToken.GetLine())
+		return nil
+	}
+	g.SaveScope(ctx, g.CurScope)
+	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitCall(ctx *gen.CallContext) interface{} {

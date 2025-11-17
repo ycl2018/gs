@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/ycl2018/gs/consts"
 )
@@ -145,25 +144,6 @@ func (i *Interpreter) PushOpStack(v any) {
 		return
 	}
 	i.Operands[i.SP] = v
-}
-
-func FastGrowSlice(slice []any, newCapacity int) []any {
-	if newCapacity <= cap(slice) {
-		return slice[:newCapacity]
-	}
-
-	// 创建新 slice
-	newSlice := make([]any, len(slice), newCapacity)
-
-	// 使用 unsafe 进行内存复制（高性能，但危险）
-	if len(slice) > 0 {
-		src := unsafe.SliceData(slice)
-		dst := unsafe.SliceData(newSlice)
-		n := copy(unsafe.Slice(dst, len(slice)), unsafe.Slice(src, len(slice)))
-		_ = n // 使用 n 避免编译警告
-	}
-
-	return newSlice
 }
 
 func (i *Interpreter) cpu() {
@@ -350,14 +330,16 @@ func (i *Interpreter) cpu() {
 			s := NewStructSpace(&def)
 			i.PushOpStack(s)
 		case consts.InstrPop:
-			i.PopOpStack()
+			for _ = range instr.Operands {
+				i.PopOpStack()
+			}
 		case consts.InstrBuildTuple:
 			i.PushOpStack(i.BuildTuple(instr.Operands))
 		case consts.InstrUnpack:
 			t := i.PopOpStack().(consts.Tuple)
 			num := instr.Operands
 			if num != t.Num {
-				panic(fmt.Sprintf("unpack tuple %d items to %d variables", t.Num, num))
+				panic(fmt.Sprintf("unpack %d items to %d variables", t.Num, num))
 			}
 			for i2 := num - 1; i2 >= 0; i2-- {
 				i.PushOpStack(t.Values[i2])
@@ -559,13 +541,12 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 }
 
 func (i *Interpreter) MakeMap(dictLen int) any {
-	m := make(map[any]any, dictLen)
-	for i2 := 0; i2 < dictLen; i2++ {
-		t := i.PopOpStack().(consts.Tuple)
-		if t.Num != 2 {
-			panic(fmt.Sprintf("unexpected tuple num %d for map init", t.Num))
-		}
-		m[t.Values[0]] = t.Values[1]
+	mapLen := dictLen / 2
+	m := make(map[any]any, mapLen)
+	for i2 := 0; i2 < mapLen; i2++ {
+		v := i.PopOpStack()
+		k := i.PopOpStack()
+		m[k] = v
 	}
 	return m
 }

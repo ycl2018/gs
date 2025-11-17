@@ -26,7 +26,7 @@ type StackCompileVisitor struct {
 }
 
 func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
-	mainFunc := NewFunctionSymbol("main", nil)
+	mainFunc := globalScope.Resolve("main").(*FunctionSymbol)
 	s := &StackCompileVisitor{
 		Env:         NewEnv(env),
 		Log:         log,
@@ -81,12 +81,16 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 }
 
 func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
-	for _, context := range ctx.AllExpr() {
+	allExpr := ctx.AllExpr()
+	for _, context := range allExpr {
 		context.Accept(s)
 	}
 	funcName := ctx.ID().GetText()
-	if s.Scopes[ctx].Resolve(funcName) == nil {
+	if fSymbol := s.Scopes[ctx].Resolve(funcName); fSymbol == nil {
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
+		return nil
+	} else if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("call func %s params count not match, expect %d, got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
 		return nil
 	}
 	fSymbol := s.Scopes[ctx].Resolve(funcName).(*FunctionSymbol)
@@ -697,10 +701,8 @@ func (s *StackCompileVisitor) VisitDictLiteral(ctx *gen.DictLiteralContext) inte
 	entries := ctx.AllDictEntry()
 	for i := range entries {
 		entries[i].Accept(s)
-		// pack tuple2 (key, value)
-		s.Write(consts.InstrBuildTuple, 2)
 	}
-	s.Write(consts.InstrDict, len(entries))
+	s.Write(consts.InstrDict, len(entries)*2)
 	return nil
 }
 
