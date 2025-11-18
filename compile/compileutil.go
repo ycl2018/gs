@@ -116,7 +116,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 	if primaryText == "$" {
 		s.Write(consts.InstrLoadEnv)
 	} else {
-		primarySymbol := s.Scopes[qid].Resolve(primaryText).(*VariableSymbol)
+		primarySymbol := s.CurScope.Resolve(primaryText).(*VariableSymbol)
 		if len(accessors) == 0 {
 			// no need load primarySymbol
 			s.EmitStore(primarySymbol)
@@ -193,7 +193,8 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 	if primaryText == "$" {
 		s.Write(consts.InstrLoadEnv)
 	} else {
-		primarySymbol, ok := s.Scopes[qid].Resolve(primaryText).(*VariableSymbol)
+		scope := s.CurScope
+		primarySymbol, ok := scope.Resolve(primaryText).(*VariableSymbol)
 		if !ok {
 			s.Log.ErrorToken(qid.GetStart(), "undefined symbol: %s", primaryText)
 			return

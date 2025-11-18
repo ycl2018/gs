@@ -40,6 +40,9 @@ func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) 
 	log := p.InterpreterListener
 	defVisitor := NewGsDefineVisitor(log)
 	defVisitor.Visit(programContext)
+	if p.ErrWriter.String() != "" {
+		return nil, errors.New(p.ErrWriter.String())
+	}
 	// 优化
 	optimize := NewConstOptimizer(log)
 	for i := 0; i < 100; i++ {
@@ -50,8 +53,11 @@ func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) 
 			optimize.FoldConstExpr = false
 		}
 	}
+	if p.ErrWriter.String() != "" {
+		return nil, errors.New(p.ErrWriter.String())
+	}
 	// 执行
-	p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes, defVisitor.GlobalScope, log, env)
+	p.compileVisitor = NewStackCompileVisitor(defVisitor.GlobalScope, log, env)
 	p.compileVisitor.Visit(programContext)
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())

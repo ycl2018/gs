@@ -295,7 +295,7 @@ func (i *Interpreter) cpu() {
 			if !ok {
 				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
 			}
-			fmt.Fprintf(i.Out, fmtStr, toPrint[1:])
+			fmt.Fprintf(i.Out, fmtStr, toPrint[1:]...)
 		case consts.InstrPrintln:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)

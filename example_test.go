@@ -26,21 +26,22 @@ type Embed struct {
 }
 
 type BasicValue struct {
-	Uint     uint
-	Uint8    uint8
-	Uint16   uint16
-	Uint32   uint32
-	Uint64   uint64
-	Int8     int8
-	Int16    int16
-	Int32    int32
-	Int      int
-	Int64    int64
-	Float32  float32
-	Float64  float64
-	String   string
-	SliceAny []any
-	MapAny   map[any]any
+	Uint        uint
+	Uint8       uint8
+	Uint16      uint16
+	Uint32      uint32
+	Uint64      uint64
+	Int8        int8
+	Int16       int16
+	Int32       int32
+	Int         int
+	Int64       int64
+	Float32     float32
+	Float64     float64
+	String      string
+	SliceAny    []any
+	SliceString []string
+	MapAny      map[any]any
 }
 
 func TestGsInterpreter_Interp(t *testing.T) {
@@ -514,6 +515,9 @@ println( $.Map )
 m["d"] = 4
 println( "$.Map=", $.Map )
 println( "m=", m )
+m = [1,2,3]
+println(m)
+println($.Map)
 		`,
 			env: &MyEnv{
 				A:   "a",
@@ -523,6 +527,8 @@ println( "m=", m )
 map[a:1 b:2 c:3]
 $.Map= map[a:1 b:2 c:3 d:4]
 m= map[a:1 b:2 c:3 d:4]
+[1 2 3]
+map[a:1 b:2 c:3 d:4]
 `,
 		},
 		{
@@ -556,7 +562,6 @@ true
 		{
 			name: "set_value.gs",
 			program: `
-$.Uint 	   = 1
 $.Uint     = 1
 $.Uint8    = 2
 $.Uint16   = 3
@@ -570,13 +575,29 @@ $.Int64    = 10
 $.Float32  = .2
 $.Float64  = .3
 $.String   = "str"
+println($.Uint + $.Uint8) // 3
+println($.Int + $.Int8) // 15
+println($.Uint + $.Float32) // 1.2
+println($.String + $.String) // strstr
+$.SliceAny = append($.SliceAny, $.String)
+println($.SliceAny) // [str]
 $.SliceAny = [1,"sss",.2]
-$.MapAny   = {1:"1",true:false,"string":"string"}
-println( $ )
+println($.SliceAny) // [1 sss 0.2]
+$.MapAny = {1:"1",true:false,"string":"string"}
+println( $.MapAny )
+$.SliceString = append($.SliceString, "a")
+println($.SliceString) // [a]
 `,
 			env: &BasicValue{},
 			expect: `
-&{1 2 3 4 5 6 7 8 9 10 0.2 0.3 str [1 sss 0.2] map[string:string 1:1 true:false]}
+3
+15
+1.2000000029802322
+strstr
+[str]
+[1 sss 0.2]
+map[string:string 1:1 true:false]
+[a]
 `,
 		},
 		{
@@ -593,8 +614,10 @@ println($.Map)
 $.Slice = append($.Slice, 4)
 println($.Slice)
 $.Slice[0] = 4
-println($.Slice)
-`,
+print("print:",$.Slice,"\n")
+println("println:",$.Slice)
+printf("printf:$.Slice=%v\n", $.Slice)
+` + "println(`raw literal:\nfirst line\nsecond line\n\"哈喽\"`)",
 			env: &MyEnv{
 				A:           "chenglong",
 				Map:         map[any]any{"1": 1, "2": 2, "3": 3, uint(4): "4"},
@@ -610,7 +633,13 @@ map[1:1 2:2 3:3 4:4]
 map[2:2 3:3 4:4]
 map[2:2 3:3]
 [1 2 3 4]
-[4 2 3 4]
+print:[4 2 3 4]
+println: [4 2 3 4]
+printf:$.Slice=[4 2 3 4]
+raw literal:
+first line
+second line
+"哈喽"
 `,
 		},
 	}
@@ -629,7 +658,8 @@ map[2:2 3:3]
 			if tt.trace {
 				ops = append(ops, vm.WithEnableTrace())
 			}
-			vm.NewInterpreter(code, ops...).Run()
+			interpreter := vm.NewInterpreter(code, ops...)
+			interpreter.Run()
 			want, got := strings.TrimSpace(tt.expect), strings.TrimSpace(out.String())
 			if want != got {
 				t.Errorf("got:\n%s\nwant:\n%s", got, tt.expect)

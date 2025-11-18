@@ -11,7 +11,6 @@ type GsDefineVisitor struct {
 	*gen.BaseGsVisitor
 	Log            InterpreterListener
 	CurScope       Scope
-	Scopes         map[antlr.ParserRuleContext]Scope
 	GlobalScope    *GlobalScope
 	ScopeAllocator int32
 	CurFuncSymbol  *FunctionSymbol
@@ -42,32 +41,22 @@ func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	return g.VisitChildren(ctx)
 }
 
-func (g *GsDefineVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) interface{} {
-	g.SaveScope(ctx, g.CurScope)
-	return g.VisitChildren(ctx)
-}
-
 func (g *GsDefineVisitor) VisitSingleIter(ctx *gen.SingleIterContext) interface{} {
-	g.SaveScope(ctx, g.CurScope)
+
 	g.CurScope.Define(NewVariableSymbol(ctx.ID().GetText(), ctx.ID().GetSymbol()))
 	return nil
 }
 
 func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{} {
-	g.SaveScope(ctx, g.CurScope)
+
 	for _, node := range ctx.AllID() {
 		g.CurScope.Define(NewVariableSymbol(node.GetText(), node.GetSymbol()))
 	}
 	return nil
 }
 
-func (g *GsDefineVisitor) VisitQidAtom(ctx *gen.QidAtomContext) interface{} {
-	g.SaveScope(ctx, g.CurScope)
-	return g.VisitChildren(ctx)
-}
-
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
-	g.SaveScope(ctx, g.CurScope)
+
 	if ctx.Primary().ID() != nil {
 		refName := ctx.Primary().ID().GetText()
 		if refName != "$" {
@@ -84,15 +73,10 @@ func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {
 	ret := &GsDefineVisitor{
 		CurScope:    gScope,
 		GlobalScope: gScope,
-		Scopes:      make(map[antlr.ParserRuleContext]Scope),
 		Log:         log,
 	}
 	ret.BaseGsVisitor = &gen.BaseGsVisitor{ParseTreeVisitor: &gen.BaseVisitor{RealVisitor: ret}}
 	return ret
-}
-
-func (g *GsDefineVisitor) SaveScope(ctx antlr.ParserRuleContext, scope Scope) {
-	g.Scopes[ctx] = scope
 }
 
 func (g *GsDefineVisitor) VisitStructDefinition(ctx *gen.StructDefinitionContext) interface{} {
@@ -112,15 +96,16 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 	// 'func' ID '(' (ID (',' ID)* )? ')'  block
 	preScope := g.CurScope
 	preFuncSymbol := g.CurFuncSymbol
-	g.SaveScope(ctx, g.CurScope)
+
 	funcName := ctx.ID(0).GetText()
 	funcSymbol := NewFunctionSymbol(funcName, ctx.ID(0).GetSymbol())
 	funcSymbol.SetScope(g.CurScope)
 	g.CurFuncSymbol = funcSymbol
 	// vardefs
-	for i := 1; i < len(ctx.AllID()); i++ {
-		arg := ctx.AllID()[i].GetText()
-		funcSymbol.Define(NewVariableSymbol(arg, ctx.AllID()[i].GetSymbol()))
+	allIDs := ctx.AllID()
+	for i := 1; i < len(allIDs); i++ {
+		arg := allIDs[i].GetText()
+		funcSymbol.Define(NewVariableSymbol(arg, allIDs[i].GetSymbol()))
 	}
 	// block
 	g.CurScope = &LocalScope{
@@ -147,23 +132,11 @@ func (g *GsDefineVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interface{
 	if g.CurFuncSymbol.ReturnNums == -1 {
 		g.CurFuncSymbol.ReturnNums = returns
 	} else if g.CurFuncSymbol.ReturnNums != returns {
-		g.Log.ErrorToken(ctx.GetStart(), "return nums %d not match pre define %d in function %s line %d",
+		g.Log.ErrorToken(ctx.GetStart(), "return %d values not match pre defined %d in function %s line %d",
 			returns, g.CurFuncSymbol.ReturnNums, g.CurFuncSymbol.Name, g.CurFuncSymbol.DefineToken.GetLine())
 		return nil
 	}
-	g.SaveScope(ctx, g.CurScope)
-	return g.VisitChildren(ctx)
-}
 
-func (g *GsDefineVisitor) VisitCall(ctx *gen.CallContext) interface{} {
-	// name=ID '(' (expr (',' expr )*)? ')'
-	g.SaveScope(ctx, g.CurScope)
-	return g.VisitChildren(ctx)
-}
-
-func (g *GsDefineVisitor) VisitInstance(ctx *gen.InstanceContext) interface{} {
-	// 'new' sname=ID NL
-	g.SaveScope(ctx, g.CurScope)
 	return g.VisitChildren(ctx)
 }
 

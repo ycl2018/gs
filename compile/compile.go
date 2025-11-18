@@ -23,17 +23,18 @@ type StackCompileVisitor struct {
 	CurFunc     *FunctionSymbol
 	TagAlloc    int
 	LoopStack   []*ForLoop
+	CurScope    Scope
 }
 
-func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
+func NewStackCompileVisitor(globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
 	mainFunc := globalScope.Resolve("main").(*FunctionSymbol)
 	s := &StackCompileVisitor{
 		Env:         NewEnv(env),
 		Log:         log,
-		Scopes:      scopes,
 		GlobalScope: globalScope,
 		MainFunc:    mainFunc,
 		CurFunc:     mainFunc,
+		CurScope:    globalScope,
 	}
 	s.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: gen.NewBaseVisitor(s)}
 	return s
@@ -63,11 +64,12 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 	// 'def' ID '(' (vardef (',' vardef)* )? ')' slist
 	// 生成函数定义 IR
 	funcName := ctx.ID(0).GetText()
-	scope := s.Scopes[ctx]
+	scope := s.CurScope
 	funcSymbol := scope.Resolve(funcName).(*FunctionSymbol)
 	s.CurFunc = funcSymbol
 	// 参数列表入栈由解释器负责自动执行
 	// 生成函数体IR
+	s.CurScope = funcSymbol.BodyScope
 	ctx.Block().Accept(s)
 	// 补充返回指令IR
 	if len(s.CurFunc.Code) == 0 || s.CurFunc.Code[len(s.CurFunc.Code)-1].OpCode != consts.InstrReturn {
@@ -77,6 +79,7 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 	}
 	s.AllFuncs = append(s.AllFuncs, funcSymbol)
 	s.CurFunc = s.MainFunc
+	s.CurScope = funcSymbol.Scope()
 	return nil
 }
 
@@ -86,14 +89,14 @@ func (s *StackCompileVisitor) VisitCall(ctx *gen.CallContext) interface{} {
 		context.Accept(s)
 	}
 	funcName := ctx.ID().GetText()
-	if fSymbol := s.Scopes[ctx].Resolve(funcName); fSymbol == nil {
+	if fSymbol := s.CurScope.Resolve(funcName); fSymbol == nil {
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
 		return nil
 	} else if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("call func %s params count not match, expect %d, got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
 		return nil
 	}
-	fSymbol := s.Scopes[ctx].Resolve(funcName).(*FunctionSymbol)
+	fSymbol := s.CurScope.Resolve(funcName).(*FunctionSymbol)
 	// 生成调用指令IR
 	callInstr := consts.NewStackInstr(consts.InstrCall, fSymbol.Address)
 	s.WriteInstr(callInstr)
@@ -119,7 +122,12 @@ func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen.FloatAtomContext) interfac
 func (s *StackCompileVisitor) VisitStringAtom(ctx *gen.StringAtomContext) interface{} {
 	valStr := ctx.STRING().GetText()
 	// 字符串常量地址
-	symbol := defineStringConst(valStr[1:len(valStr)-1], s.GlobalScope)
+	str, err := strconv.Unquote(valStr)
+	if err != nil {
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("invalid string: %s", valStr))
+		return nil
+	}
+	symbol := defineStringConst(str, s.GlobalScope)
 	s.Write(consts.InstrSConst, symbol.GetAddress())
 	return nil
 }
@@ -127,7 +135,7 @@ func (s *StackCompileVisitor) VisitStringAtom(ctx *gen.StringAtomContext) interf
 func (s *StackCompileVisitor) VisitInstance(ctx *gen.InstanceContext) interface{} {
 	// instance : 'new' ID '{' (ID ':' expr (',' ID ':' expr)* ','?)? '}' ;
 	structName := ctx.ID(0).GetText()
-	structSymbol := s.Scopes[ctx].Resolve(structName)
+	structSymbol := s.CurScope.Resolve(structName)
 	if structSymbol == nil {
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined struct: %s", structName))
 		return nil
@@ -408,7 +416,7 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 	s.Write(consts.InstrIterDone)
 	brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
 	s.WriteInstr(brtInstr)
-	scope := s.Scopes[ctx]
+	scope := s.CurScope
 	switch iterVar := ctx.IterVar().(type) {
 	case *gen.SingleIterContext:
 		s.Write(consts.InstrIterNext, 1)

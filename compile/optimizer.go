@@ -445,7 +445,12 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, int(f)))
 		case *gen.StringAtomContext:
 			applied = true
-			str := t.GetText()[1 : len(t.GetText())-1]
+			literal := t.GetText()
+			str, err := strconv.Unquote(literal)
+			if err != nil {
+				c.Log.ErrorToken(t.GetStart(), fmt.Sprintf("invalid string: %s", literal))
+				return nil
+			}
 			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindString, str))
 		case *gen.TrueAtomContext:
 			applied = true
@@ -509,71 +514,3 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 	}
 	return nil
 }
-
-//
-//func (c *ConstOptimizer) VisitPowExpr(ctx *gen.PowExprContext) interface{} {
-//	c.VisitChildren(ctx)
-//	var newChildren []antlr.Tree
-//	var applied bool
-//	for _, tree := range ctx.GetChildren() {
-//		switch t := tree.(type) {
-//		case *gen.FloatAtomContext:
-//			applied = true
-//			f, err := strconv.ParseFloat(t.GetText(), 64)
-//			if err != nil {
-//				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
-//				return nil
-//			}
-//			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, f))
-//		case *gen.IntAtomContext:
-//			applied = true
-//			f, err := strconv.ParseInt(t.GetText(), 0, 64)
-//			if err != nil {
-//				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
-//				return nil
-//			}
-//			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, int(f)))
-//		case *gen.StringAtomContext:
-//			applied = true
-//			str := t.GetText()[1 : len(t.GetText())-1]
-//			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindString, str))
-//		case *gen.TrueAtomContext:
-//			applied = true
-//			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, true))
-//		case *gen.FalseAtomContext:
-//			applied = true
-//			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, false))
-//		case *gen.ParenAtomContext:
-//			// expr -> logicalor
-//			added := false
-//			expr := t.Expr()
-//			if constNode, ok := toConstNode(expr.(*gen.ExprContext)); ok {
-//				newChildren = append(newChildren, constNode)
-//				applied = true
-//				added = true
-//			}
-//			if !added {
-//				newChildren = append(newChildren, expr)
-//			}
-//		default:
-//			newChildren = append(newChildren, t)
-//		}
-//		if len(newChildren) > 2 {
-//			// 合并
-//			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-//			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
-//			if ok1 && ok2 {
-//				newChildren = newChildren[:len(newChildren)-3]
-//				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, math.Pow(consts.ToFloatValue(pre), consts.ToFloatValue(top))))
-//			}
-//			c.FoldConstExpr = true
-//		}
-//	}
-//	if applied {
-//		gen.InitEmptyPowExprContext(ctx)
-//		for _, child := range newChildren {
-//			ctx.AddChild(child.(antlr.RuleContext))
-//		}
-//	}
-//	return nil
-//}
