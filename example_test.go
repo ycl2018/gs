@@ -579,7 +579,7 @@ println($.Uint + $.Uint8) // 3
 println($.Int + $.Int8) // 15
 println($.Uint + $.Float32) // 1.2
 println($.String + $.String) // strstr
-$.SliceAny = append($.SliceAny, $.String)
+$.SliceAny = append($.SliceAny, $.String, "hello")
 println($.SliceAny) // [str]
 $.SliceAny = [1,"sss",.2]
 println($.SliceAny) // [1 sss 0.2]
@@ -594,7 +594,7 @@ println($.SliceString) // [a]
 15
 1.2000000029802322
 strstr
-[str]
+[str hello]
 [1 sss 0.2]
 map[string:string 1:1 true:false]
 [a]
@@ -605,7 +605,7 @@ map[string:string 1:1 true:false]
 			program: `
 println (len($.A)) // 3
 println (len($.Map)) // 3
-println (len($.StringSlice)) // 0
+println (len($.StringSlice)) // 2
 println($.Map)
 delete($.Map, "1")
 println($.Map)
@@ -617,18 +617,24 @@ $.Slice[0] = 4
 print("print:",$.Slice,"\n")
 println("println:",$.Slice)
 printf("printf:$.Slice=%v\n", $.Slice)
+arr = []
+arr = append(arr, $.StringSlice...)
+println(arr) // [hello world]
+arr = ["cheng", "long"]
+$.StringSlice = append($.StringSlice, arr...)
+println($.StringSlice) // [hello world cheng long]
 ` + "println(`raw literal:\nfirst line\nsecond line\n\"哈喽\"`)",
 			env: &MyEnv{
 				A:           "chenglong",
 				Map:         map[any]any{"1": 1, "2": 2, "3": 3, uint(4): "4"},
 				Slice:       []any{1, 2, 3},
-				StringSlice: nil,
+				StringSlice: []string{"hello", "world"},
 				StructMap:   nil,
 			},
 			expect: `
 9
 4
-0
+2
 map[1:1 2:2 3:3 4:4]
 map[2:2 3:3 4:4]
 map[2:2 3:3]
@@ -636,6 +642,8 @@ map[2:2 3:3]
 print:[4 2 3 4]
 println: [4 2 3 4]
 printf:$.Slice=[4 2 3 4]
+[hello world]
+[hello world cheng long]
 raw literal:
 first line
 second line
