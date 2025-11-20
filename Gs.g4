@@ -26,15 +26,16 @@ statement
     |   assign                                          #assignStmt
     |   selfAssign                                      #selfOpAssignStmt
     |   incrDecr                                        #incrDecrStmt
-    |   'return' (expr (',' expr)* )?                   #returnStmt
-    |   'if' (assign ';')? expr block ('else' block)?   #ifStmt
-    |   'for' forInit? ';' expr? ';' forUpdate? block   #forCStyleStmt  // C风格for（无括号）
-    |   'for' iterVar '=' 'range' expr block            #forRangeStmt     // 保留原有=，仅修复必须项
-    |   'for' expr block                                #forCondStmt      // 条件循环（最后匹配，避免歧义）
+    |   RETURN (expr (',' expr)* )?                     #returnStmt
+    |   IF (assign ';')? expr block (ELSE block)?       #ifStmt
+    |   FOR forInit? ';' expr? ';' forUpdate? block     #forCStyleStmt  // C风格for（无括号）
+    |   FOR iterVar '=' RANGE expr block                #forRangeStmt     // 保留原有=，仅修复必须项
+    |   FOR expr block                                  #forCondStmt      // 条件循环（最后匹配，避免歧义）
     |   builtinCall                                     #builtinStmt     // 内置函数调用语句
     |   call                                            #callStmt
-    |   'break'                                         #breakStmt
-    |   'continue'                                      #continueStmt
+    |   BREAK                                           #breakStmt
+    |   CONTINUE                                        #continueStmt
+    |   GLOBAL  ID                                      #globalStmt
     ;
 
 assign: lvalue (',' lvalue)* '=' expr (',' expr)*;
@@ -166,6 +167,7 @@ STRUCT  : 'struct' ;
 NEW     : 'new' ;
 BREAK   : 'break' ;
 CONTINUE: 'continue' ;
+GLOBAL  : 'global' ;
 
 // ========== 内置函数关键字（禁止用户覆盖） ==========
 LEN     : 'len' ;

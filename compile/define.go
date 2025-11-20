@@ -16,6 +16,17 @@ type GsDefineVisitor struct {
 	CurFuncSymbol  *FunctionSymbol
 }
 
+func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {
+	gScope := NewGlobalScope()
+	ret := &GsDefineVisitor{
+		CurScope:    gScope,
+		GlobalScope: gScope,
+		Log:         log,
+	}
+	ret.BaseGsVisitor = &gen.BaseGsVisitor{ParseTreeVisitor: &gen.BaseVisitor{RealVisitor: ret}}
+	return ret
+}
+
 func (g *GsDefineVisitor) VisitProgram(ctx *gen.ProgramContext) interface{} {
 	mainFunc := NewFunctionSymbol("main", nil)
 	g.GlobalScope.Define(mainFunc)
@@ -32,23 +43,18 @@ func (g *GsDefineVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 			if varName == "$" {
 				continue
 			}
-			if g.CurScope.Resolve(varName) == nil {
-				// 优先使用全局变量
-				g.CurScope.Define(NewVariableSymbol(varName, lvalue.GetStart()))
-			}
+			g.CurScope.Define(NewVariableSymbol(varName, lvalue.GetStart()))
 		}
 	}
 	return g.VisitChildren(ctx)
 }
 
 func (g *GsDefineVisitor) VisitSingleIter(ctx *gen.SingleIterContext) interface{} {
-
 	g.CurScope.Define(NewVariableSymbol(ctx.ID().GetText(), ctx.ID().GetSymbol()))
 	return nil
 }
 
 func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{} {
-
 	for _, node := range ctx.AllID() {
 		g.CurScope.Define(NewVariableSymbol(node.GetText(), node.GetSymbol()))
 	}
@@ -56,7 +62,6 @@ func (g *GsDefineVisitor) VisitDoubleIter(ctx *gen.DoubleIterContext) interface{
 }
 
 func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
-
 	if ctx.Primary().ID() != nil {
 		refName := ctx.Primary().ID().GetText()
 		if refName != "$" {
@@ -66,17 +71,6 @@ func (g *GsDefineVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 		}
 	}
 	return g.VisitChildren(ctx)
-}
-
-func NewGsDefineVisitor(log InterpreterListener) *GsDefineVisitor {
-	gScope := NewGlobalScope()
-	ret := &GsDefineVisitor{
-		CurScope:    gScope,
-		GlobalScope: gScope,
-		Log:         log,
-	}
-	ret.BaseGsVisitor = &gen.BaseGsVisitor{ParseTreeVisitor: &gen.BaseVisitor{RealVisitor: ret}}
-	return ret
 }
 
 func (g *GsDefineVisitor) VisitStructDefinition(ctx *gen.StructDefinitionContext) interface{} {
@@ -108,12 +102,14 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 		funcSymbol.Define(NewVariableSymbol(arg, allIDs[i].GetSymbol()))
 	}
 	// block
-	g.CurScope = &LocalScope{
+	localScope := &LocalScope{
 		Symbols:        make(map[string]Symbol),
+		GlobalDeclared: map[string]struct{}{},
 		EnclosingScope: funcSymbol,
 		BaseAllocAddr:  int32(len(funcSymbol.FormalArgs)),
 		ID:             g.ScopeAllocator,
 	}
+	g.CurScope = localScope
 	g.ScopeAllocator++
 	// 保存函数的local scope
 	funcSymbol.BodyScope = g.CurScope.(*LocalScope)
@@ -123,6 +119,25 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 	g.CurScope = preScope
 	g.CurScope.Define(funcSymbol)
 	g.CurFuncSymbol = preFuncSymbol
+	return nil
+}
+
+func (g *GsDefineVisitor) VisitGlobalStmt(ctx *gen.GlobalStmtContext) interface{} {
+	// 'global' ID
+	varName := ctx.ID().GetText()
+	if g.GlobalScope.Resolve(varName) == nil {
+		g.GlobalScope.Define(NewVariableSymbol(varName, ctx.ID().GetSymbol()))
+	}
+	if l, ok := g.CurScope.(*LocalScope); ok {
+		if l.Symbols[varName] != nil {
+			g.Log.ErrorToken(ctx.GetStart(), "Syntax error: name '%s' is assigned to before global declaration %s", varName)
+			return nil
+		}
+		l.GlobalDeclared[varName] = struct{}{}
+	} else {
+		g.Log.ErrorToken(ctx.GetStart(), "Syntax error: global statement can only write in func body")
+		return nil
+	}
 	return nil
 }
 

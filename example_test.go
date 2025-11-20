@@ -157,21 +157,33 @@ struct User { x: <nil>, y: <nil> }
 		{
 			name: "lookup.gs",
 			program: `
-x = 1           // create global variable
-func f(x) {       // define f in global space
-    println( x )     // access parameter; println(s 10
-    y = 2       // create local variable
+x = 1           	// create global variable
+
+func f(x) {
+    println(x)     	// access parameter; println 10
+	x += 4			// local x
+	println(x) 		// 14
 }
-func g() {        // define g in global space
-    x = 3       // set global variable
+
+func g() {
+    x = 3       	// set local variable
+}
+
+func setGlobalX() {
+	global x		// declare global x
+	x = 100
 }
 f(10)
 g()
-println( x )         // println(s 3 (g alters global value)
+println(x)         // 1
+setGlobalX()
+println(x)         // 100
 `,
 			expect: `
 10
-3
+14
+1
+100
 `,
 		},
 		{

@@ -62,6 +62,9 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#continueStmt.
 	VisitContinueStmt(ctx *ContinueStmtContext) interface{}
 
+	// Visit a parse tree produced by GsParser#globalStmt.
+	VisitGlobalStmt(ctx *GlobalStmtContext) interface{}
+
 	// Visit a parse tree produced by GsParser#assign.
 	VisitAssign(ctx *AssignContext) interface{}
 

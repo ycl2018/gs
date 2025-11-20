@@ -80,6 +80,10 @@ func (v *BaseGsVisitor) VisitContinueStmt(ctx *ContinueStmtContext) interface{} 
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitGlobalStmt(ctx *GlobalStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitAssign(ctx *AssignContext) interface{} {
 	return v.VisitChildren(ctx)
 }

@@ -140,7 +140,8 @@ func (g *GlobalScope) Dump() string {
 type LocalScope struct {
 	ID                int32
 	Symbols           map[string]Symbol
-	EnclosingScope    Scope
+	GlobalDeclared    map[string]struct{}
+	EnclosingScope    *FunctionSymbol
 	BaseAllocAddr     int32
 	LocalVarAllocator int32
 }
@@ -155,7 +156,7 @@ func (l *LocalScope) Define(symbol Symbol) {
 			return
 		}
 		// 同时存储在全局 scope 中
-		globalScope := l.EnclosingScope
+		globalScope := Scope(l.EnclosingScope)
 		for globalScope != nil && globalScope.GetName() != GlobalScopeName {
 			globalScope = globalScope.ParentScope()
 		}
@@ -174,6 +175,9 @@ func (l *LocalScope) Define(symbol Symbol) {
 		symbol.SetScope(l)
 	default:
 		if l.Symbols[symbol.GetName()] != nil {
+			return
+		}
+		if _, ok := l.GlobalDeclared[symbol.GetName()]; ok {
 			return
 		}
 		symbol.SetAddress(int(l.BaseAllocAddr) + int(l.LocalVarAllocator))
