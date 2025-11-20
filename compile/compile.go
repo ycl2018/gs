@@ -287,7 +287,11 @@ func (s *StackCompileVisitor) VisitAppendCall(ctx *gen.AppendCallContext) interf
 	for _, expr := range ctx.AllExpr() {
 		expr.Accept(s)
 	}
-	s.Write(consts.InstrAppend, len(ctx.AllExpr()))
+	if ctx.EXPAND() != nil {
+		s.Write(consts.InstrAppendExpand)
+	} else {
+		s.Write(consts.InstrAppend, len(ctx.AllExpr()))
+	}
 	return nil
 }
 

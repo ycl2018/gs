@@ -17,6 +17,8 @@ func length(x any) int {
 		return len(x)
 	case []int:
 		return len(x)
+	case []int8:
+		return len(x)
 	case []int64:
 		return len(x)
 	case map[string]any:
@@ -53,12 +55,16 @@ func appendSlice(x any, values []any) any {
 		return append(x, CopyToSliceByKind(values, reflect.Int).([]int)...)
 	case []int64:
 		return append(x, CopyToSliceByKind(values, reflect.Int64).([]int64)...)
+	case []int8:
+		return append(x, CopyToSliceByKind(values, reflect.Int8).([]int8)...)
+	case []int16:
+		return append(x, CopyToSliceByKind(values, reflect.Int16).([]int16)...)
 	case []int32:
 		return append(x, CopyToSliceByKind(values, reflect.Int32).([]int32)...)
-	case []uint8:
-		return append(x, CopyToSliceByKind(values, reflect.Uint8).([]uint8)...)
 	case []uint:
 		return append(x, CopyToSliceByKind(values, reflect.Uint).([]uint)...)
+	case []uint8:
+		return append(x, CopyToSliceByKind(values, reflect.Uint8).([]uint8)...)
 	case []uint16:
 		return append(x, CopyToSliceByKind(values, reflect.Uint16).([]uint16)...)
 	case []uint32:
@@ -69,10 +75,143 @@ func appendSlice(x any, values []any) any {
 		return append(x, CopyToSliceByKind(values, reflect.Float32).([]float32)...)
 	case []float64:
 		return append(x, CopyToSliceByKind(values, reflect.Float64).([]float64)...)
+	case []uintptr:
+		return append(x, CopyToSliceByKind(values, reflect.Uintptr).([]uintptr)...)
 	default:
 		xv := reflect.ValueOf(x)
 		return reflect.AppendSlice(xv, reflect.ValueOf(values)).Interface()
 	}
+}
+
+func appendSliceExpand(x any, expandSlice any) any {
+	switch expandSlice := expandSlice.(type) {
+	case []any: // short path for: from vm slice to env
+		switch x := x.(type) {
+		case []any:
+			return append(x, expandSlice...)
+		case []string:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.String).([]string)...)
+		case []int:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Int).([]int)...)
+		case []int8:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Int8).([]int8)...)
+		case []int16:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Int16).([]int16)...)
+		case []int32:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Int32).([]int32)...)
+		case []int64:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Int64).([]int64)...)
+		case []uint8:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint8).([]uint8)...)
+		case []uint:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint).([]uint)...)
+		case []uint16:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint16).([]uint16)...)
+		case []uint32:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint32).([]uint32)...)
+		case []uint64:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint64).([]uint64)...)
+		case []float32:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Float32).([]float32)...)
+		case []float64:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Float64).([]float64)...)
+		case []uintptr:
+			return append(x, CopyToSliceByKind(expandSlice, reflect.Uintptr).([]uintptr)...)
+		}
+	}
+	// expandSlice is not from env
+	switch x := x.(type) {
+	case []any:
+		// short path for: env to vm slice
+		switch expandSlice := expandSlice.(type) {
+		case []any:
+			return append(x, expandSlice...)
+		case []string:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []int:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []int8:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []int16:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []int32:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []int64:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []uint16:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []uint32:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []uint64:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []float32:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []float64:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		case []uintptr:
+			for i := 0; i < len(expandSlice); i++ {
+				x = append(x, expandSlice[i])
+			}
+			return x
+		}
+	case []string:
+		return append(x, expandSlice.([]string)...)
+	case []int:
+		return append(x, expandSlice.([]int)...)
+	case []int64:
+		return append(x, expandSlice.([]int64)...)
+	case []int32:
+		return append(x, expandSlice.([]int32)...)
+	case []uint8:
+		return append(x, expandSlice.([]uint8)...)
+	case []uint:
+		return append(x, expandSlice.([]uint)...)
+	case []uint16:
+		return append(x, expandSlice.([]uint16)...)
+	case []uint32:
+		return append(x, expandSlice.([]uint32)...)
+	case []uint64:
+		return append(x, expandSlice.([]uint64)...)
+	case []float32:
+		return append(x, expandSlice.([]float32)...)
+	case []float64:
+		return append(x, expandSlice.([]float64)...)
+	}
+	xv := reflect.ValueOf(x)
+	return reflect.AppendSlice(xv, reflect.ValueOf(expandSlice)).Interface()
 }
 
 func deleteMap(m, k any) {
@@ -125,6 +264,8 @@ func deleteMap(m, k any) {
 	switch k.(type) {
 	case int: // int may be vm value, map
 		switch kt := rm.Type().Key().Kind(); kt {
+		case reflect.Int:
+			k = ToInt(k)
 		case reflect.Int8:
 			k = ToInt8(k)
 		case reflect.Int16:
@@ -143,6 +284,12 @@ func deleteMap(m, k any) {
 			k = ToUint32(k)
 		case reflect.Uint64:
 			k = ToUint64(k)
+		case reflect.Uintptr:
+			k = ToUintptr(k)
+		case reflect.Float64:
+			k = ToFloat64(k)
+		case reflect.Float32:
+			k = ToFloat32(k)
 		}
 	}
 

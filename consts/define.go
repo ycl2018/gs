@@ -89,6 +89,7 @@ const (
 	InstrPrintln
 	InstrLen
 	InstrAppend
+	InstrAppendExpand
 	InstrDelete
 	InstrCopy
 	InstrToString
@@ -176,6 +177,7 @@ var Instructions = []*Instruction{
 	{"println", INT},
 	{"len", NIL},
 	{"append", INT},
+	{"append_expand", NIL},
 	{"delete", NIL},
 	{"copy", NIL},
 	{"toString", NIL},

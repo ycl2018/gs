@@ -43,12 +43,12 @@ incrDecr: lvalue (INCR | DECR);
 // 内置函数调用（使用关键字）
 builtinCall
     :   LEN '(' expr ')'                                  #lenCall
-    |   APPEND '(' expr ',' expr (',' expr)* ')'          #appendCall
+    |   APPEND '(' expr  ((',' expr)* |',' expr EXPAND) ')' #appendCall
     |   DELETE '(' expr ',' expr ')'                      #deleteCall
     |   COPY '(' expr ')'                                 #copyCall // return a copy of value
     |   TOSTRING '(' expr ')'                             #toStringCall
     |   PRINT '(' expr (',' expr)* ')'                    #printCall
-    |   PRINTF '(' expr (',' expr)* ')'                  #printfCall
+    |   PRINTF '(' expr (',' expr)* ')'                   #printfCall
     |   PRINTLN '(' expr (',' expr)* ')'                  #printlnCall
     |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')' #convertCall
     ;
@@ -192,6 +192,9 @@ FLOAT32 : 'float32';
 FLOAT64 : 'float64';
 STRINGS : 'string';
 BOOL    : 'bool';
+EXPAND  : '...';
+
+
 
 // 运算符（必须修复项：补充可选链复合token，优先于单个符号）
 SAFE_DOT   : '?.' ;  // 可选链属性访问（新增）

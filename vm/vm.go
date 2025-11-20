@@ -313,6 +313,10 @@ func (i *Interpreter) cpu() {
 			}
 			slice, vals := appendVals[0], appendVals[1:]
 			i.PushOpStack(appendSlice(slice, vals))
+		case consts.InstrAppendExpand:
+			expandSlice := i.PopOpStack()
+			toSlice := i.PopOpStack()
+			i.PushOpStack(appendSliceExpand(toSlice, expandSlice))
 		case consts.InstrDelete:
 			key := i.PopOpStack()
 			m := i.PopOpStack()
