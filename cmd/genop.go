@@ -229,8 +229,8 @@ import (
 )
 
 var (
-	ErrDivisionByZero  = errors.New("Error: division by zero")
-	ErrModuloByZero    = errors.New("Error: modulo by zero")
+	ErrDivisionByZero  = errors.New("division by zero")
+	ErrModuloByZero    = errors.New("modulo by zero")
 )
 
 func eq(x, y any) bool {
