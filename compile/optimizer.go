@@ -82,7 +82,9 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 	}
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
 	start := ctx.GetStart()
-	gen.InitEmptyArrayLiteralContext(ctx)
+	for range ctx.GetChildCount() {
+		ctx.RemoveLastChild()
+	}
 	ctx.AddChild(consts.NewConstNode(consts.ConstNodeKindList, &consts.SliceLiteralConst{Value: sliceInit, Name: name}, start))
 	return nil
 }
@@ -137,7 +139,9 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	}
 	start := ctx.GetStart()
 	name := fmt.Sprintf("%d_%d", ctx.GetStart().GetLine(), ctx.GetStart().GetColumn())
-	gen.InitEmptyDictLiteralContext(ctx)
+	for range ctx.GetChildCount() {
+		ctx.RemoveLastChild()
+	}
 	ctx.AddChild(consts.NewConstNode(consts.ConstNodeKindMap, &consts.MapLiteralConst{Map: m, Name: name}, start))
 	return nil
 }
@@ -183,10 +187,7 @@ func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) inter
 		}
 	}
 	if applied {
-		gen.InitEmptyLogicalOrExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
-		}
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
 }
@@ -220,12 +221,22 @@ func (c *ConstOptimizer) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) int
 		}
 	}
 	if applied {
-		gen.InitEmptyLogicalAndExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
-		}
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
+}
+
+func replaceChildren(ctx antlr.ParserRuleContext, newChildren []antlr.Tree) {
+	for range ctx.GetChildCount() {
+		ctx.RemoveLastChild()
+	}
+	for _, child := range newChildren {
+		if v, ok := child.(antlr.RuleContext); ok {
+			ctx.AddChild(v)
+		} else {
+			ctx.AddTokenNode(child.(*antlr.TerminalNodeImpl).GetSymbol())
+		}
+	}
 }
 
 func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
@@ -311,10 +322,7 @@ func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) int
 		}
 	}
 	if applied {
-		gen.InitEmptyComparisonExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
-		}
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
 }
@@ -367,10 +375,7 @@ func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
 		}
 	}
 	if applied {
-		gen.InitEmptyAddExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
-		}
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
 }
@@ -416,10 +421,7 @@ func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
 		}
 	}
 	if applied {
-		gen.InitEmptyBinExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
-		}
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
 }
@@ -510,10 +512,50 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 	}
 
 	if applied {
-		gen.InitEmptyMulExprContext(ctx)
-		for _, child := range newChildren {
-			ctx.AddChild(child.(antlr.RuleContext))
+		replaceChildren(ctx, newChildren)
+	}
+	return nil
+}
+
+func (c *ConstOptimizer) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
+	atom := ctx.Atom()
+	var applied bool
+	var newChildren []antlr.Tree
+	switch t := atom.(type) {
+	case *gen.FloatAtomContext:
+		applied = true
+		f, err := strconv.ParseFloat(t.GetText(), 64)
+		if err != nil {
+			c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
+			return nil
 		}
+		newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, -f, ctx.GetStart()))
+	case *gen.IntAtomContext:
+		applied = true
+		f, err := strconv.ParseInt(t.GetText(), 0, 64)
+		if err != nil {
+			c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
+			return nil
+		}
+		newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, -int(f), ctx.GetStart()))
+	case *gen.ParenAtomContext:
+		expr := t.Expr()
+		if constNode, ok := toConstNode(expr.(*gen.ExprContext)); ok {
+			switch constNode.Kind {
+			case consts.ConstNodeKindInt:
+				constNode.Value = -constNode.Value.(int)
+			case consts.ConstNodeKindFloat:
+				constNode.Value = -constNode.Value.(float64)
+			default:
+				c.Log.ErrorToken(ctx.GetStart(), "can't use '-' on value:%v", constNode.Value)
+				return nil
+			}
+			newChildren = append(newChildren, constNode)
+			applied = true
+		}
+	}
+	if applied {
+		replaceChildren(ctx, newChildren)
 	}
 	return nil
 }
