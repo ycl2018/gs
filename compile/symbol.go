@@ -51,6 +51,7 @@ type FunctionSymbol struct {
 	FormalArgs []Symbol
 	BodyScope  *LocalScope
 	Code       []*consts2.StackInstr
+	Debugger   consts2.Debugger
 	ReturnNums int
 }
 
@@ -111,6 +112,14 @@ func (f *FunctionSymbol) LocalNums() int {
 		locals = int(f.BodyScope.LocalVarAllocator)
 	}
 	return locals
+}
+
+func (f *FunctionSymbol) getParamName() []string {
+	var paramNames []string
+	for _, arg := range f.FormalArgs {
+		paramNames = append(paramNames, arg.GetName())
+	}
+	return paramNames
 }
 
 // StructSymbol 结构体符号

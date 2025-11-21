@@ -19,11 +19,11 @@ func NewStackInstr(opCode Instr, operand int) *StackInstr {
 func (s StackInstr) Dump() string {
 	switch Instructions[s.OpCode].OpRandType {
 	case NIL:
-		return fmt.Sprintf("%-11s\t\n", Instr(s.OpCode))
+		return fmt.Sprintf("%-11s\t\n", s.OpCode)
 	case INT:
-		return fmt.Sprintf("%-11s\t%v\n", Instr(s.OpCode), s.Operands)
+		return fmt.Sprintf("%-11s\t%v\n", s.OpCode, s.Operands)
 	case POLL:
-		return fmt.Sprintf("%-11s\tconst#%v\n", Instr(s.OpCode), s.Operands)
+		return fmt.Sprintf("%-11s\tconst#%v\n", s.OpCode, s.Operands)
 	default:
 		panic(fmt.Sprintf("unknown op rand type %d", Instructions[s.OpCode].OpRandType))
 	}

@@ -59,10 +59,11 @@ func ToIntValue(c *ConstNode) int {
 	}
 }
 
-func NewConstNode(kind ConstNodeKind, val any) *ConstNode {
+func NewConstNode(kind ConstNodeKind, val any, token antlr.Token) *ConstNode {
 	return &ConstNode{
 		Kind:  kind,
 		Value: val,
+		token: token,
 	}
 }
 
@@ -71,6 +72,7 @@ func NewConstNode(kind ConstNodeKind, val any) *ConstNode {
 type ConstNode struct {
 	Kind  ConstNodeKind
 	Value any
+	token antlr.Token
 }
 
 func (c *ConstNode) IsAtomContext() {
@@ -182,7 +184,7 @@ func (c *ConstNode) SetStart(token antlr.Token) {
 
 func (c *ConstNode) GetStart() antlr.Token {
 	//TODO implement me
-	panic("implement me")
+	return c.token
 }
 
 func (c *ConstNode) SetStop(token antlr.Token) {

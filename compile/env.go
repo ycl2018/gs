@@ -69,7 +69,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 	if env == nil {
 		panic("not env")
 	}
-	s.Write(consts.InstrLoadEnv)
+	s.Write(consts.InstrLoadEnv, qid.GetStart())
 	accessors := qid.AllAccessor()
 	if len(accessors) == 0 {
 		return
@@ -100,7 +100,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			}
 		}
 		if len(fieldPath) > 0 {
-			s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
+			s.Write(consts.InstrRFByIndex, qid.GetStart(), defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
 			fieldPath = fieldPath[:0]
 			if i > len(accessors)-1 {
 				return
@@ -114,7 +114,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			if a.SAFE_DOT() != nil {
 				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 				brNils = append(brNils, brNil)
-				s.WriteInstr(brNil)
+				s.WriteInstr(brNil, qid.GetStart())
 			}
 			switch curType.Kind() {
 			case reflect.Struct:
@@ -124,10 +124,10 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 					return
 				}
 				curType = f.Type
-				s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
 			case reflect.Interface:
 				// interface Load
-				s.Write(consts.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
@@ -136,7 +136,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			if a.SAFE_LBRACK() != nil {
 				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
 				brNils = append(brNils, brNil)
-				s.WriteInstr(brNil)
+				s.WriteInstr(brNil, a.GetStart())
 			}
 			switch t := a.GetChild(1).(type) {
 			case *gen.ExprContext:
@@ -148,13 +148,13 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			}
 			switch curType.Kind() {
 			case reflect.Map:
-				s.Write(consts.InstrRMapIndex)
+				s.Write(consts.InstrRMapIndex, a.GetStart())
 				curType = curType.Elem()
 			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(consts.InstrIndexLoad)
+				s.Write(consts.InstrIndexLoad, a.GetStart())
 				curType = curType.Elem()
 			case reflect.Interface:
-				s.Write(consts.InstrIndexLoad)
+				s.Write(consts.InstrIndexLoad, a.GetStart())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
@@ -176,10 +176,10 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 		s.Log.ErrorToken(qid.GetStart(), "Env type is struct, can't assign,try use pointer instead")
 		return
 	}
-	s.Write(consts.InstrLoadEnv)
+	s.Write(consts.InstrLoadEnv, qid.GetStart())
 	accessors := qid.AllAccessor()
 	if len(accessors) == 0 {
-		s.Write(consts.InstrRSet)
+		s.Write(consts.InstrRSet, qid.GetStart())
 		return
 	}
 	var curType = s.Env.RType
@@ -207,7 +207,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			}
 		}
 		if len(fieldPath) > 0 {
-			s.Write(consts.InstrRFByIndex, defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
+			s.Write(consts.InstrRFByIndex, qid.GetStart(), defineFieldIndexConst(indexId.String(), fieldPath, s.GlobalScope).GetAddress())
 			fieldPath = fieldPath[:0]
 			if i > len(accessors)-1 {
 				return
@@ -232,10 +232,10 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 					s.Log.ErrorToken(qid.GetStart(), err.Error())
 					return
 				}
-				s.Write(consts.InstrRSetField, defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrRSetField, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
 			case reflect.Interface:
 				// interface Load
-				s.Write(consts.InstrFLoad, defineStringConst(fieldName, s.GlobalScope).GetAddress())
+				s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
@@ -260,23 +260,23 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			switch curType.Kind() {
 			case reflect.Map:
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrRSetMapIndex)
+					s.Write(consts.InstrRSetMapIndex, a.GetStart())
 				} else {
-					s.Write(consts.InstrRMapIndex)
+					s.Write(consts.InstrRMapIndex, a.GetStart())
 					curType = curType.Elem()
 				}
 			case reflect.Array, reflect.Slice, reflect.String:
 				curType = curType.Elem()
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrRIndexStore)
+					s.Write(consts.InstrRIndexStore, a.GetStart())
 				} else {
-					s.Write(consts.InstrRIndex)
+					s.Write(consts.InstrRIndex, a.GetStart())
 				}
 			case reflect.Interface:
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrIndexStore)
+					s.Write(consts.InstrIndexStore, a.GetStart())
 				} else {
-					s.Write(consts.InstrIndexLoad)
+					s.Write(consts.InstrIndexLoad, a.GetStart())
 				}
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
