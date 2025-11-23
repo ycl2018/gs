@@ -654,6 +654,8 @@ $.Slice[0] = 4
 print("print:",$.Slice,"\n")
 println("println:",$.Slice)
 printf("printf:$.Slice=%v\n", $.Slice)
+str = sprintf("hello:%s", "chenglong")
+println(str)
 arr = []
 arr = append(arr, $.StringSlice...)
 println(arr) // [hello world]
@@ -679,6 +681,7 @@ map[2:2 3:3]
 print:[4 2 3 4]
 println: [4 2 3 4]
 printf:$.Slice=[4 2 3 4]
+hello:chenglong
 [hello world]
 [hello world cheng long]
 raw literal:

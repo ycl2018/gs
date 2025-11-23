@@ -87,6 +87,7 @@ const (
 	InstrPrint
 	InstrPrintf
 	InstrPrintln
+	InstrSprintf
 	InstrLen
 	InstrAppend
 	InstrAppendExpand
@@ -175,6 +176,7 @@ var Instructions = []*Instruction{
 	{"print", INT}, // print n values
 	{"printf", INT},
 	{"println", INT},
+	{"sprintf", INT},
 	{"len", NIL},
 	{"append", INT},
 	{"append_expand", NIL},
