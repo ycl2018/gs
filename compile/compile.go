@@ -271,6 +271,15 @@ func (s *StackCompileVisitor) VisitPrintfCall(ctx *gen.PrintfCallContext) interf
 	return nil
 }
 
+func (s *StackCompileVisitor) VisitSprintfCall(ctx *gen.SprintfCallContext) interface{} {
+	exprs := ctx.AllExpr()
+	for _, expr := range exprs {
+		expr.Accept(s)
+	}
+	s.Write(consts.InstrSprintf, ctx.GetStart(), len(exprs))
+	return nil
+}
+
 func (s *StackCompileVisitor) VisitPrintlnCall(ctx *gen.PrintlnCallContext) interface{} {
 	exprs := ctx.AllExpr()
 	for _, expr := range exprs {
