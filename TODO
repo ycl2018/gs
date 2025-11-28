@@ -1,0 +1,2 @@
+- 虚拟机 Fload 指令加缓存，转为FieldByIndex
+- Mload 指令加缓存，转为MethodByIndex

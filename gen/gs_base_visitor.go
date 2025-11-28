@@ -1,7 +1,8 @@
-// Code generated from D:/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
+
 
 type BaseGsVisitor struct {
 	antlr.ParseTreeVisitor
@@ -103,10 +104,6 @@ func (v *BaseGsVisitor) VisitDeleteCall(ctx *DeleteCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitCopyCall(ctx *CopyCallContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitToStringCall(ctx *ToStringCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -167,7 +164,11 @@ func (v *BaseGsVisitor) VisitSelfAssignOp(ctx *SelfAssignOpContext) interface{} 
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitCall(ctx *CallContext) interface{} {
+func (v *BaseGsVisitor) VisitInnerCall(ctx *InnerCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitOuterCall(ctx *OuterCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
