@@ -296,11 +296,6 @@ func deleteMap(m, k any) {
 	rm.SetMapIndex(reflect.ValueOf(k), reflect.Value{})
 }
 
-func copySlice(src any) any {
-	//TODO
-	panic("to be copied")
-}
-
 func toString(v any) string {
 	if v, ok := v.(fmt.Stringer); ok {
 		return v.String()
