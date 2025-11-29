@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/ycl2018/gs/compile"
-	"github.com/ycl2018/gs/vm"
 )
 
 type MyEnv struct {
@@ -22,7 +18,7 @@ type MyEnv struct {
 }
 
 func (env *MyEnv) SayHello() string {
-	return "Hello World"
+	return "Hello World " + env.A
 }
 
 type Embed struct {
@@ -716,13 +712,21 @@ stack trace:
 ret = $.Fn("hello"," world")
 println(ret)
 println($.SayHello())
+println($.Map["fn"]("hello", " world"))
 `,
 			env: &MyEnv{
+				A:  "chenglong",
 				Fn: func(a, b string) string { return a + b },
+				Map: map[any]any{
+					"fn": func(a, b string) string {
+						return a + b
+					},
+				},
 			},
 			expect: `
 hello world
-Hello World
+Hello World chenglong
+hello world
 `,
 		},
 	}
@@ -730,23 +734,25 @@ Hello World
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			out := &bytes.Buffer{}
-			p := compile.NewGsCompiler()
-			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
+			var ops []CompileOption
+			if tt.env != nil {
+				ops = append(ops, Env(tt.env))
+			}
+			if tt.dump {
+				ops = append(ops, DumpCode())
+			}
+			code, err := Compile(tt.program, ops...)
 			if err != nil {
 				t.Fatal(err)
 				return
 			}
-			if tt.dump {
-				t.Log(p.Dump())
-			}
-			var ops = []vm.Option{
-				vm.WithEnv(tt.env), vm.WithPrintTo(out),
+			var runOps = []RunOption{
+				Output(out),
 			}
 			if tt.trace {
-				ops = append(ops, vm.WithEnableTrace())
+				runOps = append(runOps, Trace())
 			}
-			interpreter := vm.NewInterpreter(code, ops...)
-			err = interpreter.Run()
+			err = Run(code, tt.env, runOps...)
 			if err != nil && tt.expectErr == "" {
 				t.Fatal(err)
 				return
@@ -764,7 +770,6 @@ Hello World
 					return
 				}
 			}
-
 		})
 	}
 }

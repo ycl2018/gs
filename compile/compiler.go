@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/gen"
 	"github.com/ycl2018/gs/vm"
 )
@@ -28,7 +29,7 @@ func NewGsCompiler() *GsCompiler {
 	}
 }
 
-func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) {
+func (p *GsCompiler) Compile(input antlr.CharStream, conf *conf.CompileConf) (*vm.Code, error) {
 	lexer := gen.NewGsLexer(input)
 	tokens := antlr.NewCommonTokenStream(lexer, 0)
 	ps := gen.NewGsParser(tokens)
@@ -57,7 +58,7 @@ func (p *GsCompiler) Compile(input antlr.CharStream, env any) (*vm.Code, error) 
 		return nil, errors.New(p.ErrWriter.String())
 	}
 	// 执行
-	p.compileVisitor = NewStackCompileVisitor(defVisitor.GlobalScope, log, env)
+	p.compileVisitor = NewStackCompileVisitor(defVisitor.GlobalScope, log, conf)
 	p.compileVisitor.Visit(programContext)
 	if p.ErrWriter.String() != "" {
 		return nil, errors.New(p.ErrWriter.String())

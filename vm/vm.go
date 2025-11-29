@@ -6,44 +6,19 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 
+	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
 )
 
-const DefaultOperandStackSize = 256
+const DefaultOperandStackSize = 64
 const DefaultPrintStackFrameSize = 5
 
-type Option func(interpreter *Interpreter)
-
-func WithEnableTrace() Option {
-	return func(i *Interpreter) {
-		i.enableTrace = true
-	}
-}
-
-func WithEnableDump() Option {
-	return func(i *Interpreter) {
-		i.dump = true
-	}
-}
-
-func WithEnv(env any) Option {
-	return func(i *Interpreter) {
-		i.Env = env
-	}
-}
-
-func WithPrintTo(writer io.Writer) Option {
-	return func(i *Interpreter) {
-		i.Out = writer
-	}
-}
-
 type Interpreter struct {
+	conf.RunConf
 	IP           int                 // 指令地址
 	Code         []consts.StackInstr // 代码
 	ConstPool    []consts.Const
@@ -60,17 +35,12 @@ type Interpreter struct {
 	Globals  []any
 	DataSize int
 	Env      any
-	Out      io.Writer
-
-	// ops
-	enableTrace     bool
-	dump            bool
-	initialStackCap int
 }
 
-func NewInterpreter(code *Code, ops ...Option) *Interpreter {
+func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
 	// 编译
 	i := &Interpreter{
+		RunConf:      *conf,
 		IP:           -1,
 		FP:           -1,
 		SP:           -1,
@@ -80,15 +50,12 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 		ConstPool:    code.ConstPool,
 		MainFunc:     code.MainFunc,
 		BuildEnvType: code.BuildEnvType,
-		Out:          os.Stdout,
+		Env:          env,
 	}
-	for _, op := range ops {
-		op(i)
+	if i.StackSize <= 0 {
+		i.StackSize = DefaultOperandStackSize
 	}
-	if i.initialStackCap <= 0 {
-		i.initialStackCap = DefaultOperandStackSize
-	}
-	i.Operands = make([]any, i.initialStackCap)
+	i.Operands = make([]any, i.StackSize)
 	return i
 }
 
@@ -120,7 +87,7 @@ func (i *Interpreter) Run() (err error) {
 	sf := NewStackFrame(&i.MainFunc, i.IP, i.Code)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
-	if i.enableTrace {
+	if i.Trace {
 		fmt.Printf("\ntrace:\n")
 	}
 	defer func() {
@@ -132,10 +99,6 @@ func (i *Interpreter) Run() (err error) {
 		}
 	}()
 	i.cpu()
-
-	if i.dump {
-		i.Dump()
-	}
 	return err
 }
 
@@ -147,7 +110,7 @@ func (i *Interpreter) PopOpStack() any {
 
 func (i *Interpreter) PushOpStack(v any) {
 	i.SP++
-	if i.SP >= i.initialStackCap {
+	if i.SP >= i.StackSize {
 		i.Operands = append(i.Operands, v)
 		return
 	}
@@ -158,7 +121,7 @@ func (i *Interpreter) cpu() {
 	// 取指令，并执行
 	instr := i.Code[i.IP]
 	for i.IP < len(i.Code) {
-		if i.enableTrace {
+		if i.Trace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand

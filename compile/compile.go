@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 )
@@ -26,10 +27,10 @@ type StackCompileVisitor struct {
 	CurScope    Scope
 }
 
-func NewStackCompileVisitor(globalScope *GlobalScope, log InterpreterListener, env any) *StackCompileVisitor {
+func NewStackCompileVisitor(globalScope *GlobalScope, log InterpreterListener, conf *conf.CompileConf) *StackCompileVisitor {
 	mainFunc := globalScope.Resolve("main").(*FunctionSymbol)
 	s := &StackCompileVisitor{
-		Env:         NewEnv(env),
+		Env:         NewEnv(conf.Env),
 		Log:         log,
 		GlobalScope: globalScope,
 		MainFunc:    mainFunc,
