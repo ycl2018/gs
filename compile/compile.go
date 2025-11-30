@@ -15,27 +15,29 @@ var _ gen.GsVisitor = (*StackCompileVisitor)(nil)
 
 type StackCompileVisitor struct {
 	gen.BaseGsVisitor
-	Env         *Env
-	Log         InterpreterListener
-	Scopes      map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
-	GlobalScope *GlobalScope
-	AllFuncs    []*FunctionSymbol // 所有函数,不包含主函数
-	MainFunc    *FunctionSymbol
-	CurFunc     *FunctionSymbol
-	TagAlloc    int
-	LoopStack   []*ForLoop
-	CurScope    Scope
+	Conf              *conf.CompileConf
+	Env               *Env
+	Log               InterpreterListener
+	GlobalScope       *GlobalScope
+	AllFuncs          []*FunctionSymbol // 所有函数,不包含主函数
+	MainFunc          *FunctionSymbol
+	CurFunc           *FunctionSymbol
+	LoopStack         []*ForLoop
+	CurScope          Scope
+	CalledDefineFuncs map[string]int
 }
 
 func NewStackCompileVisitor(globalScope *GlobalScope, log InterpreterListener, conf *conf.CompileConf) *StackCompileVisitor {
 	mainFunc := globalScope.Resolve("main").(*FunctionSymbol)
 	s := &StackCompileVisitor{
-		Env:         NewEnv(conf.Env),
-		Log:         log,
-		GlobalScope: globalScope,
-		MainFunc:    mainFunc,
-		CurFunc:     mainFunc,
-		CurScope:    globalScope,
+		Conf:              conf,
+		Env:               NewEnv(conf.Env),
+		Log:               log,
+		GlobalScope:       globalScope,
+		MainFunc:          mainFunc,
+		CurFunc:           mainFunc,
+		CurScope:          globalScope,
+		CalledDefineFuncs: make(map[string]int),
 	}
 	s.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: gen.NewBaseVisitor(s)}
 	return s
@@ -46,11 +48,6 @@ func (s *StackCompileVisitor) WriteInstr(instr *consts.StackInstr, token antlr.T
 	s.CurFunc.Debugger.Table = append(s.CurFunc.Debugger.Table, consts.Info{
 		Line: token.GetLine(),
 	})
-}
-
-func (s *StackCompileVisitor) AllocTag() int {
-	s.TagAlloc--
-	return s.TagAlloc
 }
 
 func (s *StackCompileVisitor) VisitProgram(ctx *gen.ProgramContext) interface{} {
@@ -93,25 +90,44 @@ func (s *StackCompileVisitor) VisitInnerCall(ctx *gen.InnerCallContext) interfac
 		context.Accept(s)
 	}
 	funcName := ctx.ID().GetText()
-	if fSymbol := s.CurScope.Resolve(funcName); fSymbol == nil {
-		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
-		return nil
-	} else if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
-		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("call func %s params count not match, expect %d, got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
+	if fSymbol := s.CurScope.Resolve(funcName); fSymbol != nil {
+		if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
+			s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("func:%s need %d args,but got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
+			return nil
+		}
+		fSymbol := fSymbol.(*FunctionSymbol)
+		// 生成调用指令IR
+		callInstr := consts.NewStackInstr(consts.InstrCall, fSymbol.Address)
+		s.WriteInstr(callInstr, ctx.GetStart())
 		return nil
 	}
-	fSymbol := s.CurScope.Resolve(funcName).(*FunctionSymbol)
-	// 生成调用指令IR
-	callInstr := consts.NewStackInstr(consts.InstrCall, fSymbol.Address)
-	s.WriteInstr(callInstr, ctx.GetStart())
+	if defineFn, ok := s.Conf.DefineFuncs[funcName]; ok {
+		numIn := defineFn.Type().NumIn()
+		if len(allExpr) != numIn {
+			s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("func:%s need %d args,but got %d", funcName, numIn, len(allExpr)))
+			return nil
+		}
+		// 生成调用指令IR
+		var addr int
+		if v, ok2 := s.CalledDefineFuncs[funcName]; ok2 {
+			addr = v
+		} else {
+			addr = len(s.CalledDefineFuncs)
+			s.CalledDefineFuncs[funcName] = addr
+		}
+		callInstr := consts.NewStackInstr(consts.InstrCallDefine, addr)
+		s.WriteInstr(callInstr, ctx.GetStart())
+		return nil
+	}
+	s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitOuterCall(ctx *gen.OuterCallContext) interface{} {
 	// primary accessor+ '(' (expr (',' expr)* ','?)? ')'
 	allExpr := ctx.AllExpr()
-	for i := len(allExpr) - 1; i >= 0; i-- {
-		allExpr[i].Accept(s)
+	for _, context := range allExpr {
+		context.Accept(s)
 	}
 	s.loadOuterFunc(ctx)
 	// 生成调用指令IR

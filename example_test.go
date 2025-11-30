@@ -47,13 +47,14 @@ type BasicValue struct {
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
-		name      string
-		program   string
-		env       any
-		expect    string
-		expectErr string
-		trace     bool
-		dump      bool
+		name       string
+		program    string
+		env        any
+		expect     string
+		expectErr  string
+		defineFunc []Func
+		trace      bool
+		dump       bool
 	}{
 		{
 			name: "apple.gs",
@@ -729,6 +730,32 @@ Hello World chenglong
 hello world
 `,
 		},
+		{
+			name: "define_funcs.gs",
+			defineFunc: []Func{
+				{
+					Name: "add",
+					Fn: func(a, b int) int {
+						return a + b
+					},
+				},
+				{
+					Name: "sub",
+					Fn: func(a, b int) int {
+						return a - b
+					},
+				},
+			},
+			program: `
+println(sub(1,2))
+sum = add(1,2)
+println(sum)
+`,
+			expect: `
+-1
+3
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -740,6 +767,9 @@ hello world
 			}
 			if tt.dump {
 				ops = append(ops, DumpCode())
+			}
+			if len(tt.defineFunc) > 0 {
+				ops = append(ops, DefineFuncs(tt.defineFunc...))
 			}
 			code, err := Compile(tt.program, ops...)
 			if err != nil {

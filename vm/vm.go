@@ -24,6 +24,7 @@ type Interpreter struct {
 	ConstPool    []consts.Const
 	MainFunc     consts.FunctionConst // Main函数入口地址
 	BuildEnvType reflect.Type
+	DefineFuncs  []consts.DefineFunc
 	// 函数调用栈
 	Calls []*StackFrame
 	FP    int // 栈桢计数器
@@ -50,6 +51,7 @@ func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
 		ConstPool:    code.ConstPool,
 		MainFunc:     code.MainFunc,
 		BuildEnvType: code.BuildEnvType,
+		DefineFuncs:  code.DefineFuncs,
 		Env:          env,
 	}
 	if i.StackSize <= 0 {
@@ -78,6 +80,7 @@ func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackI
 type Code struct {
 	Globals      int
 	ConstPool    []consts.Const
+	DefineFuncs  []consts.DefineFunc
 	MainFunc     consts.FunctionConst
 	BuildEnvType reflect.Type
 }
@@ -367,38 +370,44 @@ func (i *Interpreter) cpu() {
 			obj := i.PopOpStack()
 			i.PushOpStack(loadMethodByIndex(obj, instr.Operands))
 		case consts.InstrCallOuter:
-			inNum := instr.Operands
 			fn := i.PopOpStack()
-			var inArgs = make([]reflect.Value, inNum)
-			for j := 0; j < inNum; j++ {
-				arg := reflect.ValueOf(i.PopOpStack())
-				inArgs[j] = arg
-			}
 			fnValue, ok := fn.(reflect.Value)
 			if !ok {
 				fnValue = reflect.ValueOf(fn)
 			}
-			result := fnValue.Call(inArgs)
-			if len(result) == 0 {
-				i.PushOpStack(nil)
-			} else if len(result) == 1 {
-				i.PushOpStack(result[0].Interface())
-			} else {
-				var ret []any
-				for _, value := range result {
-					ret = append(ret, value.Interface())
-				}
-				i.PushOpStack(consts.Tuple{
-					Values: ret,
-					Num:    len(ret),
-				})
-			}
+			i.callFn(instr.Operands, fnValue)
+		case consts.InstrCallDefine:
+			fn := i.DefineFuncs[instr.Operands]
+			i.callFn(fn.NumIn, fn.Fn)
 		case consts.InstrHalt:
 			return
 		default:
 			panic(fmt.Sprintf("unknown opcode:%s", instr))
 		}
 		instr = i.Code[i.IP]
+	}
+}
+
+func (i *Interpreter) callFn(inNum int, fn reflect.Value) {
+	var inArgs = make([]reflect.Value, inNum)
+	for j := inNum - 1; j >= 0; j-- {
+		arg := reflect.ValueOf(i.PopOpStack())
+		inArgs[j] = arg
+	}
+	result := fn.Call(inArgs)
+	if len(result) == 0 {
+		i.PushOpStack(nil)
+	} else if len(result) == 1 {
+		i.PushOpStack(result[0].Interface())
+	} else {
+		var ret []any
+		for _, value := range result {
+			ret = append(ret, value.Interface())
+		}
+		i.PushOpStack(consts.Tuple{
+			Values: ret,
+			Num:    len(ret),
+		})
 	}
 }
 

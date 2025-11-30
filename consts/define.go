@@ -96,6 +96,7 @@ const (
 	InstrMLoadByName // method load by name: push peek value's method value or func type field value
 	InstrMLoadByIndex
 	InstrCallOuter
+	InstrCallDefine
 )
 
 // 基于栈的指令集
@@ -186,4 +187,5 @@ var Instructions = []*Instruction{
 	{"mload_byname", NIL},
 	{"mload_byindex", NIL},
 	{"call_outer", INT},
+	{"call_define", INT},
 }

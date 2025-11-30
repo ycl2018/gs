@@ -3,7 +3,6 @@ package compile
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -248,14 +247,10 @@ func (s *StackCompileVisitor) loadOuterFunc(ctx *gen.OuterCallContext) {
 
 func (s *StackCompileVisitor) Code() vm.Code {
 	var constPoll []consts.Const
-	var cs []*ConstSymbol
+	var cs = make([]*ConstSymbol, len(s.GlobalScope.Consts))
 	for _, c := range s.GlobalScope.Consts {
-		cs = append(cs, c)
+		cs[c.Address] = c
 	}
-	// sort
-	sort.Slice(cs, func(i, j int) bool {
-		return cs[i].Address < cs[j].Address
-	})
 	// fill const poll
 	toFuncConst := func(f *FunctionSymbol, addr int) consts.FunctionConst {
 		var codes = make([]consts.StackInstr, len(f.Code))
@@ -287,10 +282,20 @@ func (s *StackCompileVisitor) Code() vm.Code {
 	if s.Env != nil {
 		envType = s.Env.RType
 	}
+	var defineFuncs = make([]consts.DefineFunc, len(s.CalledDefineFuncs))
+	for fnName, address := range s.CalledDefineFuncs {
+		fn := s.Conf.DefineFuncs[fnName]
+		defineFuncs[address] = consts.DefineFunc{
+			Name:  fnName,
+			NumIn: fn.Type().NumIn(),
+			Fn:    fn,
+		}
+	}
 	return vm.Code{
 		Globals:      int(s.GlobalScope.LocalVarAllocator),
 		ConstPool:    constPoll,
 		MainFunc:     toFuncConst(s.MainFunc, -1),
 		BuildEnvType: envType,
+		DefineFuncs:  defineFuncs,
 	}
 }

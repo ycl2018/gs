@@ -25,13 +25,20 @@ func DumpCode() CompileOption {
 	}
 }
 
-func DefineFunc(name string, fn any) CompileOption {
+type Func struct {
+	Name string
+	Fn   any
+}
+
+func DefineFuncs(fns ...Func) CompileOption {
 	return func(conf *conf.CompileConf) {
-		fn := reflect.ValueOf(fn)
-		if fn.Kind() != reflect.Func {
-			panic(fmt.Sprintf("fn %s argument must be a function, not %T", name, fn))
+		for _, fn := range fns {
+			rv := reflect.ValueOf(fn.Fn)
+			if rv.Kind() != reflect.Func {
+				panic(fmt.Sprintf("define %s type %T is not function", fn.Name, fn))
+			}
+			conf.DefineFuncs[fn.Name] = rv
 		}
-		conf.DefineFunc[name] = fn
 	}
 }
 
@@ -57,7 +64,7 @@ func StackSize(size int) RunOption {
 
 func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 	p := compile.NewGsCompiler()
-	var config conf.CompileConf
+	var config = conf.Default()
 	for _, op := range ops {
 		op(&config)
 	}
