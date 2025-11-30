@@ -3,7 +3,6 @@ package compile
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -52,13 +51,13 @@ func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 	case consts.ConstNodeKindInt:
 		s.Write(consts.InstrIConst, v.GetStart(), v.Value.(int))
 	case consts.ConstNodeKindFloat:
-		s.Write(consts.InstrFConst, v.GetStart(), defineFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
+		s.Write(consts.InstrConst, v.GetStart(), defineFloatConst(consts.ToFloatValue(v), s.GlobalScope).GetAddress())
 	case consts.ConstNodeKindList:
 		s.Write(consts.InstrSliceConst, v.GetStart(), defineSliceConst(v.Value.(*consts.SliceLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstNodeKindMap:
 		s.Write(consts.InstrMapConst, v.GetStart(), defineMapConst(v.Value.(*consts.MapLiteralConst), s.GlobalScope).GetAddress())
 	case consts.ConstNodeKindString:
-		s.Write(consts.InstrSConst, v.GetStart(), s.defineStringConst(v.Value.(string)))
+		s.Write(consts.InstrConst, v.GetStart(), s.defineStringConst(v.Value.(string)))
 	case consts.ConstNodeKindBool:
 		if v.Value.(bool) {
 			s.Write(consts.InstrTrue, v.GetStart())
@@ -103,21 +102,17 @@ func (s *StackCompileVisitor) storeLvalue(lvalue *gen.LvalueContext) {
 	s.storeQid(qid)
 }
 
+const EnvText = "$"
+
 func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
-	var primaryText string
 	primary, accessors := qid.Primary().(*gen.PrimaryContext), qid.AllAccessor()
-	if env := primary.ENV(); env != nil {
-		if s.Env != nil {
-			s.storeQidToEnv(qid)
-			return
-		} else {
-			primaryText = env.GetText()
-		}
-	} else {
-		primaryText = primary.ID().GetText()
+	var primaryText = primary.GetText()
+	if primaryText == EnvText && s.Env != nil {
+		s.storeQidToEnv(qid)
+		return
 	}
 	// qid: primary accessor*
-	if primaryText == "$" {
+	if primaryText == EnvText {
 		s.Write(consts.InstrLoadEnv, qid.GetStart())
 	} else {
 		primarySymbol := s.CurScope.Resolve(primaryText).(*VariableSymbol)
@@ -132,11 +127,6 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 		switch a := accessor.(type) {
 		case *gen.PropertyAccessContext:
 			// fieldLoad
-			// checkDOT
-			if a.SAFE_DOT() != nil {
-				s.Log.ErrorToken(a.SAFE_DOT().GetSymbol(), "syntax error:can't use ? in assign left side")
-				return
-			}
 			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
 			if i < len(accessors)-1 {
@@ -145,11 +135,6 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 				s.Write(consts.InstrFStore, a.GetStart(), operand)
 			}
 		case *gen.IndexAccessContext:
-			// checkLBRACK
-			if a.SAFE_LBRACK() != nil {
-				s.Log.ErrorToken(a.SAFE_LBRACK().GetSymbol(), "syntax error:can't use ? in assign left side")
-				return
-			}
 			switch t := a.GetChild(1).(type) {
 			case *gen.ExprContext:
 				t.Accept(s)
@@ -181,20 +166,14 @@ func (s *StackCompileVisitor) loadLvalue(lvalue *gen.LvalueContext) {
 }
 
 func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
-	var primaryText string
 	primary, accessors := qid.Primary().(*gen.PrimaryContext), qid.AllAccessor()
-	if env := primary.ENV(); env != nil {
-		if s.Env != nil {
-			s.loadQidFromEnv(qid)
-			return
-		} else {
-			primaryText = env.GetText()
-		}
-	} else {
-		primaryText = primary.ID().GetText()
+	var primaryText = primary.GetText()
+	if primaryText == EnvText && s.Env != nil {
+		s.loadQidFromEnv(qid)
+		return
 	}
 	// qid: primary accessor*
-	if primaryText == "$" {
+	if primaryText == EnvText {
 		s.Write(consts.InstrLoadEnv, qid.GetStart())
 	} else {
 		scope := s.CurScope
@@ -205,28 +184,14 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		}
 		s.EmitLoad(primarySymbol, qid.GetStart())
 	}
-	var brNils []*consts.StackInstr
 	for _, accessor := range accessors {
 		switch a := accessor.(type) {
 		case *gen.PropertyAccessContext:
 			// fieldLoad
-			// checkDOT
-			if a.SAFE_DOT() != nil {
-				// if true, then fieldLoad
-				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
-				brNils = append(brNils, brNil)
-				s.WriteInstr(brNil, a.GetStart())
-			}
 			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
 			s.Write(consts.InstrFLoad, a.GetStart(), operand)
 		case *gen.IndexAccessContext:
-			// checkLBRACK
-			if a.SAFE_LBRACK() != nil {
-				brNil := consts.NewStackInstr(consts.InstrBRNil, placeholder)
-				brNils = append(brNils, brNil)
-				s.WriteInstr(brNil, a.GetStart())
-			}
 			switch t := a.GetChild(1).(type) {
 			case *gen.ExprContext:
 				t.Accept(s)
@@ -236,19 +201,56 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			}
 		}
 	}
-	s.FillTarget(brNils...)
+}
+
+func (s *StackCompileVisitor) loadOuterFunc(ctx *gen.OuterCallContext) {
+	primary, accessors := ctx.Primary().(*gen.PrimaryContext), ctx.AllAccessor()
+	var primaryText = primary.GetText()
+	if primaryText == EnvText && s.Env != nil {
+		s.loadOuterFuncFromEnv(ctx, accessors)
+		return
+	}
+	// qid: primary accessor*
+	if primaryText == EnvText {
+		s.Write(consts.InstrLoadEnv, ctx.GetStart())
+	} else {
+		scope := s.CurScope
+		primarySymbol, ok := scope.Resolve(primaryText).(*VariableSymbol)
+		if !ok {
+			s.Log.ErrorToken(ctx.GetStart(), "undefined symbol: %s", primaryText)
+			return
+		}
+		s.EmitLoad(primarySymbol, ctx.GetStart())
+	}
+	for i, accessor := range accessors {
+		switch a := accessor.(type) {
+		case *gen.PropertyAccessContext:
+			// fieldLoad
+			fieldName := a.ID().GetText()
+			operand := s.defineStringConst(fieldName)
+			if i < len(accessors)-1 {
+				s.Write(consts.InstrFLoad, a.GetStart(), operand)
+			} else {
+				s.Write(consts.InstrMLoadByName, a.GetStart(), operand)
+			}
+		case *gen.IndexAccessContext:
+			switch t := a.GetChild(1).(type) {
+			case *gen.ExprContext:
+				t.Accept(s)
+				s.Write(consts.InstrIndexLoad, a.GetStart())
+			case *gen.SliceExprContext:
+				t.Accept(s)
+			}
+		}
+	}
 }
 
 func (s *StackCompileVisitor) Code() vm.Code {
 	var constPoll []consts.Const
-	var cs []*ConstSymbol
+	var cs = make([]*ConstSymbol, len(s.GlobalScope.Consts))
 	for _, c := range s.GlobalScope.Consts {
-		cs = append(cs, c)
+		cs[c.Address] = c
 	}
-	// sort
-	sort.Slice(cs, func(i, j int) bool {
-		return cs[i].Address < cs[j].Address
-	})
 	// fill const poll
 	toFuncConst := func(f *FunctionSymbol, addr int) consts.FunctionConst {
 		var codes = make([]consts.StackInstr, len(f.Code))
@@ -280,10 +282,20 @@ func (s *StackCompileVisitor) Code() vm.Code {
 	if s.Env != nil {
 		envType = s.Env.RType
 	}
+	var defineFuncs = make([]consts.DefineFunc, len(s.CalledDefineFuncs))
+	for fnName, address := range s.CalledDefineFuncs {
+		fn := s.Conf.DefineFuncs[fnName]
+		defineFuncs[address] = consts.DefineFunc{
+			Name:  fnName,
+			NumIn: fn.Type().NumIn(),
+			Fn:    fn,
+		}
+	}
 	return vm.Code{
 		Globals:      int(s.GlobalScope.LocalVarAllocator),
 		ConstPool:    constPoll,
 		MainFunc:     toFuncConst(s.MainFunc, -1),
 		BuildEnvType: envType,
+		DefineFuncs:  defineFuncs,
 	}
 }

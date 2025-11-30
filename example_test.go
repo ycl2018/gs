@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/antlr4-go/antlr/v4"
-	"github.com/ycl2018/gs/compile"
-	"github.com/ycl2018/gs/vm"
 )
 
 type MyEnv struct {
@@ -18,6 +14,11 @@ type MyEnv struct {
 	Slice       []any
 	StringSlice []string
 	StructMap   map[*MyEnv]string
+	Fn          any
+}
+
+func (env *MyEnv) SayHello() string {
+	return "Hello World " + env.A
 }
 
 type Embed struct {
@@ -46,13 +47,14 @@ type BasicValue struct {
 
 func TestGsInterpreter_Interp(t *testing.T) {
 	tests := []struct {
-		name      string
-		program   string
-		env       any
-		expect    string
-		expectErr string
-		trace     bool
-		dump      bool
+		name       string
+		program    string
+		env        any
+		expect     string
+		expectErr  string
+		defineFunc []Func
+		trace      bool
+		dump       bool
 	}{
 		{
 			name: "apple.gs",
@@ -459,7 +461,7 @@ x,y,z
 }
 
 s = new Student{}
-a = s.x?.z
+a = s.x
 println(a)
 `,
 			expect: "<nil>",
@@ -705,28 +707,86 @@ stack trace:
     at main args:() line:5
 `,
 		},
+		{
+			name: "outer_func.gs",
+			program: `
+ret = $.Fn("hello"," world")
+println(ret)
+println($.SayHello())
+println($.Map["fn"]("hello", " world"))
+`,
+			env: &MyEnv{
+				A:  "chenglong",
+				Fn: func(a, b string) string { return a + b },
+				Map: map[any]any{
+					"fn": func(a, b string) string {
+						return a + b
+					},
+				},
+			},
+			expect: `
+hello world
+Hello World chenglong
+hello world
+`,
+		},
+		{
+			name: "define_funcs.gs",
+			defineFunc: []Func{
+				{
+					Name: "add",
+					Fn: func(a, b int) int {
+						return a + b
+					},
+				},
+				{
+					Name: "sub",
+					Fn: func(a, b int) int {
+						return a - b
+					},
+				},
+			},
+			program: `
+println(sub(1,2))
+sum = add(1,2)
+println(sum)
+`,
+			expect: `
+-1
+3
+`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			out := &bytes.Buffer{}
-			p := compile.NewGsCompiler()
-			code, err := p.Compile(antlr.NewInputStream(tt.program), tt.env)
+			var ops []CompileOption
+			if tt.env != nil {
+				ops = append(ops, Env(tt.env))
+			}
+			if tt.dump {
+				ops = append(ops, DumpCode())
+			}
+			if len(tt.defineFunc) > 0 {
+				ops = append(ops, DefineFuncs(tt.defineFunc...))
+			}
+			code, err := Compile(tt.program, ops...)
 			if err != nil {
 				t.Fatal(err)
 				return
 			}
-			if tt.dump {
-				t.Log(p.Dump())
-			}
-			var ops = []vm.Option{
-				vm.WithEnv(tt.env), vm.WithPrintTo(out),
+			var runOps = []RunOption{
+				Output(out),
 			}
 			if tt.trace {
-				ops = append(ops, vm.WithEnableTrace())
+				runOps = append(runOps, Trace())
 			}
-			interpreter := vm.NewInterpreter(code, ops...)
-			err = interpreter.Run()
+			err = Run(code, tt.env, runOps...)
+			if err != nil && tt.expectErr == "" {
+				t.Fatal(err)
+				return
+			}
 			if tt.expectErr != "" {
 				want, got := strings.TrimSpace(tt.expectErr), strings.TrimSpace(err.Error())
 				if want != got {
@@ -740,7 +800,6 @@ stack trace:
 					return
 				}
 			}
-
 		})
 	}
 }

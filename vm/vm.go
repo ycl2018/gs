@@ -6,49 +6,25 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 
+	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
 )
 
-const DefaultOperandStackSize = 256
+const DefaultOperandStackSize = 64
 const DefaultPrintStackFrameSize = 5
 
-type Option func(interpreter *Interpreter)
-
-func WithEnableTrace() Option {
-	return func(i *Interpreter) {
-		i.enableTrace = true
-	}
-}
-
-func WithEnableDump() Option {
-	return func(i *Interpreter) {
-		i.dump = true
-	}
-}
-
-func WithEnv(env any) Option {
-	return func(i *Interpreter) {
-		i.Env = env
-	}
-}
-
-func WithPrintTo(writer io.Writer) Option {
-	return func(i *Interpreter) {
-		i.Out = writer
-	}
-}
-
 type Interpreter struct {
+	conf.RunConf
 	IP           int                 // 指令地址
 	Code         []consts.StackInstr // 代码
 	ConstPool    []consts.Const
 	MainFunc     consts.FunctionConst // Main函数入口地址
 	BuildEnvType reflect.Type
+	DefineFuncs  []consts.DefineFunc
 	// 函数调用栈
 	Calls []*StackFrame
 	FP    int // 栈桢计数器
@@ -60,17 +36,12 @@ type Interpreter struct {
 	Globals  []any
 	DataSize int
 	Env      any
-	Out      io.Writer
-
-	// ops
-	enableTrace     bool
-	dump            bool
-	initialStackCap int
 }
 
-func NewInterpreter(code *Code, ops ...Option) *Interpreter {
+func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
 	// 编译
 	i := &Interpreter{
+		RunConf:      *conf,
 		IP:           -1,
 		FP:           -1,
 		SP:           -1,
@@ -80,15 +51,13 @@ func NewInterpreter(code *Code, ops ...Option) *Interpreter {
 		ConstPool:    code.ConstPool,
 		MainFunc:     code.MainFunc,
 		BuildEnvType: code.BuildEnvType,
-		Out:          os.Stdout,
+		DefineFuncs:  code.DefineFuncs,
+		Env:          env,
 	}
-	for _, op := range ops {
-		op(i)
+	if i.StackSize <= 0 {
+		i.StackSize = DefaultOperandStackSize
 	}
-	if i.initialStackCap <= 0 {
-		i.initialStackCap = DefaultOperandStackSize
-	}
-	i.Operands = make([]any, i.initialStackCap)
+	i.Operands = make([]any, i.StackSize)
 	return i
 }
 
@@ -111,6 +80,7 @@ func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackI
 type Code struct {
 	Globals      int
 	ConstPool    []consts.Const
+	DefineFuncs  []consts.DefineFunc
 	MainFunc     consts.FunctionConst
 	BuildEnvType reflect.Type
 }
@@ -120,7 +90,7 @@ func (i *Interpreter) Run() (err error) {
 	sf := NewStackFrame(&i.MainFunc, i.IP, i.Code)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
-	if i.enableTrace {
+	if i.Trace {
 		fmt.Printf("\ntrace:\n")
 	}
 	defer func() {
@@ -132,10 +102,6 @@ func (i *Interpreter) Run() (err error) {
 		}
 	}()
 	i.cpu()
-
-	if i.dump {
-		i.Dump()
-	}
 	return err
 }
 
@@ -147,7 +113,7 @@ func (i *Interpreter) PopOpStack() any {
 
 func (i *Interpreter) PushOpStack(v any) {
 	i.SP++
-	if i.SP >= i.initialStackCap {
+	if i.SP >= i.StackSize {
 		i.Operands = append(i.Operands, v)
 		return
 	}
@@ -158,7 +124,7 @@ func (i *Interpreter) cpu() {
 	// 取指令，并执行
 	instr := i.Code[i.IP]
 	for i.IP < len(i.Code) {
-		if i.enableTrace {
+		if i.Trace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand
@@ -239,13 +205,9 @@ func (i *Interpreter) cpu() {
 			}
 		case consts.InstrCConst, consts.InstrIConst:
 			i.PushOpStack(instr.Operands)
-		case consts.InstrFConst:
+		case consts.InstrConst:
 			poolIndex := instr.Operands
-			fConst := i.ConstPool[poolIndex].Value.(float64)
-			i.PushOpStack(fConst)
-		case consts.InstrSConst:
-			poolIndex := instr.Operands
-			fConst := i.ConstPool[poolIndex].Value.(string)
+			fConst := i.ConstPool[poolIndex].Value
 			i.PushOpStack(fConst)
 		case consts.InstrSliceConst:
 			poolIndex := instr.Operands
@@ -336,9 +298,6 @@ func (i *Interpreter) cpu() {
 			key := i.PopOpStack()
 			m := i.PopOpStack()
 			deleteMap(m, key)
-		case consts.InstrCopy:
-			val := i.PopOpStack()
-			i.PushOpStack(copySlice(val))
 		case consts.InstrToString:
 			i.PushOpStack(toString(i.PopOpStack()))
 		case consts.InstrConvert:
@@ -364,7 +323,7 @@ func (i *Interpreter) cpu() {
 				i.PushOpStack(t.Values[i2])
 			}
 		case consts.InstrIter:
-			i.PushOpStack(i.Iter(i.PopOpStack()))
+			i.PushOpStack(Iter(i.PopOpStack()))
 		case consts.InstrIterNext:
 			iterNum := instr.Operands
 			iter := i.Peek().(*consts.Iter)
@@ -386,23 +345,40 @@ func (i *Interpreter) cpu() {
 		case consts.InstrLoadEnv:
 			i.PushOpStack(i.Env)
 		case consts.InstrRFByIndex:
-			i.PushOpStack(i.FieldByIndex(i.ConstPool[instr.Operands].Value.([]*reflect.StructField)))
+			i.PushOpStack(FieldByIndex(i.PopOpStack(), i.ConstPool[instr.Operands].Value.([]*reflect.StructField)))
 		case consts.InstrRSetField:
 			i.RSetField(i.ConstPool[instr.Operands].Value.([]*reflect.StructField))
 		case consts.InstrRMapIndex:
-			i.PushOpStack(i.MapIndex(i.PopOpStack(), i.PopOpStack()))
+			i.PushOpStack(MapIndex(i.PopOpStack(), i.PopOpStack()))
 		case consts.InstrRIndex:
-			i.PushOpStack(i.RIndex(i.PopOpStack(), i.PopOpStack()))
+			i.PushOpStack(RIndex(i.PopOpStack(), i.PopOpStack()))
 		case consts.InstrRIndexStore:
-			i.RIndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
+			RIndexStore(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSet:
-			i.RSet(i.PopOpStack(), i.PopOpStack())
+			RSet(i.PopOpStack(), i.PopOpStack())
 		case consts.InstrRSetMapIndex:
-			i.RSetMapIndex(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
+			RSetMapIndex(i.PopOpStack(), i.PopOpStack(), i.PopOpStack())
 		case consts.InstrDeref:
-			i.PushOpStack(i.Deref(i.PopOpStack()))
+			i.PushOpStack(Deref(i.PopOpStack()))
 		case consts.InstrNewPtrValue:
-			i.PushOpStack(i.NewPtrValue(i.PopOpStack()))
+			i.PushOpStack(NewPtrValue(i.PopOpStack()))
+		case consts.InstrMLoadByName:
+			methodName := i.ConstPool[instr.Operands].Value.(string)
+			obj := i.PopOpStack()
+			i.PushOpStack(loadMethod(obj, methodName))
+		case consts.InstrMLoadByIndex:
+			obj := i.PopOpStack()
+			i.PushOpStack(loadMethodByIndex(obj, instr.Operands))
+		case consts.InstrCallOuter:
+			fn := i.PopOpStack()
+			fnValue, ok := fn.(reflect.Value)
+			if !ok {
+				fnValue = reflect.ValueOf(fn)
+			}
+			i.callFn(instr.Operands, fnValue)
+		case consts.InstrCallDefine:
+			fn := i.DefineFuncs[instr.Operands]
+			i.callFn(fn.NumIn, fn.Fn)
 		case consts.InstrHalt:
 			return
 		default:
@@ -410,6 +386,66 @@ func (i *Interpreter) cpu() {
 		}
 		instr = i.Code[i.IP]
 	}
+}
+
+func (i *Interpreter) callFn(inNum int, fn reflect.Value) {
+	var inArgs = make([]reflect.Value, inNum)
+	for j := inNum - 1; j >= 0; j-- {
+		arg := reflect.ValueOf(i.PopOpStack())
+		inArgs[j] = arg
+	}
+	result := fn.Call(inArgs)
+	if len(result) == 0 {
+		i.PushOpStack(nil)
+	} else if len(result) == 1 {
+		i.PushOpStack(result[0].Interface())
+	} else {
+		var ret []any
+		for _, value := range result {
+			ret = append(ret, value.Interface())
+		}
+		i.PushOpStack(consts.Tuple{
+			Values: ret,
+			Num:    len(ret),
+		})
+	}
+}
+
+func loadMethodByIndex(obj any, index int) reflect.Value {
+	rv := reflect.ValueOf(obj)
+	if rv.NumMethod() == 0 {
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		} else {
+			ptrTo := reflect.New(rv.Type())
+			ptrTo.Elem().Set(rv)
+			rv = ptrTo
+		}
+	}
+	return rv.Method(index)
+}
+
+func loadMethod(obj any, methodName string) reflect.Value {
+	rv := reflect.ValueOf(obj)
+	if rv.NumMethod() == 0 {
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		} else {
+			ptrTo := reflect.New(rv.Type())
+			ptrTo.Elem().Set(rv)
+			rv = ptrTo
+		}
+	}
+	method := rv.MethodByName(methodName)
+	if method.IsValid() {
+		return method
+	}
+	rv = assertValidObj(obj)
+	field := rv.FieldByName(methodName)
+	if field.IsValid() && field.Kind() == reflect.Func {
+		return field
+	}
+	panic("method/func " + methodName + " is not valid")
 }
 
 func neg(v any) any {
@@ -676,7 +712,7 @@ func (i *Interpreter) BuildTuple(operands int) any {
 	}
 }
 
-func (i *Interpreter) Iter(obj any) any {
+func Iter(obj any) any {
 	// map/slices/int/array
 	rv := assertValidObj(obj)
 	switch rv.Kind() {
@@ -704,8 +740,7 @@ func (i *Interpreter) Iter(obj any) any {
 
 }
 
-func (i *Interpreter) FieldByIndex(fields []*reflect.StructField) any {
-	obj := i.PopOpStack()
+func FieldByIndex(obj any, fields []*reflect.StructField) any {
 	rv := assertValidObj(obj)
 	var index []int
 	for _, f := range fields {
@@ -768,7 +803,7 @@ func SetField(fieldObj reflect.Value, fieldType reflect.Type, value any) {
 	}
 }
 
-func (i *Interpreter) MapIndex(key any, m any) any {
+func MapIndex(key any, m any) any {
 	switch m := m.(type) {
 	case map[any]any:
 		return m[key]
@@ -804,7 +839,7 @@ func (i *Interpreter) MapIndex(key any, m any) any {
 	}
 }
 
-func (i *Interpreter) RIndex(index any, slice any) any {
+func RIndex(index any, slice any) any {
 	switch slice := slice.(type) {
 	case []any:
 		return slice[ToInt(index)]
@@ -832,7 +867,7 @@ func (i *Interpreter) RIndex(index any, slice any) any {
 	}
 }
 
-func (i *Interpreter) RIndexStore(index any, slice any, value any) {
+func RIndexStore(index any, slice any, value any) {
 	switch slice := slice.(type) {
 	case []any:
 		slice[ToInt(index)] = value
@@ -860,7 +895,7 @@ func (i *Interpreter) RIndexStore(index any, slice any, value any) {
 	}
 }
 
-func (i *Interpreter) RSet(val any, obj any) {
+func RSet(val any, obj any) {
 	rv := assertValidObj(obj)
 	if rv.CanSet() {
 		SetField(rv, rv.Type(), val)
@@ -869,7 +904,7 @@ func (i *Interpreter) RSet(val any, obj any) {
 	panic(fmt.Sprintf("unexpected type %T for Rset", obj))
 }
 
-func (i *Interpreter) RSetMapIndex(k, m, val any) {
+func RSetMapIndex(k, m, val any) {
 	switch m := m.(type) {
 	// fast path
 	case map[any]any:
@@ -906,7 +941,7 @@ func (i *Interpreter) RSetMapIndex(k, m, val any) {
 	}
 }
 
-func (i *Interpreter) Deref(ptr any) any {
+func Deref(ptr any) any {
 	rv := reflect.ValueOf(ptr)
 	if rv.Kind() != reflect.Ptr {
 		panic(fmt.Sprintf("unexpected type %T for dereference", ptr))
@@ -914,15 +949,7 @@ func (i *Interpreter) Deref(ptr any) any {
 	return rv.Elem().Interface()
 }
 
-func (i *Interpreter) Addr(value any) any {
-	rv := reflect.ValueOf(value)
-	if !rv.CanAddr() {
-		panic(fmt.Sprintf("can't address value:%v", value))
-	}
-	return rv.Addr().Interface()
-}
-
-func (i *Interpreter) NewPtrValue(val any) any {
+func NewPtrValue(val any) any {
 	of := reflect.ValueOf(val)
 	rv := reflect.New(of.Type())
 	rv.Elem().Set(of)

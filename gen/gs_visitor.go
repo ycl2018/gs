@@ -1,7 +1,8 @@
-// Code generated from D:/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
+
 
 // A complete Visitor for a parse tree produced by GsParser.
 type GsVisitor interface {
@@ -79,9 +80,6 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#deleteCall.
 	VisitDeleteCall(ctx *DeleteCallContext) interface{}
 
-	// Visit a parse tree produced by GsParser#copyCall.
-	VisitCopyCall(ctx *CopyCallContext) interface{}
-
 	// Visit a parse tree produced by GsParser#toStringCall.
 	VisitToStringCall(ctx *ToStringCallContext) interface{}
 
@@ -127,8 +125,11 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#selfAssignOp.
 	VisitSelfAssignOp(ctx *SelfAssignOpContext) interface{}
 
-	// Visit a parse tree produced by GsParser#call.
-	VisitCall(ctx *CallContext) interface{}
+	// Visit a parse tree produced by GsParser#innerCall.
+	VisitInnerCall(ctx *InnerCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#outerCall.
+	VisitOuterCall(ctx *OuterCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#expr.
 	VisitExpr(ctx *ExprContext) interface{}
@@ -243,4 +244,5 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#mulOp.
 	VisitMulOp(ctx *MulOpContext) interface{}
+
 }

@@ -49,15 +49,14 @@ const (
 	InstrBRNil
 	InstrCConst // push constant
 	InstrIConst
-	InstrFConst
-	InstrSConst
+	InstrConst // load const
 	InstrSliceConst
 	InstrMapConst
 	InstrNil // push nil
 	InstrLoad
 	InstrGLoad // global load
+	InstrFLoad // filed load by name,need reflect by vm[*StructSpace or Any type]
 
-	InstrFLoad      // filed load by name,need reflect by vm[*StructSpace or Any type]
 	InstrStore      // local store
 	InstrGStore     // global store
 	InstrFStore     // field store
@@ -92,9 +91,12 @@ const (
 	InstrAppend
 	InstrAppendExpand
 	InstrDelete
-	InstrCopy
 	InstrToString
 	InstrConvert
+	InstrMLoadByName // method load by name: push peek value's method value or func type field value
+	InstrMLoadByIndex
+	InstrCallOuter
+	InstrCallDefine
 )
 
 // 基于栈的指令集
@@ -137,8 +139,7 @@ var Instructions = []*Instruction{
 	{"br_nil", INT},
 	{"cconst", INT},
 	{"iconst", INT},
-	{"fconst", POLL},
-	{"sconst", POLL},
+	{"const", POLL},
 	{"slice_const", POLL},
 	{"map_const", POLL},
 	{"nil", NIL},
@@ -181,7 +182,10 @@ var Instructions = []*Instruction{
 	{"append", INT},
 	{"append_expand", NIL},
 	{"delete", NIL},
-	{"copy", NIL},
 	{"toString", NIL},
 	{"convert", INT},
+	{"mload_byname", NIL},
+	{"mload_byindex", NIL},
+	{"call_outer", INT},
+	{"call_define", INT},
 }

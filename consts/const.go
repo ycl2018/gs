@@ -96,3 +96,9 @@ func (i *Iter) Next1() (iter1 any) {
 	i.Cur++
 	return
 }
+
+type DefineFunc struct {
+	Name  string
+	NumIn int
+	Fn    reflect.Value
+}
