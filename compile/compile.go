@@ -102,7 +102,7 @@ func (s *StackCompileVisitor) VisitInnerCall(ctx *gen.InnerCallContext) interfac
 		return nil
 	}
 	if defineFn, ok := s.Conf.DefineFuncs[funcName]; ok {
-		numIn := defineFn.Type().NumIn()
+		numIn := defineFn.NumIn
 		if len(allExpr) != numIn {
 			s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("func:%s need %d args,but got %d", funcName, numIn, len(allExpr)))
 			return nil

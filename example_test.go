@@ -53,6 +53,7 @@ func TestGsInterpreter_Interp(t *testing.T) {
 		expect     string
 		expectErr  string
 		defineFunc []Func
+		fastFunc   []FastFunc
 		trace      bool
 		dump       bool
 	}{
@@ -756,6 +757,37 @@ println(sum)
 3
 `,
 		},
+		{
+			name: "define_fastfuncs.gs",
+			fastFunc: []FastFunc{
+				{
+					Name:   "add",
+					NumIn:  2,
+					NumOut: 1,
+					Fn: func(args []any) []any {
+						return []any{args[0].(int) + args[1].(int)}
+					},
+				},
+				{
+					Name:   "sub",
+					NumIn:  2,
+					NumOut: 1,
+					Fn: func(args []any) []any {
+						return []any{args[0].(int) - args[1].(int)}
+					},
+				},
+			},
+			trace: true,
+			program: `
+println(sub(1,2))
+sum = add(1,2)
+println(sum)
+`,
+			expect: `
+-1
+3
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -770,6 +802,9 @@ println(sum)
 			}
 			if len(tt.defineFunc) > 0 {
 				ops = append(ops, DefineFuncs(tt.defineFunc...))
+			}
+			if len(tt.fastFunc) > 0 {
+				ops = append(ops, DefineFast(tt.fastFunc...))
 			}
 			code, err := Compile(tt.program, ops...)
 			if err != nil {

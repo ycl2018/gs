@@ -8,6 +8,7 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/gs/compile"
 	"github.com/ycl2018/gs/conf"
+	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/vm"
 )
 
@@ -30,6 +31,27 @@ type Func struct {
 	Fn   any
 }
 
+type FastFunc struct {
+	Name   string
+	NumIn  int
+	NumOut int
+	Fn     func([]any) []any
+}
+
+func DefineFast(fns ...FastFunc) CompileOption {
+	return func(conf *conf.CompileConf) {
+		for _, fn := range fns {
+			conf.DefineFuncs[fn.Name] = &consts.DefineFunc{
+				Name:   fn.Name,
+				NumIn:  fn.NumIn,
+				NumOut: fn.NumOut,
+				Fast:   true,
+				Fn:     fn.Fn,
+			}
+		}
+	}
+}
+
 func DefineFuncs(fns ...Func) CompileOption {
 	return func(conf *conf.CompileConf) {
 		for _, fn := range fns {
@@ -37,7 +59,12 @@ func DefineFuncs(fns ...Func) CompileOption {
 			if rv.Kind() != reflect.Func {
 				panic(fmt.Sprintf("define %s type %T is not function", fn.Name, fn))
 			}
-			conf.DefineFuncs[fn.Name] = rv
+			conf.DefineFuncs[fn.Name] = &consts.DefineFunc{
+				Name:   fn.Name,
+				NumIn:  rv.Type().NumIn(),
+				NumOut: rv.Type().NumOut(),
+				Fn:     rv,
+			}
 		}
 	}
 }

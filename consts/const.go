@@ -98,7 +98,9 @@ func (i *Iter) Next1() (iter1 any) {
 }
 
 type DefineFunc struct {
-	Name  string
-	NumIn int
-	Fn    reflect.Value
+	Name   string
+	NumIn  int
+	NumOut int
+	Fast   bool
+	Fn     any
 }

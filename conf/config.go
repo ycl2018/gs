@@ -2,14 +2,15 @@ package conf
 
 import (
 	"io"
-	"reflect"
+
+	"github.com/ycl2018/gs/consts"
 )
 
 type CompileConf struct {
 	Env         any
 	Optimize    bool
 	DumpCode    bool
-	DefineFuncs map[string]reflect.Value
+	DefineFuncs map[string]*consts.DefineFunc
 }
 
 type RunConf struct {
@@ -22,6 +23,6 @@ type RunConf struct {
 func Default() CompileConf {
 	return CompileConf{
 		Optimize:    true,
-		DefineFuncs: map[string]reflect.Value{},
+		DefineFuncs: map[string]*consts.DefineFunc{},
 	}
 }

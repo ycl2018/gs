@@ -285,11 +285,7 @@ func (s *StackCompileVisitor) Code() vm.Code {
 	var defineFuncs = make([]consts.DefineFunc, len(s.CalledDefineFuncs))
 	for fnName, address := range s.CalledDefineFuncs {
 		fn := s.Conf.DefineFuncs[fnName]
-		defineFuncs[address] = consts.DefineFunc{
-			Name:  fnName,
-			NumIn: fn.Type().NumIn(),
-			Fn:    fn,
-		}
+		defineFuncs[address] = *fn
 	}
 	return vm.Code{
 		Globals:      int(s.GlobalScope.LocalVarAllocator),

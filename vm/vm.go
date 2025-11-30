@@ -378,7 +378,28 @@ func (i *Interpreter) cpu() {
 			i.callFn(instr.Operands, fnValue)
 		case consts.InstrCallDefine:
 			fn := i.DefineFuncs[instr.Operands]
-			i.callFn(fn.NumIn, fn.Fn)
+			if fn.Fast {
+				var inArgs = make([]any, fn.NumIn)
+				for j := fn.NumIn - 1; j >= 0; j-- {
+					inArgs[j] = i.PopOpStack()
+				}
+				result := fn.Fn.(func([]any) []any)(inArgs)
+				if len(result) != fn.NumOut {
+					panic(fmt.Sprintf("func:%s define %d numOut but get:%d", fn.Name, fn.NumOut, len(result)))
+				}
+				if len(result) == 0 {
+					i.PushOpStack(nil)
+				} else if len(result) == 1 {
+					i.PushOpStack(result[0])
+				} else {
+					i.PushOpStack(consts.Tuple{
+						Values: result,
+						Num:    len(result),
+					})
+				}
+			} else {
+				i.callFn(fn.NumIn, fn.Fn.(reflect.Value))
+			}
 		case consts.InstrHalt:
 			return
 		default:
