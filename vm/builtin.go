@@ -305,6 +305,8 @@ func toString(v any) string {
 
 func convert(v any, kind reflect.Kind) any {
 	switch kind {
+	case reflect.Int:
+		return ToInt(v)
 	case reflect.Int8:
 		return ToInt8(v)
 	case reflect.Int16:

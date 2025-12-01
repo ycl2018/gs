@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -95,7 +94,7 @@ func (i *Interpreter) Run() (err error) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			errWriter := bytes.Buffer{}
+			var errWriter strings.Builder
 			fmt.Fprintf(&errWriter, "panic: %v\n", r)
 			i.PrintStack(&errWriter)
 			err = errors.New(errWriter.String())
@@ -985,7 +984,7 @@ func (i *Interpreter) PrintStack(writer io.Writer) {
 		ip := i.IP - 1
 		// func:<funcName>,args:(arg1,arg2,...) line:<line>
 		call := i.Calls[j]
-		fmt.Fprintf(writer, "    at "+call.FuncConsts.Name+" args:(")
+		fmt.Fprintf(writer, "\tat "+call.FuncConsts.Name+" args:(")
 		// args
 		for j := range call.FuncConsts.ParamCount {
 			if j < len(call.Locals) {

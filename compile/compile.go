@@ -357,14 +357,18 @@ func (s *StackCompileVisitor) VisitConvertCall(ctx *gen.ConvertCallContext) inte
 	switch t := ctx.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType(); t {
 	case gen.GsParserUINT:
 		oprand = reflect.Uint
+	case gen.GsParserUINT8:
+		oprand = reflect.Uint8
 	case gen.GsParserUINT16:
 		oprand = reflect.Uint16
 	case gen.GsParserUINT32:
 		oprand = reflect.Uint32
 	case gen.GsParserUINT64:
 		oprand = reflect.Uint64
-	case gen.GsParserINT:
+	case gen.GsParserINTS:
 		oprand = reflect.Int
+	case gen.GsParserINT8:
+		oprand = reflect.Int8
 	case gen.GsParserINT16:
 		oprand = reflect.Int16
 	case gen.GsParserINT32:
@@ -377,7 +381,7 @@ func (s *StackCompileVisitor) VisitConvertCall(ctx *gen.ConvertCallContext) inte
 		oprand = reflect.Float64
 	case gen.GsParserBOOL:
 		oprand = reflect.Bool
-	case gen.GsParserSTRING:
+	case gen.GsParserSTRINGS:
 		oprand = reflect.String
 	default:
 		s.Log.ErrorToken(ctx.GetStart(), "unsupported convert to %d", t)
@@ -716,6 +720,11 @@ func (s *StackCompileVisitor) VisitFalseAtom(ctx *gen.FalseAtomContext) interfac
 func (s *StackCompileVisitor) VisitNotAtom(ctx *gen.NotAtomContext) interface{} {
 	ctx.Expr().Accept(s)
 	s.Write(consts.InstrNot, ctx.GetStart())
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitNilAtom(ctx *gen.NilAtomContext) interface{} {
+	s.Write(consts.InstrNil, ctx.GetStart())
 	return nil
 }
 

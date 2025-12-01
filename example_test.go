@@ -15,6 +15,22 @@ type MyEnv struct {
 	StringSlice []string
 	StructMap   map[*MyEnv]string
 	Fn          any
+	StringAlias StringAlias
+	Itf         Itf
+}
+
+type StringAlias string
+
+type Itf interface {
+	Hello() string
+}
+
+type MyItf struct {
+	Name string
+}
+
+func (m *MyItf) Hello() string {
+	return "Hello " + m.Name
 }
 
 func (env *MyEnv) SayHello() string {
@@ -40,9 +56,11 @@ type BasicValue struct {
 	Float32     float32
 	Float64     float64
 	String      string
+	Byte        byte
 	SliceAny    []any
 	SliceString []string
 	MapAny      map[any]any
+	Bool        bool
 }
 
 func TestGsInterpreter_Interp(t *testing.T) {
@@ -333,16 +351,24 @@ a
 		},
 		{
 			name: "map.gs",
+			env: &MyEnv{
+				Map: make(map[any]any),
+			},
 			program: `
 d = {"a": 1, "b": 2, "c": 3}
 println(d["a"])
 k, v = 1 + 2, d["a"]
 mm = {k:v}
 println(mm)
+println($.Map["a"])
+$.Map["a"] = 1
+println($.Map["a"])
 	`,
 			expect: `
 1
 map[3:1]
+<nil>
+1
 `,
 		},
 		{
@@ -600,6 +626,45 @@ true
 			},
 		},
 		{
+			name: "convert.gs",
+			program: `
+println(int($.Int))
+println(uint($.Int))
+println(uint8($.Int))
+println(uint16($.Int))
+println(uint32($.Int))
+println(uint64($.Int))
+println(int32($.Int))
+println(int64($.Int))
+println(int8($.Int))
+println(int16($.Int))
+println(float32($.Int))
+println(float64($.Int))
+println(string($.String))
+println(bool($.Bool))
+`,
+			env: &BasicValue{
+				Int:    12,
+				String: "str",
+			},
+			expect: `
+12
+12
+12
+12
+12
+12
+12
+12
+12
+12
+12
+12
+str
+false
+`,
+		},
+		{
 			name: "set_value.gs",
 			program: `
 $.Uint     = 1
@@ -615,10 +680,14 @@ $.Int64    = 10
 $.Float32  = .2
 $.Float64  = .3
 $.String   = "str"
+$.Bool     = true
+$.Byte     = 12
 println($.Uint + $.Uint8) // 3
 println($.Int + $.Int8) // 15
 println($.Uint + $.Float32) // 1.2
 println($.String + $.String) // strstr
+println($.Byte)
+println($.Bool)
 $.SliceAny = append($.SliceAny, $.String, "hello")
 println($.SliceAny) // [str]
 $.SliceAny = [1,"sss",.2]
@@ -634,6 +703,8 @@ println($.SliceString) // [a]
 15
 1.2000000029802322
 strstr
+12
+true
 [str hello]
 [1 sss 0.2]
 map[string:string 1:1 true:false]
@@ -704,8 +775,8 @@ divide(1, 0)
 			expectErr: `
 panic: division by zero
 stack trace:
-    at divide args:(1, 0) line:3
-    at main args:() line:5
+	at divide args:(1, 0) line:3
+	at main args:() line:5
 `,
 		},
 		{
@@ -787,6 +858,62 @@ println(sum)
 -1
 3
 `,
+		},
+		{
+			name: "eq_err.gs",
+			program: `
+println($.StringAlias == "hello")
+		`,
+			env: &MyEnv{
+				StringAlias: StringAlias("hello"),
+			},
+			expectErr: `
+panic: invalid operation '==' (mismatched types gs.StringAlias and string)
+stack trace:
+	at main args:() line:2
+`,
+		},
+		{
+			name: "alias.gs",
+			program: `
+println(string($.StringAlias) == "hello")
+		`,
+			env: &MyEnv{
+				StringAlias: StringAlias("hello"),
+			},
+			expect: `true`,
+		},
+		{
+			name: "nil.gs",
+			program: `
+println($.Itf == nil)
+println($.B == nil)
+println($.Map == nil)
+println($.Slice == nil)
+println($.Fn == nil)
+		`,
+			env: &MyEnv{
+				Itf: nil,
+			},
+			expect: `
+true
+true
+true
+true
+true
+`,
+		},
+		{
+			name: "itf.gs",
+			program: `
+println($.Itf.Hello() == "Hello World")
+		`,
+			env: &MyEnv{
+				Itf: &MyItf{
+					Name: "World",
+				},
+			},
+			expect: `true`,
 		},
 	}
 

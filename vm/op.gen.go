@@ -19,15 +19,15 @@ func eq(x, y any) bool {
 			return true
 		}
 		ry := reflect.ValueOf(y)
-		if ry.Kind() == reflect.Ptr && ry.IsNil() {
-			return true
-		}
+		return ry.IsNil()
 	}
 	if y == nil {
 		rx := reflect.ValueOf(x)
-		if rx.Kind() == reflect.Ptr && rx.IsNil() {
-			return true
-		}
+		return rx.IsNil()
+	}
+	xt, yt := reflect.TypeOf(x), reflect.TypeOf(y)
+	if xt != yt {
+		panic(fmt.Sprintf("invalid operation '==' (mismatched types %T and %T)", x, y))
 	}
 	return x == y
 }
