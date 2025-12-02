@@ -95,7 +95,6 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 	funcSymbol := NewFunctionSymbol(funcName, ctx.ID(0).GetSymbol())
 	funcSymbol.SetScope(g.CurScope)
 	g.CurFuncSymbol = funcSymbol
-	// vardefs
 	allIDs := ctx.AllID()
 	for i := 1; i < len(allIDs); i++ {
 		arg := allIDs[i].GetText()
@@ -111,11 +110,9 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 	}
 	g.CurScope = localScope
 	g.ScopeAllocator++
-	// 保存函数的local scope
 	funcSymbol.BodyScope = g.CurScope.(*LocalScope)
 
 	g.Visit(ctx.Block())
-	// 这里直接回退到funcSymbol的scope
 	g.CurScope = preScope
 	g.CurScope.Define(funcSymbol)
 	g.CurFuncSymbol = preFuncSymbol

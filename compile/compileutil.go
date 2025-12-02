@@ -284,7 +284,7 @@ func (s *StackCompileVisitor) Code() vm.Code {
 	}
 	var defineFuncs = make([]consts.DefineFunc, len(s.CalledDefineFuncs))
 	for fnName, address := range s.CalledDefineFuncs {
-		fn := s.Conf.DefineFuncs[fnName]
+		fn := s.Conf.DefineFuncs.GetFunc(fnName)
 		defineFuncs[address] = *fn
 	}
 	return vm.Code{

@@ -932,6 +932,71 @@ true
 `,
 			onlyRunEnv: true,
 		},
+		{
+			name: "predefine_func.gs",
+			program: `
+println(in([1,2,4], 1)) 				// true
+println(in($.StringSlice, "hello")) 	// true
+println(in($.Map, "foo")) 				// true
+println(in($.Map, "bar")) 				// false
+println(index($.StringSlice, "hello")) 	// 0
+println(index($.StringSlice, "world")) 	// 1
+println(index($.StringSlice, "long")) 	// -1
+println(hasPrefix("hello", "he")) 		// true
+println(hasPrefix("hello", "lo")) 		// false
+println(hasSuffix("hello", "lo")) 		// true
+println(hasSuffix("hello", "he")) 		// false
+println(trim(" ###hello", " #")) 		// hello
+println(trimPrefix("hello", "he")) 		// llo
+println(trimSuffix("hello", "lo")) 		// hel
+println(trimSpace(" hello ")) 			// hello
+println(trimLeft(" ###hello", " #")) 	// hello
+println(trimRight("hello ###", " #")) 	// hello
+println(toLower("HELLO")) 				// hello
+println(toUpper("hello")) 				// HELLO
+println(split("hello world", " ")) 		// [hello world]
+println(join(["hello", "world"], " ")) 	// hello world
+println(parseTime("2006-01-02T15:04:05Z07:00", "2025-01-02T15:04:05+07:00")) //(2025-01-02 15:04:05 +0700 +0700,<nil>)
+println(parseDuration("1h2m3s")) 		// (1h2m3s,<nil>)
+println(duration(111)) 					// 111ns
+println(toJson($.StringSlice)) 			// (["hello","world"],<nil>)
+println(fromJson("{\"foo\":\"bar\"}")) 	// (map[foo:bar],<nil>)
+println(unmarshalJson("{\"foo\":\"bar\"}",$.Map)) // <nil>
+		`,
+			env: &MyEnv{
+				StringSlice: []string{"hello", "world"},
+				Map:         map[any]any{"foo": "bar"},
+			},
+			expect: `
+true
+true
+true
+false
+0
+1
+-1
+true
+false
+true
+false
+hello
+llo
+hel
+hello
+hello
+hello
+hello
+HELLO
+[hello world]
+hello world
+(2025-01-02 15:04:05 +0700 +0700,<nil>)
+(1h2m3s,<nil>)
+111ns
+(["hello","world"],<nil>)
+(map[foo:bar],<nil>)
+<nil>
+`,
+		},
 	}
 
 	for _, tt := range tests {

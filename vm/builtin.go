@@ -292,7 +292,6 @@ func deleteMap(m, k any) {
 			k = ToFloat32(k)
 		}
 	}
-
 	rm.SetMapIndex(reflect.ValueOf(k), reflect.Value{})
 }
 
@@ -300,7 +299,7 @@ func toString(v any) string {
 	if v, ok := v.(fmt.Stringer); ok {
 		return v.String()
 	}
-	return fmt.Sprintf("%v", v)
+	panic(fmt.Sprintf("toString unsupport type:%T", v))
 }
 
 func convert(v any, kind reflect.Kind) any {
@@ -330,7 +329,16 @@ func convert(v any, kind reflect.Kind) any {
 	case reflect.Float64:
 		return ToFloat64(v)
 	case reflect.String:
-		return toString(v)
+		switch v.(type) {
+		case string:
+			return v.(string)
+		default:
+			rv := reflect.ValueOf(v)
+			if rv.Kind() == reflect.String {
+				return rv.String()
+			}
+			panic(fmt.Sprintf("can't convert %T to string", v))
+		}
 	case reflect.Bool:
 		return v.(bool)
 	}

@@ -41,13 +41,13 @@ type FastFunc struct {
 func DefineFast(fns ...FastFunc) CompileOption {
 	return func(conf *conf.CompileConf) {
 		for _, fn := range fns {
-			conf.DefineFuncs[fn.Name] = &consts.DefineFunc{
+			conf.DefineFuncs.Define(fn.Name, &consts.DefineFunc{
 				Name:   fn.Name,
 				NumIn:  fn.NumIn,
 				NumOut: fn.NumOut,
 				Fast:   true,
 				Fn:     fn.Fn,
-			}
+			})
 		}
 	}
 }
@@ -59,13 +59,25 @@ func DefineFuncs(fns ...Func) CompileOption {
 			if rv.Kind() != reflect.Func {
 				panic(fmt.Sprintf("define %s type %T is not function", fn.Name, fn))
 			}
-			conf.DefineFuncs[fn.Name] = &consts.DefineFunc{
+			conf.DefineFuncs.Define(fn.Name, &consts.DefineFunc{
 				Name:   fn.Name,
 				NumIn:  rv.Type().NumIn(),
 				NumOut: rv.Type().NumOut(),
 				Fn:     rv,
-			}
+			})
 		}
+	}
+}
+
+func BlockSystemFunc(name string) CompileOption {
+	return func(conf *conf.CompileConf) {
+		conf.DefineFuncs.BlockSystemFunc(name)
+	}
+}
+
+func BlockAllSystemFunc() CompileOption {
+	return func(conf *conf.CompileConf) {
+		conf.DefineFuncs.BlockAllSystemFunc()
 	}
 }
 
