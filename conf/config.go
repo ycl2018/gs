@@ -14,15 +14,24 @@ type CompileConf struct {
 }
 
 type RunConf struct {
-	Trace     bool
-	Env       any
-	Out       io.Writer
-	StackSize int
+	Out              io.Writer
+	StackSize        int
+	Trace            bool
+	FieldIndexCache  bool
+	MethodIndexCache bool
 }
 
 func Default() CompileConf {
 	return CompileConf{
 		Optimize:    true,
 		DefineFuncs: map[string]*consts.DefineFunc{},
+	}
+}
+
+func DefaultRunConf() RunConf {
+	return RunConf{
+		Out:              io.Discard,
+		FieldIndexCache:  true,
+		MethodIndexCache: true,
 	}
 }

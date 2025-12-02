@@ -288,10 +288,11 @@ func (s *StackCompileVisitor) Code() vm.Code {
 		defineFuncs[address] = *fn
 	}
 	return vm.Code{
-		Globals:      int(s.GlobalScope.LocalVarAllocator),
+		GlobalNum:    int(s.GlobalScope.LocalVarAllocator),
 		ConstPool:    constPoll,
 		MainFunc:     toFuncConst(s.MainFunc, -1),
 		BuildEnvType: envType,
 		DefineFuncs:  defineFuncs,
+		RuntimeCache: consts.NewRuntimeCache(),
 	}
 }

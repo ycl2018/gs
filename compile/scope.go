@@ -25,9 +25,6 @@ type GlobalScope struct {
 }
 
 func NewGlobalScope() *GlobalScope {
-	for i, j := 0, 0; i < 1 && j < 10; i, j = i+1, j+1 {
-
-	}
 	return &GlobalScope{
 		Symbols: map[string]Symbol{},
 		Consts:  map[string]*ConstSymbol{},
@@ -68,7 +65,6 @@ func (g *GlobalScope) Define(symbol Symbol) {
 		}
 		g.Symbols[symbol.GetName()] = symbol
 		symbol.SetScope(g)
-		// 函数名，参数数，局部变量数，代码地址
 		constSym := defineFuncConst(s.Name, len(s.FormalArgs), s.LocalNums(), g)
 		s.SetAddress(constSym.GetAddress())
 	default:

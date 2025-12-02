@@ -16,11 +16,8 @@ type INode interface {
 var _ gen.GsVisitor = (*ConstOptimizer)(nil)
 
 // ConstOptimizer do optimize:
-//
-//	fold const expr
-//
-// fold array/dict literal to const
-
+//	1. fold const expr
+// 	2. fold array/dict literal to const
 type ConstOptimizer struct {
 	gen.BaseGsVisitor
 	FoldConstExpr bool

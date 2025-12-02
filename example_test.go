@@ -74,6 +74,7 @@ func TestGsInterpreter_Interp(t *testing.T) {
 		fastFunc   []FastFunc
 		trace      bool
 		dump       bool
+		onlyRunEnv bool
 	}{
 		{
 			name: "apple.gs",
@@ -848,7 +849,6 @@ println(sum)
 					},
 				},
 			},
-			trace: true,
 			program: `
 println(sub(1,2))
 sum = add(1,2)
@@ -915,13 +915,30 @@ println($.Itf.Hello() == "Hello World")
 			},
 			expect: `true`,
 		},
+		{
+			name: "only_run_env.gs",
+			program: `
+println($.Itf.Hello() == "Hello World")
+println($.Itf.Hello() == "Hello World")
+		`,
+			env: &MyEnv{
+				Itf: &MyItf{
+					Name: "World",
+				},
+			},
+			expect: `
+true
+true
+`,
+			onlyRunEnv: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			out := &bytes.Buffer{}
 			var ops []CompileOption
-			if tt.env != nil {
+			if tt.env != nil && !tt.onlyRunEnv {
 				ops = append(ops, Env(tt.env))
 			}
 			if tt.dump {

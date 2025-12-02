@@ -18,40 +18,27 @@ const DefaultPrintStackFrameSize = 5
 
 type Interpreter struct {
 	conf.RunConf
-	IP           int                 // 指令地址
-	Code         []consts.StackInstr // 代码
-	ConstPool    []consts.Const
-	MainFunc     consts.FunctionConst // Main函数入口地址
-	BuildEnvType reflect.Type
-	DefineFuncs  []consts.DefineFunc
-	// 函数调用栈
-	Calls []*StackFrame
-	FP    int // 栈桢计数器
-
-	Operands []any // 操作数栈，全局复用
-	SP       int   // 操作数栈计数器
-
-	// 虚拟全局内存
+	Code
+	FP       int
+	SP       int
+	IP       int
+	CurCode  []consts.StackInstr
+	Calls    []*StackFrame
+	Operands []any
 	Globals  []any
-	DataSize int
 	Env      any
 }
 
 func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
-	// 编译
 	i := &Interpreter{
-		RunConf:      *conf,
-		IP:           -1,
-		FP:           -1,
-		SP:           -1,
-		Globals:      make([]any, code.Globals),
-		DataSize:     code.Globals,
-		Code:         code.MainFunc.Code,
-		ConstPool:    code.ConstPool,
-		MainFunc:     code.MainFunc,
-		BuildEnvType: code.BuildEnvType,
-		DefineFuncs:  code.DefineFuncs,
-		Env:          env,
+		RunConf: *conf,
+		Code:    *code,
+		IP:      -1,
+		FP:      -1,
+		SP:      -1,
+		Globals: make([]any, code.GlobalNum),
+		CurCode: code.MainFunc.Code,
+		Env:     env,
 	}
 	if i.StackSize <= 0 {
 		i.StackSize = DefaultOperandStackSize
@@ -61,10 +48,10 @@ func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
 }
 
 type StackFrame struct {
-	ReturnAddr int                 // 返回值地址
-	ReturnCode []consts.StackInstr // 之前函数的指令，用于返回时恢复
+	ReturnAddr int
+	ReturnCode []consts.StackInstr
 	FuncConsts *consts.FunctionConst
-	Locals     []any // 参数和本地变量
+	Locals     []any
 }
 
 func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackInstr) *StackFrame {
@@ -77,16 +64,17 @@ func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackI
 }
 
 type Code struct {
-	Globals      int
+	GlobalNum    int
 	ConstPool    []consts.Const
 	DefineFuncs  []consts.DefineFunc
 	MainFunc     consts.FunctionConst
 	BuildEnvType reflect.Type
+	RuntimeCache *consts.RuntimeCache
 }
 
 func (i *Interpreter) Run() (err error) {
 	i.IP = 0
-	sf := NewStackFrame(&i.MainFunc, i.IP, i.Code)
+	sf := NewStackFrame(&i.MainFunc, i.IP, i.CurCode)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
 	if i.Trace {
@@ -95,7 +83,7 @@ func (i *Interpreter) Run() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			var errWriter strings.Builder
-			fmt.Fprintf(&errWriter, "panic: %v\n", r)
+			_, _ = fmt.Fprintf(&errWriter, "panic: %v\n", r)
 			i.PrintStack(&errWriter)
 			err = errors.New(errWriter.String())
 		}
@@ -121,8 +109,8 @@ func (i *Interpreter) PushOpStack(v any) {
 
 func (i *Interpreter) cpu() {
 	// 取指令，并执行
-	instr := i.Code[i.IP]
-	for i.IP < len(i.Code) {
+	instr := i.CurCode[i.IP]
+	for i.IP < len(i.CurCode) {
 		if i.Trace {
 			i.trace()
 		}
@@ -166,7 +154,7 @@ func (i *Interpreter) cpu() {
 			// 函数调用
 			funcIndex := instr.Operands
 			fs := i.ConstPool[funcIndex].Value.(consts.FunctionConst)
-			funcStack := NewStackFrame(&fs, i.IP, i.Code)
+			funcStack := NewStackFrame(&fs, i.IP, i.CurCode)
 			i.FP++
 			i.Calls = append(i.Calls, funcStack)
 			// 拷贝操作数到参数中
@@ -174,7 +162,7 @@ func (i *Interpreter) cpu() {
 			for a := int(fs.ParamCount) - 1; a >= 0; a-- {
 				funcStack.Locals[a] = i.PopOpStack()
 			}
-			i.IP, i.Code = 0, fs.Code
+			i.IP, i.CurCode = 0, fs.Code
 		case consts.InstrReturn:
 			if i.FP < 0 {
 				// main return
@@ -183,7 +171,7 @@ func (i *Interpreter) cpu() {
 			curFs := i.Calls[i.FP]
 			i.Calls = i.Calls[:i.FP]
 			i.FP--
-			i.IP, i.Code = curFs.ReturnAddr, curFs.ReturnCode
+			i.IP, i.CurCode = curFs.ReturnAddr, curFs.ReturnCode
 		case consts.InstrBR:
 			toAddr := instr.Operands
 			i.IP = toAddr
@@ -233,7 +221,6 @@ func (i *Interpreter) cpu() {
 			gVal := i.Globals[argIndex]
 			i.PushOpStack(gVal)
 		case consts.InstrFLoad:
-			// 字段加载,字段地址在操作数栈中，字段index为下个操作数
 			index := instr.Operands
 			i.PushOpStack(i.FieldLoad(i.ConstPool[index].Value.(string)))
 		case consts.InstrStore:
@@ -253,7 +240,7 @@ func (i *Interpreter) cpu() {
 			for i2 := printNums - 1; i2 >= 0; i2-- {
 				toPrint[i2] = i.PopOpStack()
 			}
-			fmt.Fprint(i.Out, toPrint...)
+			_, _ = fmt.Fprint(i.Out, toPrint...)
 		case consts.InstrPrintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -264,14 +251,14 @@ func (i *Interpreter) cpu() {
 			if !ok {
 				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
 			}
-			fmt.Fprintf(i.Out, fmtStr, toPrint[1:]...)
+			_, _ = fmt.Fprintf(i.Out, fmtStr, toPrint[1:]...)
 		case consts.InstrPrintln:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
 			for i2 := printNums - 1; i2 >= 0; i2-- {
 				toPrint[i2] = i.PopOpStack()
 			}
-			fmt.Fprintln(i.Out, toPrint...)
+			_, _ = fmt.Fprintln(i.Out, toPrint...)
 		case consts.InstrSprintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -364,7 +351,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrMLoadByName:
 			methodName := i.ConstPool[instr.Operands].Value.(string)
 			obj := i.PopOpStack()
-			i.PushOpStack(loadMethod(obj, methodName))
+			i.PushOpStack(i.loadMethod(obj, methodName))
 		case consts.InstrMLoadByIndex:
 			obj := i.PopOpStack()
 			i.PushOpStack(loadMethodByIndex(obj, instr.Operands))
@@ -404,7 +391,7 @@ func (i *Interpreter) cpu() {
 		default:
 			panic(fmt.Sprintf("unknown opcode:%s", instr))
 		}
-		instr = i.Code[i.IP]
+		instr = i.CurCode[i.IP]
 	}
 }
 
@@ -445,8 +432,74 @@ func loadMethodByIndex(obj any, index int) reflect.Value {
 	return rv.Method(index)
 }
 
-func loadMethod(obj any, methodName string) reflect.Value {
+func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
 	rv := reflect.ValueOf(obj)
+	if i.MethodIndexCache {
+		vt := rv.Type()
+		if index, ok := i.RuntimeCache.FetchMethodIndex(vt, methodName); ok {
+			if index.IsMethod {
+				switch index.Convert {
+				case consts.Elem:
+					rv = rv.Elem()
+				case consts.PtrTo:
+					ptrTo := reflect.New(rv.Type())
+					ptrTo.Elem().Set(rv)
+					rv = ptrTo
+				default:
+
+				}
+				return rv.Method(index.Index[0])
+			} else {
+				if rv.Kind() == reflect.Ptr {
+					rv = rv.Elem()
+				}
+				return rv.FieldByIndex(index.Index)
+			}
+		} else {
+			origin := rv
+			conv := consts.No
+			// try to find method by name
+			if rv.NumMethod() == 0 {
+				if rv.Kind() == reflect.Ptr {
+					rv = rv.Elem()
+					conv = consts.Elem
+				} else {
+					ptrTo := reflect.New(rv.Type())
+					ptrTo.Elem().Set(rv)
+					rv = ptrTo
+					conv = consts.PtrTo
+				}
+			}
+			m, ok := rv.Type().MethodByName(methodName)
+			if ok {
+				method := rv.Method(m.Index)
+				if method.IsValid() {
+					i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
+						Index:    []int{m.Index},
+						IsMethod: true,
+						Convert:  conv,
+					})
+					return method
+				}
+			}
+			// try to find field by name
+			if origin.Kind() == reflect.Ptr {
+				rv = origin.Elem()
+			}
+			fieldByName, ok := rv.Type().FieldByName(methodName)
+			if ok {
+				field := rv.FieldByIndex(fieldByName.Index)
+				if field.IsValid() && field.Kind() == reflect.Func {
+					i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
+						Index:    fieldByName.Index,
+						IsMethod: false,
+					})
+					return field
+				}
+			}
+			panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
+		}
+	}
 	if rv.NumMethod() == 0 {
 		if rv.Kind() == reflect.Ptr {
 			rv = rv.Elem()
@@ -465,7 +518,7 @@ func loadMethod(obj any, methodName string) reflect.Value {
 	if field.IsValid() && field.Kind() == reflect.Func {
 		return field
 	}
-	panic("method/func " + methodName + " is not valid")
+	panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
 }
 
 func neg(v any) any {
@@ -514,7 +567,7 @@ func (i *Interpreter) trace() {
 		fmt.Print(" ]\n")
 	}
 	fmt.Println()
-	fmt.Print(i.Code[i.IP])
+	fmt.Print(i.CurCode[i.IP])
 }
 
 func (i *Interpreter) Dump() {
@@ -536,14 +589,14 @@ func (i *Interpreter) dumpConstPool() {
 
 func (i *Interpreter) dumpCodeMemory() {
 	fmt.Println("Code memory:")
-	for j := 0; j < len(i.Code); j++ {
+	for j := 0; j < len(i.CurCode); j++ {
 		if j%8 == 0 && j != 0 {
 			fmt.Println()
 		}
 		if j%8 == 0 {
 			fmt.Printf("%04d:", j)
 		}
-		fmt.Printf(" %3s", i.Code[j].OpCode.String())
+		fmt.Printf(" %3s", i.CurCode[j].OpCode.String())
 	}
 	fmt.Println()
 }
@@ -632,17 +685,33 @@ func (i *Interpreter) Peek() any {
 
 func (i *Interpreter) FieldLoad(field string) any {
 	// build-in type
-	if structSpace, ok := i.PopOpStack().(*StructSpace); ok {
+	obj := i.PopOpStack()
+	if structSpace, ok := obj.(*StructSpace); ok {
 		return structSpace.Fields[field]
 	}
-	// reflect
-	obj := reflect.ValueOf(i.PopOpStack())
-	assertValidObj(obj)
-	switch obj.Kind() {
+	validObj := assertValidObj(obj)
+
+	switch validObj.Kind() {
 	case reflect.Struct:
-		return obj.FieldByName(field).Interface()
+		// reflect
+		if i.FieldIndexCache {
+			vt := validObj.Type()
+			if indexes, ok := i.RuntimeCache.FetchFieldIndex(vt, field); ok {
+				return validObj.FieldByIndex(indexes).Interface()
+			}
+			if fieldStruct, ok := vt.FieldByName(field); ok {
+				i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
+				return validObj.FieldByIndex(fieldStruct.Index).Interface()
+			}
+		} else {
+			fieldByName := validObj.FieldByName(field)
+			if fieldByName.IsValid() {
+				return fieldByName.Interface()
+			}
+		}
+		panic(fmt.Sprintf("no such field '%s' by type:%T", field, obj))
 	default:
-		panic(fmt.Sprintf("unexpected type %T for field load", field))
+		panic(fmt.Sprintf("unexpected type %T for field load", obj))
 	}
 }
 
@@ -978,23 +1047,23 @@ func NewPtrValue(val any) any {
 
 func (i *Interpreter) PrintStack(writer io.Writer) {
 	var printFrameSize int
-	fmt.Fprintf(writer, "stack trace:\n")
+	_, _ = fmt.Fprintf(writer, "stack trace:\n")
 	for j := len(i.Calls) - 1; j >= 0; j-- {
 		// 打印调用栈
 		ip := i.IP - 1
 		// func:<funcName>,args:(arg1,arg2,...) line:<line>
 		call := i.Calls[j]
-		fmt.Fprintf(writer, "\tat "+call.FuncConsts.Name+" args:(")
+		_, _ = fmt.Fprintf(writer, "\tat "+call.FuncConsts.Name+" args:(")
 		// args
-		for j := range call.FuncConsts.ParamCount {
-			if j < len(call.Locals) {
-				if j > 0 {
-					fmt.Fprintf(writer, ", ")
+		for k := range call.FuncConsts.ParamCount {
+			if k < len(call.Locals) {
+				if k > 0 {
+					_, _ = fmt.Fprintf(writer, ", ")
 				}
-				fmt.Fprintf(writer, "%v", call.Locals[j])
+				_, _ = fmt.Fprintf(writer, "%v", call.Locals[k])
 			}
 		}
-		fmt.Fprintf(writer, ") line:%d\n", call.FuncConsts.Debugger.Table[ip].Line)
+		_, _ = fmt.Fprintf(writer, ") line:%d\n", call.FuncConsts.Debugger.Table[ip].Line)
 		printFrameSize++
 		if printFrameSize >= DefaultPrintStackFrameSize {
 			break
@@ -1017,7 +1086,7 @@ func (s *StructSpace) String() string {
 		if !first {
 			sb.WriteString(", ")
 		}
-		fmt.Fprintf(&sb, "%s: %v", name, s.Fields[name])
+		_, _ = fmt.Fprintf(&sb, "%s: %v", name, s.Fields[name])
 		first = false
 	}
 	if s.AllowDynamic && len(s.Fields) > len(s.Define.Fields) {
@@ -1033,7 +1102,7 @@ func (s *StructSpace) String() string {
 				sb.WriteString(", ")
 			}
 			first = false
-			fmt.Fprintf(&sb, "%s: %v\n", k, v)
+			_, _ = fmt.Fprintf(&sb, "%s: %v\n", k, v)
 		}
 	}
 	sb.WriteString(" }")

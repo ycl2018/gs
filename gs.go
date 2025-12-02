@@ -89,6 +89,13 @@ func StackSize(size int) RunOption {
 	}
 }
 
+func NoCache() RunOption {
+	return func(conf *conf.RunConf) {
+		conf.MethodIndexCache = false
+		conf.FieldIndexCache = false
+	}
+}
+
 func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 	p := compile.NewGsCompiler()
 	var config = conf.Default()
@@ -103,7 +110,7 @@ func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 }
 
 func Run(code *vm.Code, env any, ops ...RunOption) error {
-	config := conf.RunConf{}
+	config := conf.DefaultRunConf()
 	for _, op := range ops {
 		op(&config)
 	}
