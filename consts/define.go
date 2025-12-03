@@ -165,8 +165,8 @@ var Instructions = []*Instruction{
 	70: {"delete", NIL},
 	71: {"toString", NIL},
 	72: {"convert", INT},
-	73: {"mload_byname", NIL},
-	74: {"mload_byindex", NIL},
+	73: {"mload_byname", POLL},
+	74: {"mload_byindex", INT},
 	75: {"call_outer", INT},
 	76: {"call_define", INT},
 }

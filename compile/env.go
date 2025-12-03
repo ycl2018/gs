@@ -149,6 +149,10 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 				s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
 			case reflect.Interface:
 				// interface Load
+				if curType.NumMethod() > 0 {
+					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 				s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
@@ -171,6 +175,10 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 				s.Write(consts.InstrIndexLoad, a.GetStart())
 				curType = curType.Elem()
 			case reflect.Interface:
+				if curType.NumMethod() > 0 {
+					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 				s.Write(consts.InstrIndexLoad, a.GetStart())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
@@ -242,9 +250,13 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			case reflect.Interface:
 				// interface Load
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
-				} else {
 					s.Write(consts.InstrFStore, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
+				} else {
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
+					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 				}
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
@@ -282,6 +294,10 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 				if i == len(accessors)-1 {
 					s.Write(consts.InstrIndexStore, a.GetStart())
 				} else {
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
 					s.Write(consts.InstrIndexLoad, a.GetStart())
 				}
 			default:
@@ -359,8 +375,21 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			case reflect.Interface:
 				// interface Load
 				if i == len(accessors)-1 {
-					s.Write(consts.InstrMLoadByName, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
+					if curType.NumMethod() > 0 {
+						if methodByName, ok := curType.MethodByName(fieldName); ok {
+							s.Write(consts.InstrMLoadByIndex, a.GetStart(), methodByName.Index)
+						} else {
+							s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+							return
+						}
+					} else {
+						s.Write(consts.InstrMLoadByName, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
+					}
 				} else {
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
 					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 				}
 			default:
@@ -388,6 +417,10 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 				curType = curType.Elem()
 				s.Write(consts.InstrRIndex, a.GetStart())
 			case reflect.Interface:
+				if curType.NumMethod() > 0 {
+					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 				s.Write(consts.InstrIndexLoad, a.GetStart())
 			default:
 				s.Log.ErrorToken(ctx.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())

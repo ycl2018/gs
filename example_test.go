@@ -36,6 +36,10 @@ func (m *MyItf) Hello() string {
 	return "Hello " + m.Name
 }
 
+func (m *MyItf) Hello2() string {
+	return "Hello2 " + m.Name
+}
+
 func (env *MyEnv) SayHello() string {
 	return "Hello World " + env.A
 }
@@ -920,6 +924,20 @@ println($.Itf.Hello() == "Hello World")
 			expect: `true`,
 		},
 		{
+			name: "itf_hide.gs",
+			program: `
+println($.Itf.Hello2() == "Hello2 World")
+		`,
+			env: &MyEnv{
+				Itf: &MyItf{
+					Name: "World",
+				},
+			},
+			expectErr: `
+<line 2> .: syntax error:invalid $.Itf.Hello2 on type:gs.Itf
+		 ^`,
+		},
+		{
 			name: "only_run_env.gs",
 			program: `
 println($.Itf.Hello() == "Hello World")
@@ -1029,7 +1047,12 @@ return 1,2
 			}
 			code, err := Compile(tt.program, ops...)
 			if err != nil {
-				t.Fatal(err)
+				if tt.expectErr == "" {
+					t.Fatal(err)
+				}
+				if tt.expectErr != err.Error() {
+					return
+				}
 				return
 			}
 			var runOps = []RunOption{
