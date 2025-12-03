@@ -28,6 +28,18 @@ func (r *Result) MustString() string {
 	return s
 }
 
+func (r *Result) Error() error {
+	if r.value == nil {
+		return nil
+	}
+	switch r.value.(type) {
+	case error:
+		return r.value.(error)
+	default:
+		panic(fmt.Errorf("value type:%T is not error", r.value))
+	}
+}
+
 func (r *Result) String() (string, error) {
 	if r.value == nil {
 		return "", errors.New("value is nil")
