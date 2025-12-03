@@ -31,7 +31,7 @@ func BenchmarkWithCache(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := Run(code, env)
+		_, err := Run(code, env)
 		if err != nil {
 			b.Fatal(err)
 			return
@@ -53,7 +53,7 @@ func BenchmarkNoCache(b *testing.B) {
 	noCacheOp := NoCache()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := Run(code, env, noCacheOp)
+		_, err := Run(code, env, noCacheOp)
 		if err != nil {
 			b.Fatal(err)
 			return

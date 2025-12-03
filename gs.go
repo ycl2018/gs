@@ -121,11 +121,15 @@ func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 	return ret, err
 }
 
-func Run(code *vm.Code, env any, ops ...RunOption) error {
+func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
 	config := conf.DefaultRunConf()
 	for _, op := range ops {
 		op(&config)
 	}
 	interpreter := vm.NewInterpreter(code, env, &config)
-	return interpreter.Run()
+	err = interpreter.Run()
+	if err != nil {
+		return nil, err
+	}
+	return &Result{value: interpreter.Result}, nil
 }

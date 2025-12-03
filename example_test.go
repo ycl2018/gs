@@ -2,8 +2,11 @@ package gs
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ycl2018/gs/consts"
 )
 
 type MyEnv struct {
@@ -74,6 +77,7 @@ func TestGsInterpreter_Interp(t *testing.T) {
 		fastFunc   []FastFunc
 		trace      bool
 		dump       bool
+		ret        any
 		onlyRunEnv bool
 	}{
 		{
@@ -997,6 +1001,14 @@ hello world
 <nil>
 `,
 		},
+		{
+			name: "return.gs",
+			program: `
+return 1,2
+		`,
+			ret:    consts.Tuple{Values: []any{1, 2}, Num: 2},
+			expect: ``,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1026,13 +1038,17 @@ hello world
 			if tt.trace {
 				runOps = append(runOps, Trace())
 			}
-			err = Run(code, tt.env, runOps...)
+			ret, err := Run(code, tt.env, runOps...)
 			if err != nil && tt.expectErr == "" {
 				t.Fatal(err)
 				return
 			}
 			if tt.expectErr != "" {
-				want, got := strings.TrimSpace(tt.expectErr), strings.TrimSpace(err.Error())
+				if err == nil {
+					t.Errorf("expect err: %s, but got nil", tt.expectErr)
+					return
+				}
+				want, got := strings.TrimSpace(tt.expectErr), strings.TrimSpace(err.(*consts.CrashError).CodeTrace)
 				if want != got {
 					t.Errorf("got:\n%s\nwant:\n%s", got, tt.expectErr)
 					return
@@ -1041,6 +1057,12 @@ hello world
 				want, got := strings.TrimSpace(tt.expect), strings.TrimSpace(out.String())
 				if want != got {
 					t.Errorf("got:\n%s\nwant:\n%s", got, tt.expect)
+					return
+				}
+			}
+			if tt.ret != nil {
+				if !reflect.DeepEqual(tt.ret, ret.RawValue()) {
+					t.Errorf("expect ret: %v, but got %v", tt.ret, ret.RawValue())
 					return
 				}
 			}

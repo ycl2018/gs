@@ -302,32 +302,73 @@ func toString(v any) string {
 	panic(fmt.Sprintf("toString unsupport type:%T", v))
 }
 
+var mapKindToType = map[reflect.Kind]reflect.Type{
+	reflect.Int:     reflect.TypeOf(int(0)),
+	reflect.Int8:    reflect.TypeOf(int8(0)),
+	reflect.Int16:   reflect.TypeOf(int16(0)),
+	reflect.Int32:   reflect.TypeOf(int32(0)),
+	reflect.Int64:   reflect.TypeOf(int64(0)),
+	reflect.Uint:    reflect.TypeOf(uint(0)),
+	reflect.Uint8:   reflect.TypeOf(uint8(0)),
+	reflect.Uint16:  reflect.TypeOf(uint16(0)),
+	reflect.Uint32:  reflect.TypeOf(uint32(0)),
+	reflect.Uint64:  reflect.TypeOf(uint64(0)),
+	reflect.Float32: reflect.TypeOf(float32(0)),
+	reflect.Float64: reflect.TypeOf(float64(0)),
+	reflect.String:  reflect.TypeOf(""),
+	reflect.Bool:    reflect.TypeOf(false),
+}
+
 func convert(v any, kind reflect.Kind) any {
 	switch kind {
 	case reflect.Int:
-		return ToInt(v)
+		if val, ok := TryToInt(v); ok {
+			return val
+		}
 	case reflect.Int8:
-		return ToInt8(v)
+		if val, ok := TryToInt8(v); ok {
+			return val
+		}
 	case reflect.Int16:
-		return ToInt16(v)
+		if val, ok := TryToInt16(v); ok {
+			return val
+		}
 	case reflect.Int32:
-		return ToInt32(v)
+		if val, ok := TryToInt32(v); ok {
+			return val
+		}
 	case reflect.Int64:
-		return ToInt64(v)
+		if val, ok := TryToInt64(v); ok {
+			return val
+		}
 	case reflect.Uint:
-		return ToUint(v)
+		if val, ok := TryToUint(v); ok {
+			return val
+		}
 	case reflect.Uint8:
-		return ToUint8(v)
+		if val, ok := TryToUint8(v); ok {
+			return val
+		}
 	case reflect.Uint16:
-		return ToUint16(v)
+		if val, ok := TryToUint16(v); ok {
+			return val
+		}
 	case reflect.Uint32:
-		return ToUint32(v)
+		if val, ok := TryToUint32(v); ok {
+			return val
+		}
 	case reflect.Uint64:
-		return ToUint64(v)
+		if val, ok := TryToUint64(v); ok {
+			return val
+		}
 	case reflect.Float32:
-		return ToFloat32(v)
+		if val, ok := TryToFloat32(v); ok {
+			return val
+		}
 	case reflect.Float64:
-		return ToFloat64(v)
+		if val, ok := TryToFloat64(v); ok {
+			return val
+		}
 	case reflect.String:
 		switch v.(type) {
 		case string:
@@ -340,7 +381,16 @@ func convert(v any, kind reflect.Kind) any {
 			panic(fmt.Sprintf("can't convert %T to string", v))
 		}
 	case reflect.Bool:
-		return v.(bool)
+		switch v.(type) {
+		case bool:
+			return v.(bool)
+		}
+	default:
+		panic(fmt.Sprintf("convert unsupport type:%T", v))
 	}
-	panic(fmt.Sprintf("can't convert %T to kind:%s", v, kind))
+	rv := reflect.ValueOf(v)
+	if rv.CanConvert(mapKindToType[kind]) {
+		return rv.Convert(mapKindToType[kind]).Interface()
+	}
+	panic(fmt.Sprintf("can't convert %T to %s", v, kind))
 }

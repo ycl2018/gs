@@ -519,20 +519,27 @@ func genToFuncs() {
 }
 
 func genToFuc(sb *strings.Builder, targetType string, intTypes, floatTypes []string) {
+	tryToFunc := "TryTo" + strings.Title(targetType)
 	funcName := "To" + strings.Title(targetType)
-
 	sb.WriteString(fmt.Sprintf("func %s(value any) %s {\n", funcName, targetType))
+	sb.WriteString(fmt.Sprintf("    if val, ok := %s(value); ok {\n", tryToFunc))
+	sb.WriteString("        return val\n")
+	sb.WriteString("    }\n")
+	sb.WriteString(fmt.Sprintf("   panic(fmt.Sprintf(\"%s: unsupport %%T\", value))\n", funcName))
+	sb.WriteString("}\n")
+
+	sb.WriteString(fmt.Sprintf("\nfunc %s(value any) (%s, bool) {\n", tryToFunc, targetType))
 	sb.WriteString("    switch v := value.(type) {\n")
 
 	// 目标类型本身的 case
 	sb.WriteString(fmt.Sprintf("    case %s:\n", targetType))
-	sb.WriteString("        return v\n")
+	sb.WriteString("        return v, true\n")
 
 	// 所有 int 类型的 case
 	for _, intType := range intTypes {
 		if intType != targetType {
 			sb.WriteString(fmt.Sprintf("    case %s:\n", intType))
-			sb.WriteString(fmt.Sprintf("        return %s(v)\n", targetType))
+			sb.WriteString(fmt.Sprintf("        return %s(v), true\n", targetType))
 		}
 	}
 
@@ -540,13 +547,14 @@ func genToFuc(sb *strings.Builder, targetType string, intTypes, floatTypes []str
 	for _, floatType := range floatTypes {
 		if floatType != targetType {
 			sb.WriteString(fmt.Sprintf("    case %s:\n", floatType))
-			sb.WriteString(fmt.Sprintf("        return %s(v)\n", targetType))
+			sb.WriteString(fmt.Sprintf("        return %s(v), true\n", targetType))
 		}
 	}
 
 	// default 情况
 	sb.WriteString("    default:\n")
-	sb.WriteString(fmt.Sprintf("        panic(fmt.Sprintf(\"%s: unsupport %%T\", value))\n", funcName))
+	sb.WriteString(fmt.Sprintf("        var zero %s\n", targetType))
+	sb.WriteString("        return zero, false\n")
 	sb.WriteString("    }\n")
 	sb.WriteString("}\n\n")
 }

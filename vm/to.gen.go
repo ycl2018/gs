@@ -5,431 +5,535 @@ package vm
 import "fmt"
 
 func ToInt(value any) int {
+    if val, ok := TryToInt(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToInt: unsupport %T", value))
+}
+
+func TryToInt(value any) (int, bool) {
     switch v := value.(type) {
     case int:
-        return v
+        return v, true
     case int8:
-        return int(v)
+        return int(v), true
     case int16:
-        return int(v)
+        return int(v), true
     case int32:
-        return int(v)
+        return int(v), true
     case int64:
-        return int(v)
+        return int(v), true
     case uint:
-        return int(v)
+        return int(v), true
     case uint8:
-        return int(v)
+        return int(v), true
     case uint16:
-        return int(v)
+        return int(v), true
     case uint32:
-        return int(v)
+        return int(v), true
     case uint64:
-        return int(v)
+        return int(v), true
     case uintptr:
-        return int(v)
+        return int(v), true
     case float32:
-        return int(v)
+        return int(v), true
     case float64:
-        return int(v)
+        return int(v), true
     default:
-        panic(fmt.Sprintf("ToInt: unsupport %T", value))
+        var zero int
+        return zero, false
     }
 }
 
 func ToInt8(value any) int8 {
+    if val, ok := TryToInt8(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToInt8: unsupport %T", value))
+}
+
+func TryToInt8(value any) (int8, bool) {
     switch v := value.(type) {
     case int8:
-        return v
+        return v, true
     case int:
-        return int8(v)
+        return int8(v), true
     case int16:
-        return int8(v)
+        return int8(v), true
     case int32:
-        return int8(v)
+        return int8(v), true
     case int64:
-        return int8(v)
+        return int8(v), true
     case uint:
-        return int8(v)
+        return int8(v), true
     case uint8:
-        return int8(v)
+        return int8(v), true
     case uint16:
-        return int8(v)
+        return int8(v), true
     case uint32:
-        return int8(v)
+        return int8(v), true
     case uint64:
-        return int8(v)
+        return int8(v), true
     case uintptr:
-        return int8(v)
+        return int8(v), true
     case float32:
-        return int8(v)
+        return int8(v), true
     case float64:
-        return int8(v)
+        return int8(v), true
     default:
-        panic(fmt.Sprintf("ToInt8: unsupport %T", value))
+        var zero int8
+        return zero, false
     }
 }
 
 func ToInt16(value any) int16 {
+    if val, ok := TryToInt16(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToInt16: unsupport %T", value))
+}
+
+func TryToInt16(value any) (int16, bool) {
     switch v := value.(type) {
     case int16:
-        return v
+        return v, true
     case int:
-        return int16(v)
+        return int16(v), true
     case int8:
-        return int16(v)
+        return int16(v), true
     case int32:
-        return int16(v)
+        return int16(v), true
     case int64:
-        return int16(v)
+        return int16(v), true
     case uint:
-        return int16(v)
+        return int16(v), true
     case uint8:
-        return int16(v)
+        return int16(v), true
     case uint16:
-        return int16(v)
+        return int16(v), true
     case uint32:
-        return int16(v)
+        return int16(v), true
     case uint64:
-        return int16(v)
+        return int16(v), true
     case uintptr:
-        return int16(v)
+        return int16(v), true
     case float32:
-        return int16(v)
+        return int16(v), true
     case float64:
-        return int16(v)
+        return int16(v), true
     default:
-        panic(fmt.Sprintf("ToInt16: unsupport %T", value))
+        var zero int16
+        return zero, false
     }
 }
 
 func ToInt32(value any) int32 {
+    if val, ok := TryToInt32(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToInt32: unsupport %T", value))
+}
+
+func TryToInt32(value any) (int32, bool) {
     switch v := value.(type) {
     case int32:
-        return v
+        return v, true
     case int:
-        return int32(v)
+        return int32(v), true
     case int8:
-        return int32(v)
+        return int32(v), true
     case int16:
-        return int32(v)
+        return int32(v), true
     case int64:
-        return int32(v)
+        return int32(v), true
     case uint:
-        return int32(v)
+        return int32(v), true
     case uint8:
-        return int32(v)
+        return int32(v), true
     case uint16:
-        return int32(v)
+        return int32(v), true
     case uint32:
-        return int32(v)
+        return int32(v), true
     case uint64:
-        return int32(v)
+        return int32(v), true
     case uintptr:
-        return int32(v)
+        return int32(v), true
     case float32:
-        return int32(v)
+        return int32(v), true
     case float64:
-        return int32(v)
+        return int32(v), true
     default:
-        panic(fmt.Sprintf("ToInt32: unsupport %T", value))
+        var zero int32
+        return zero, false
     }
 }
 
 func ToInt64(value any) int64 {
+    if val, ok := TryToInt64(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToInt64: unsupport %T", value))
+}
+
+func TryToInt64(value any) (int64, bool) {
     switch v := value.(type) {
     case int64:
-        return v
+        return v, true
     case int:
-        return int64(v)
+        return int64(v), true
     case int8:
-        return int64(v)
+        return int64(v), true
     case int16:
-        return int64(v)
+        return int64(v), true
     case int32:
-        return int64(v)
+        return int64(v), true
     case uint:
-        return int64(v)
+        return int64(v), true
     case uint8:
-        return int64(v)
+        return int64(v), true
     case uint16:
-        return int64(v)
+        return int64(v), true
     case uint32:
-        return int64(v)
+        return int64(v), true
     case uint64:
-        return int64(v)
+        return int64(v), true
     case uintptr:
-        return int64(v)
+        return int64(v), true
     case float32:
-        return int64(v)
+        return int64(v), true
     case float64:
-        return int64(v)
+        return int64(v), true
     default:
-        panic(fmt.Sprintf("ToInt64: unsupport %T", value))
+        var zero int64
+        return zero, false
     }
 }
 
 func ToUint(value any) uint {
+    if val, ok := TryToUint(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUint: unsupport %T", value))
+}
+
+func TryToUint(value any) (uint, bool) {
     switch v := value.(type) {
     case uint:
-        return v
+        return v, true
     case int:
-        return uint(v)
+        return uint(v), true
     case int8:
-        return uint(v)
+        return uint(v), true
     case int16:
-        return uint(v)
+        return uint(v), true
     case int32:
-        return uint(v)
+        return uint(v), true
     case int64:
-        return uint(v)
+        return uint(v), true
     case uint8:
-        return uint(v)
+        return uint(v), true
     case uint16:
-        return uint(v)
+        return uint(v), true
     case uint32:
-        return uint(v)
+        return uint(v), true
     case uint64:
-        return uint(v)
+        return uint(v), true
     case uintptr:
-        return uint(v)
+        return uint(v), true
     case float32:
-        return uint(v)
+        return uint(v), true
     case float64:
-        return uint(v)
+        return uint(v), true
     default:
-        panic(fmt.Sprintf("ToUint: unsupport %T", value))
+        var zero uint
+        return zero, false
     }
 }
 
 func ToUint8(value any) uint8 {
+    if val, ok := TryToUint8(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUint8: unsupport %T", value))
+}
+
+func TryToUint8(value any) (uint8, bool) {
     switch v := value.(type) {
     case uint8:
-        return v
+        return v, true
     case int:
-        return uint8(v)
+        return uint8(v), true
     case int8:
-        return uint8(v)
+        return uint8(v), true
     case int16:
-        return uint8(v)
+        return uint8(v), true
     case int32:
-        return uint8(v)
+        return uint8(v), true
     case int64:
-        return uint8(v)
+        return uint8(v), true
     case uint:
-        return uint8(v)
+        return uint8(v), true
     case uint16:
-        return uint8(v)
+        return uint8(v), true
     case uint32:
-        return uint8(v)
+        return uint8(v), true
     case uint64:
-        return uint8(v)
+        return uint8(v), true
     case uintptr:
-        return uint8(v)
+        return uint8(v), true
     case float32:
-        return uint8(v)
+        return uint8(v), true
     case float64:
-        return uint8(v)
+        return uint8(v), true
     default:
-        panic(fmt.Sprintf("ToUint8: unsupport %T", value))
+        var zero uint8
+        return zero, false
     }
 }
 
 func ToUint16(value any) uint16 {
+    if val, ok := TryToUint16(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUint16: unsupport %T", value))
+}
+
+func TryToUint16(value any) (uint16, bool) {
     switch v := value.(type) {
     case uint16:
-        return v
+        return v, true
     case int:
-        return uint16(v)
+        return uint16(v), true
     case int8:
-        return uint16(v)
+        return uint16(v), true
     case int16:
-        return uint16(v)
+        return uint16(v), true
     case int32:
-        return uint16(v)
+        return uint16(v), true
     case int64:
-        return uint16(v)
+        return uint16(v), true
     case uint:
-        return uint16(v)
+        return uint16(v), true
     case uint8:
-        return uint16(v)
+        return uint16(v), true
     case uint32:
-        return uint16(v)
+        return uint16(v), true
     case uint64:
-        return uint16(v)
+        return uint16(v), true
     case uintptr:
-        return uint16(v)
+        return uint16(v), true
     case float32:
-        return uint16(v)
+        return uint16(v), true
     case float64:
-        return uint16(v)
+        return uint16(v), true
     default:
-        panic(fmt.Sprintf("ToUint16: unsupport %T", value))
+        var zero uint16
+        return zero, false
     }
 }
 
 func ToUint32(value any) uint32 {
+    if val, ok := TryToUint32(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUint32: unsupport %T", value))
+}
+
+func TryToUint32(value any) (uint32, bool) {
     switch v := value.(type) {
     case uint32:
-        return v
+        return v, true
     case int:
-        return uint32(v)
+        return uint32(v), true
     case int8:
-        return uint32(v)
+        return uint32(v), true
     case int16:
-        return uint32(v)
+        return uint32(v), true
     case int32:
-        return uint32(v)
+        return uint32(v), true
     case int64:
-        return uint32(v)
+        return uint32(v), true
     case uint:
-        return uint32(v)
+        return uint32(v), true
     case uint8:
-        return uint32(v)
+        return uint32(v), true
     case uint16:
-        return uint32(v)
+        return uint32(v), true
     case uint64:
-        return uint32(v)
+        return uint32(v), true
     case uintptr:
-        return uint32(v)
+        return uint32(v), true
     case float32:
-        return uint32(v)
+        return uint32(v), true
     case float64:
-        return uint32(v)
+        return uint32(v), true
     default:
-        panic(fmt.Sprintf("ToUint32: unsupport %T", value))
+        var zero uint32
+        return zero, false
     }
 }
 
 func ToUint64(value any) uint64 {
+    if val, ok := TryToUint64(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUint64: unsupport %T", value))
+}
+
+func TryToUint64(value any) (uint64, bool) {
     switch v := value.(type) {
     case uint64:
-        return v
+        return v, true
     case int:
-        return uint64(v)
+        return uint64(v), true
     case int8:
-        return uint64(v)
+        return uint64(v), true
     case int16:
-        return uint64(v)
+        return uint64(v), true
     case int32:
-        return uint64(v)
+        return uint64(v), true
     case int64:
-        return uint64(v)
+        return uint64(v), true
     case uint:
-        return uint64(v)
+        return uint64(v), true
     case uint8:
-        return uint64(v)
+        return uint64(v), true
     case uint16:
-        return uint64(v)
+        return uint64(v), true
     case uint32:
-        return uint64(v)
+        return uint64(v), true
     case uintptr:
-        return uint64(v)
+        return uint64(v), true
     case float32:
-        return uint64(v)
+        return uint64(v), true
     case float64:
-        return uint64(v)
+        return uint64(v), true
     default:
-        panic(fmt.Sprintf("ToUint64: unsupport %T", value))
+        var zero uint64
+        return zero, false
     }
 }
 
 func ToUintptr(value any) uintptr {
+    if val, ok := TryToUintptr(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToUintptr: unsupport %T", value))
+}
+
+func TryToUintptr(value any) (uintptr, bool) {
     switch v := value.(type) {
     case uintptr:
-        return v
+        return v, true
     case int:
-        return uintptr(v)
+        return uintptr(v), true
     case int8:
-        return uintptr(v)
+        return uintptr(v), true
     case int16:
-        return uintptr(v)
+        return uintptr(v), true
     case int32:
-        return uintptr(v)
+        return uintptr(v), true
     case int64:
-        return uintptr(v)
+        return uintptr(v), true
     case uint:
-        return uintptr(v)
+        return uintptr(v), true
     case uint8:
-        return uintptr(v)
+        return uintptr(v), true
     case uint16:
-        return uintptr(v)
+        return uintptr(v), true
     case uint32:
-        return uintptr(v)
+        return uintptr(v), true
     case uint64:
-        return uintptr(v)
+        return uintptr(v), true
     case float32:
-        return uintptr(v)
+        return uintptr(v), true
     case float64:
-        return uintptr(v)
+        return uintptr(v), true
     default:
-        panic(fmt.Sprintf("ToUintptr: unsupport %T", value))
+        var zero uintptr
+        return zero, false
     }
 }
 
 func ToFloat32(value any) float32 {
+    if val, ok := TryToFloat32(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToFloat32: unsupport %T", value))
+}
+
+func TryToFloat32(value any) (float32, bool) {
     switch v := value.(type) {
     case float32:
-        return v
+        return v, true
     case int:
-        return float32(v)
+        return float32(v), true
     case int8:
-        return float32(v)
+        return float32(v), true
     case int16:
-        return float32(v)
+        return float32(v), true
     case int32:
-        return float32(v)
+        return float32(v), true
     case int64:
-        return float32(v)
+        return float32(v), true
     case uint:
-        return float32(v)
+        return float32(v), true
     case uint8:
-        return float32(v)
+        return float32(v), true
     case uint16:
-        return float32(v)
+        return float32(v), true
     case uint32:
-        return float32(v)
+        return float32(v), true
     case uint64:
-        return float32(v)
+        return float32(v), true
     case uintptr:
-        return float32(v)
+        return float32(v), true
     case float64:
-        return float32(v)
+        return float32(v), true
     default:
-        panic(fmt.Sprintf("ToFloat32: unsupport %T", value))
+        var zero float32
+        return zero, false
     }
 }
 
 func ToFloat64(value any) float64 {
+    if val, ok := TryToFloat64(value); ok {
+        return val
+    }
+   panic(fmt.Sprintf("ToFloat64: unsupport %T", value))
+}
+
+func TryToFloat64(value any) (float64, bool) {
     switch v := value.(type) {
     case float64:
-        return v
+        return v, true
     case int:
-        return float64(v)
+        return float64(v), true
     case int8:
-        return float64(v)
+        return float64(v), true
     case int16:
-        return float64(v)
+        return float64(v), true
     case int32:
-        return float64(v)
+        return float64(v), true
     case int64:
-        return float64(v)
+        return float64(v), true
     case uint:
-        return float64(v)
+        return float64(v), true
     case uint8:
-        return float64(v)
+        return float64(v), true
     case uint16:
-        return float64(v)
+        return float64(v), true
     case uint32:
-        return float64(v)
+        return float64(v), true
     case uint64:
-        return float64(v)
+        return float64(v), true
     case uintptr:
-        return float64(v)
+        return float64(v), true
     case float32:
-        return float64(v)
+        return float64(v), true
     default:
-        panic(fmt.Sprintf("ToFloat64: unsupport %T", value))
+        var zero float64
+        return zero, false
     }
 }
 

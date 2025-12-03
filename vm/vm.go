@@ -1,11 +1,11 @@
 package vm
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math"
 	"reflect"
+	"runtime/debug"
 	"slices"
 	"strings"
 
@@ -27,6 +27,7 @@ type Interpreter struct {
 	Operands []any
 	Globals  []any
 	Env      any
+	Result   any
 }
 
 func NewInterpreter(code *Code, env any, conf *conf.RunConf) *Interpreter {
@@ -82,10 +83,11 @@ func (i *Interpreter) Run() (err error) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
+			stackTrace := debug.Stack()
 			var errWriter strings.Builder
 			_, _ = fmt.Fprintf(&errWriter, "panic: %v\n", r)
 			i.PrintStack(&errWriter)
-			err = errors.New(errWriter.String())
+			err = &consts.CrashError{VmStack: stackTrace, CodeTrace: errWriter.String()}
 		}
 	}()
 	i.cpu()
@@ -164,8 +166,9 @@ func (i *Interpreter) cpu() {
 			}
 			i.IP, i.CurCode = 0, fs.Code
 		case consts.InstrReturn:
-			if i.FP < 0 {
+			if i.FP == 0 {
 				// main return
+				i.Result = i.PopOpStack()
 				return
 			}
 			curFs := i.Calls[i.FP]
