@@ -3,6 +3,7 @@ package consts
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,6 +132,20 @@ var Predefine = map[string]*DefineFunc{
 		NumOut: 2,
 		Fast:   true,
 		Fn:     ParseDuration,
+	},
+	"atoi": {
+		Name:   "atoi",
+		NumIn:  1,
+		NumOut: 2,
+		Fast:   true,
+		Fn:     Atoi,
+	},
+	"itoa": {
+		Name:   "itoa",
+		NumIn:  1,
+		NumOut: 1,
+		Fast:   true,
+		Fn:     Itoa,
 	},
 	"duration": {
 		Name:   "duration",
@@ -455,6 +470,22 @@ func ParseDuration(args []any) []any {
 	default:
 		panic(fmt.Sprintf("parseDuration: not support type %T", obj))
 	}
+}
+
+func Atoi(args []any) []any {
+	obj := args[0]
+	switch obj := obj.(type) {
+	case string:
+		d, err := strconv.Atoi(obj)
+		return []any{int64(d), err}
+	default:
+		panic(fmt.Sprintf("atoi: not support type %T", obj))
+	}
+}
+
+func Itoa(args []any) []any {
+	d := strconv.FormatInt(ToInt64(args[0]), 10)
+	return []any{d}
 }
 
 func Duration(args []any) []any {
