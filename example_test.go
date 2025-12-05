@@ -13,6 +13,7 @@ type MyEnv struct {
 	Embed
 	A           string
 	B           *string
+	Arr         [3]int
 	Map         map[any]any
 	Slice       []any
 	StringSlice []string
@@ -20,6 +21,7 @@ type MyEnv struct {
 	Fn          any
 	StringAlias StringAlias
 	Itf         Itf
+	MyEnv       *MyEnv
 }
 
 type StringAlias string
@@ -135,12 +137,19 @@ $.D = "chenglong"
 $.C = 5.2
 println($.D)
 println($.C)
+println($.MyEnv.A)
+*$.MyEnv.B = "chenglong"
+println(*$.MyEnv.B)
 `,
 			expect: `
 chenglong
 5
+chenglong
+chenglong
 `,
-			env: &MyEnv{},
+			env: &MyEnv{MyEnv: &MyEnv{
+				A: "chenglong",
+			}},
 		},
 		{
 			name: "factorials.gs",
@@ -580,6 +589,24 @@ println(*$.B)
 				B: nil,
 			},
 			expect: `chenglong`,
+		},
+		{
+			name: "env_slice.gs",
+			program: `
+println($.Arr[0])
+println($.Arr[1])
+println($.Arr[2])
+println($.Arr[:2][0])
+		`,
+			env: &MyEnv{
+				Arr: [3]int{1, 2, 3},
+			},
+			expect: `
+1
+2
+3
+1
+`,
 		},
 		{
 			name: "map.gs",

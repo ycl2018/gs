@@ -610,7 +610,7 @@ func (i *Interpreter) dumpDataMemory() {
 		if a != nil {
 			fmt.Printf("%04d: %v %s\n", j, a, reflect.TypeOf(a).Name())
 		} else {
-			fmt.Printf("%04d: null \n", j)
+			fmt.Printf("%04d: nil \n", j)
 		}
 	}
 	fmt.Println()
@@ -656,16 +656,21 @@ func assertValidObj(obj any) reflect.Value {
 
 func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 	rv := assertValidObj(obj)
+	if rv.Kind() == reflect.Array && !rv.CanAddr() {
+		newValue := reflect.New(rv.Type()).Elem()
+		newValue.Set(rv)
+		rv = newValue
+	}
 	switch rv.Kind() {
-	case reflect.Slice, reflect.Array:
-		start, end := ToInt(start), ToInt(end)
-		if start == -1 {
-			start = 0
+	case reflect.Slice, reflect.Array, reflect.String:
+		l, r := ToInt(start), ToInt(end)
+		if l == -1 {
+			l = 0
 		}
-		if end == -1 {
-			end = rv.Len()
+		if r == -1 {
+			r = rv.Len()
 		}
-		return rv.Slice(start, end).Interface()
+		return rv.Slice(l, r).Interface()
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice split", obj))
 	}
@@ -693,7 +698,6 @@ func (i *Interpreter) FieldLoad(field string) any {
 		return structSpace.Fields[field]
 	}
 	validObj := assertValidObj(obj)
-
 	switch validObj.Kind() {
 	case reflect.Struct:
 		// reflect
@@ -703,13 +707,20 @@ func (i *Interpreter) FieldLoad(field string) any {
 				return validObj.FieldByIndex(indexes).Interface()
 			}
 			if fieldStruct, ok := vt.FieldByName(field); ok {
+				if !fieldStruct.IsExported() {
+					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
+				}
 				i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
 				return validObj.FieldByIndex(fieldStruct.Index).Interface()
 			}
 		} else {
 			fieldByName := validObj.FieldByName(field)
 			if fieldByName.IsValid() {
-				return fieldByName.Interface()
+				if fieldByName.CanInterface() {
+					return fieldByName.Interface()
+				} else {
+					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
+				}
 			}
 		}
 		panic(fmt.Sprintf("no such field '%s' by type:%T", field, obj))
@@ -840,7 +851,7 @@ func FieldByIndex(obj any, fields []*reflect.StructField) any {
 	}
 	value, err := rv.FieldByIndexErr(index)
 	if err != nil {
-		panic("null pointer")
+		panic("nil pointer")
 	}
 	return value.Interface()
 }
@@ -854,7 +865,7 @@ func (i *Interpreter) RSetField(fields []*reflect.StructField) {
 	}
 	fieldObj, err := obj.FieldByIndexErr(index)
 	if err != nil {
-		panic("null pointer")
+		panic("nil pointer")
 	}
 	lastFiled := fields[len(fields)-1]
 	SetField(fieldObj, lastFiled.Type, value)

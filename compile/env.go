@@ -54,7 +54,10 @@ func (e *Env) IndexField(field string, from reflect.Type) (*reflect.StructField,
 		return nil, fmt.Errorf("invalid type %s", from.String())
 	}
 	f, ok := from.FieldByName(field)
-	if ok && f.IsExported() {
+	if ok {
+		if !f.IsExported() {
+			return nil, fmt.Errorf("field %s is not exported for type %s", field, from)
+		}
 		if cache, ok := e.Cache[from]; ok {
 			cache[field] = &f
 		} else {
@@ -62,7 +65,7 @@ func (e *Env) IndexField(field string, from reflect.Type) (*reflect.StructField,
 		}
 		return &f, nil
 	}
-	return nil, fmt.Errorf("field %s not found", field)
+	return nil, fmt.Errorf("field %s not found for type %s", field, from)
 }
 
 func (e *Env) IndexMethod(method string, from reflect.Type) (*reflect.Method, error) {
@@ -85,7 +88,10 @@ func (e *Env) IndexMethod(method string, from reflect.Type) (*reflect.Method, er
 		return &f, nil
 	}
 	f, ok = reflect.PointerTo(from).MethodByName(method)
-	if ok && f.IsExported() {
+	if ok {
+		if !f.IsExported() {
+			return nil, fmt.Errorf("method %s is not exported for type %s", method, from)
+		}
 		if cache, ok := e.MethodCache[from]; ok {
 			cache[method] = &f
 		} else {
@@ -132,6 +138,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			if i > len(accessors)-1 {
 				return
 			}
+			indexId.WriteString(".")
 		}
 		switch a := accessors[i].(type) {
 		case *gen.PropertyAccessContext:
@@ -160,29 +167,33 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
+			case *gen.SliceExprContext:
+				if !canSliceSplit(curType) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
+				indexId.WriteString("[" + t.GetText() + "]")
+				t.Accept(s)
 			case *gen.ExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
-			case *gen.SliceExprContext:
-				indexId.WriteString("[" + t.GetText() + "]")
-				t.Accept(s)
-			}
-			switch curType.Kind() {
-			case reflect.Map:
-				s.Write(consts.InstrRMapIndex, a.GetStart())
-				curType = curType.Elem()
-			case reflect.Array, reflect.Slice, reflect.String:
-				s.Write(consts.InstrIndexLoad, a.GetStart())
-				curType = curType.Elem()
-			case reflect.Interface:
-				if curType.NumMethod() > 0 {
-					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+				switch curType.Kind() {
+				case reflect.Map:
+					s.Write(consts.InstrRMapIndex, a.GetStart())
+					curType = curType.Elem()
+				case reflect.Array, reflect.Slice, reflect.String:
+					s.Write(consts.InstrIndexLoad, a.GetStart())
+					curType = curType.Elem()
+				case reflect.Interface:
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
+					s.Write(consts.InstrIndexLoad, a.GetStart())
+				default:
+					s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 					return
 				}
-				s.Write(consts.InstrIndexLoad, a.GetStart())
-			default:
-				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-				return
 			}
 		}
 	}
@@ -230,6 +241,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			if i > len(accessors)-1 {
 				return
 			}
+			indexId.WriteString(".")
 		}
 		switch a := accessors[i].(type) {
 		case *gen.PropertyAccessContext:
@@ -267,42 +279,46 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			case *gen.ExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
+				switch curType.Kind() {
+				case reflect.Map:
+					if i == len(accessors)-1 {
+						s.Write(consts.InstrRSetMapIndex, a.GetStart())
+					} else {
+						s.Write(consts.InstrRMapIndex, a.GetStart())
+						curType = curType.Elem()
+					}
+				case reflect.Array, reflect.Slice, reflect.String:
+					curType = curType.Elem()
+					if i == len(accessors)-1 {
+						s.Write(consts.InstrRIndexStore, a.GetStart())
+					} else {
+						s.Write(consts.InstrRIndex, a.GetStart())
+					}
+				case reflect.Interface:
+					if i == len(accessors)-1 {
+						s.Write(consts.InstrIndexStore, a.GetStart())
+					} else {
+						if curType.NumMethod() > 0 {
+							s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+							return
+						}
+						s.Write(consts.InstrIndexLoad, a.GetStart())
+					}
+				default:
+					s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 			case *gen.SliceExprContext:
+				if !canSliceSplit(curType) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 				indexId.WriteString("[" + t.GetText() + "]")
 				if i == len(accessors)-1 {
 					s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to slice split")
 					return
 				}
 				t.Accept(s)
-			}
-			switch curType.Kind() {
-			case reflect.Map:
-				if i == len(accessors)-1 {
-					s.Write(consts.InstrRSetMapIndex, a.GetStart())
-				} else {
-					s.Write(consts.InstrRMapIndex, a.GetStart())
-					curType = curType.Elem()
-				}
-			case reflect.Array, reflect.Slice, reflect.String:
-				curType = curType.Elem()
-				if i == len(accessors)-1 {
-					s.Write(consts.InstrRIndexStore, a.GetStart())
-				} else {
-					s.Write(consts.InstrRIndex, a.GetStart())
-				}
-			case reflect.Interface:
-				if i == len(accessors)-1 {
-					s.Write(consts.InstrIndexStore, a.GetStart())
-				} else {
-					if curType.NumMethod() > 0 {
-						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-						return
-					}
-					s.Write(consts.InstrIndexLoad, a.GetStart())
-				}
-			default:
-				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-				return
 			}
 		}
 	}
@@ -344,6 +360,7 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			if i > len(accessors)-1 {
 				return
 			}
+			indexId.WriteString(".")
 		}
 		switch a := accessors[i].(type) {
 		case *gen.PropertyAccessContext:
@@ -401,30 +418,34 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			case *gen.ExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
+				switch curType.Kind() {
+				case reflect.Map:
+					s.Write(consts.InstrRMapIndex, a.GetStart())
+					curType = curType.Elem()
+				case reflect.Array, reflect.Slice, reflect.String:
+					s.Write(consts.InstrRIndex, a.GetStart())
+					curType = curType.Elem()
+				case reflect.Interface:
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
+					s.Write(consts.InstrIndexLoad, a.GetStart())
+				default:
+					s.Log.ErrorToken(ctx.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 			case *gen.SliceExprContext:
+				if !canSliceSplit(curType) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
 				indexId.WriteString("[" + t.GetText() + "]")
 				if i == len(accessors)-1 {
 					s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to slice split")
 					return
 				}
 				t.Accept(s)
-			}
-			switch curType.Kind() {
-			case reflect.Map:
-				s.Write(consts.InstrRMapIndex, a.GetStart())
-				curType = curType.Elem()
-			case reflect.Array, reflect.Slice, reflect.String:
-				curType = curType.Elem()
-				s.Write(consts.InstrRIndex, a.GetStart())
-			case reflect.Interface:
-				if curType.NumMethod() > 0 {
-					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-					return
-				}
-				s.Write(consts.InstrIndexLoad, a.GetStart())
-			default:
-				s.Log.ErrorToken(ctx.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-				return
 			}
 		}
 	}
@@ -435,4 +456,8 @@ func dePointer(curType reflect.Type) reflect.Type {
 		curType = curType.Elem()
 	}
 	return curType
+}
+
+func canSliceSplit(curType reflect.Type) bool {
+	return curType.Kind() == reflect.Slice || curType.Kind() == reflect.Array || curType.Kind() == reflect.String || (curType.Kind() == reflect.Interface && curType.NumMethod() == 0)
 }

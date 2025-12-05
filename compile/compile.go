@@ -858,6 +858,7 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 }
 
 func (s *StackCompileVisitor) VisitDerefAtom(ctx *gen.DerefAtomContext) interface{} {
+	// derefAtom : '*' lvalue ;
 	ctx.Lvalue().Accept(s)
 	s.Write(consts.InstrDeref, ctx.GetStart())
 	return nil
@@ -865,6 +866,7 @@ func (s *StackCompileVisitor) VisitDerefAtom(ctx *gen.DerefAtomContext) interfac
 
 func (s *StackCompileVisitor) VisitLvalue(ctx *gen.LvalueContext) interface{} {
 	// if start by */&
+	s.VisitChildren(ctx)
 	if v, ok := ctx.GetChild(0).(antlr.TerminalNode); ok {
 		switch v.GetText() {
 		case "*":
