@@ -11,6 +11,7 @@ import (
 
 	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
+	"github.com/ycl2018/gs/gen"
 )
 
 const DefaultOperandStackSize = 64
@@ -126,7 +127,7 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(i.PopOpStack().(bool) && i.PopOpStack().(bool))
 		case consts.InstrPow:
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			i.PushOpStack(math.Pow(ToFloat64(op1), ToFloat64(op2)))
+			i.PushOpStack(math.Pow(gen.ToFloat64(op1), gen.ToFloat64(op2)))
 		case consts.InstrNeg:
 			i.PushOpStack(neg(i.PopOpStack()))
 		case consts.InstrTrue:
@@ -619,7 +620,7 @@ func (i *Interpreter) dumpDataMemory() {
 func (i *Interpreter) Index(obj any, index any) any {
 	switch obj := obj.(type) {
 	case []any:
-		return obj[ToInt(index)]
+		return obj[gen.ToInt(index)]
 	case map[any]any:
 		return obj[index]
 	case map[string]any:
@@ -628,7 +629,7 @@ func (i *Interpreter) Index(obj any, index any) any {
 		rv := assertValidObj(obj)
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
-			return rv.Index(ToInt(index)).Interface()
+			return rv.Index(gen.ToInt(index)).Interface()
 		case reflect.Map:
 			return rv.MapIndex(reflect.ValueOf(index)).Interface()
 		default:
@@ -663,7 +664,7 @@ func (i *Interpreter) SplitSlice(obj any, start any, end any) any {
 	}
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.String:
-		l, r := ToInt(start), ToInt(end)
+		l, r := gen.ToInt(start), gen.ToInt(end)
 		if l == -1 {
 			l = 0
 		}
@@ -753,21 +754,21 @@ func (i *Interpreter) IndexStore(index, obj, val any) {
 		obj[index] = val
 		return
 	case []any:
-		obj[ToInt(index)] = val
+		obj[gen.ToInt(index)] = val
 		return
 	case []string:
-		obj[ToInt(index)] = val.(string)
+		obj[gen.ToInt(index)] = val.(string)
 	case []int:
-		obj[ToInt(index)] = ToInt(val)
+		obj[gen.ToInt(index)] = gen.ToInt(val)
 	case []int64:
-		obj[ToInt(index)] = ToInt64(val)
+		obj[gen.ToInt(index)] = gen.ToInt64(val)
 	case map[string]any:
 		obj[index.(string)] = val
 		return
 	case map[string]bool:
 		obj[index.(string)] = val.(bool)
 	case map[string]int:
-		obj[index.(string)] = ToInt(val)
+		obj[index.(string)] = gen.ToInt(val)
 	case map[string]string:
 		obj[index.(string)] = val.(string)
 	case map[int]any:
@@ -785,7 +786,7 @@ func (i *Interpreter) IndexStore(index, obj, val any) {
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
 		//rv.Index(ToInt(index)).Set(reflect.ValueOf(val))
-		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), val)
+		SetField(rv.Index(gen.ToInt(index)), rv.Type().Elem(), val)
 	case reflect.Map:
 		rv.SetMapIndex(reflect.ValueOf(index), reflect.ValueOf(val))
 	default:
@@ -875,31 +876,31 @@ func (i *Interpreter) RSetField(fields []*reflect.StructField) {
 func SetField(fieldObj reflect.Value, fieldType reflect.Type, value any) {
 	switch fieldType.Kind() {
 	case reflect.Int:
-		fieldObj.Set(reflect.ValueOf(ToInt(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToInt(value)))
 	case reflect.Int8:
-		fieldObj.Set(reflect.ValueOf(ToInt8(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToInt8(value)))
 	case reflect.Int16:
-		fieldObj.Set(reflect.ValueOf(ToInt16(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToInt16(value)))
 	case reflect.Int32:
-		fieldObj.Set(reflect.ValueOf(ToInt32(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToInt32(value)))
 	case reflect.Int64:
-		fieldObj.Set(reflect.ValueOf(ToInt64(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToInt64(value)))
 	case reflect.Uint:
-		fieldObj.Set(reflect.ValueOf(ToUint(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUint(value)))
 	case reflect.Uint8:
-		fieldObj.Set(reflect.ValueOf(ToUint8(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUint8(value)))
 	case reflect.Uint16:
-		fieldObj.Set(reflect.ValueOf(ToUint16(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUint16(value)))
 	case reflect.Uint32:
-		fieldObj.Set(reflect.ValueOf(ToUint32(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUint32(value)))
 	case reflect.Uint64:
-		fieldObj.Set(reflect.ValueOf(ToUint64(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUint64(value)))
 	case reflect.Uintptr:
-		fieldObj.Set(reflect.ValueOf(ToUintptr(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToUintptr(value)))
 	case reflect.Float32:
-		fieldObj.Set(reflect.ValueOf(ToFloat32(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToFloat32(value)))
 	case reflect.Float64:
-		fieldObj.Set(reflect.ValueOf(ToFloat64(value)))
+		fieldObj.Set(reflect.ValueOf(gen.ToFloat64(value)))
 	default:
 		// 对于其他类型，直接设置值
 		fieldObj.Set(reflect.ValueOf(value))
@@ -917,21 +918,21 @@ func MapIndex(key any, m any) any {
 	case map[string]string:
 		return m[key.(string)]
 	case map[int]bool:
-		return m[ToInt(key)]
+		return m[gen.ToInt(key)]
 	case map[int]string:
-		return m[ToInt(key)]
+		return m[gen.ToInt(key)]
 	case map[int]int:
-		return m[ToInt(key)]
+		return m[gen.ToInt(key)]
 	case map[int]any:
-		return m[ToInt(key)]
+		return m[gen.ToInt(key)]
 	case map[int64]bool:
-		return m[ToInt64(key)]
+		return m[gen.ToInt64(key)]
 	case map[int64]string:
-		return m[ToInt64(key)]
+		return m[gen.ToInt64(key)]
 	case map[int64]int64:
-		return m[ToInt64(key)]
+		return m[gen.ToInt64(key)]
 	case map[int64]any:
-		return m[ToInt64(key)]
+		return m[gen.ToInt64(key)]
 	}
 	rv := assertValidObj(m)
 	switch rv.Kind() {
@@ -945,26 +946,26 @@ func MapIndex(key any, m any) any {
 func RIndex(index any, slice any) any {
 	switch slice := slice.(type) {
 	case []any:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []string:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []int:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []int32:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []int64:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []float32:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []float64:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	case []bool:
-		return slice[ToInt(index)]
+		return slice[gen.ToInt(index)]
 	}
 	rv := assertValidObj(slice)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.String:
-		return rv.Index(ToInt(index)).Interface()
+		return rv.Index(gen.ToInt(index)).Interface()
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
 	}
@@ -973,26 +974,26 @@ func RIndex(index any, slice any) any {
 func RIndexStore(index any, slice any, value any) {
 	switch slice := slice.(type) {
 	case []any:
-		slice[ToInt(index)] = value
+		slice[gen.ToInt(index)] = value
 	case []string:
-		slice[ToInt(index)] = value.(string)
+		slice[gen.ToInt(index)] = value.(string)
 	case []int:
-		slice[ToInt(index)] = ToInt(value)
+		slice[gen.ToInt(index)] = gen.ToInt(value)
 	case []int32:
-		slice[ToInt(index)] = ToInt32(value)
+		slice[gen.ToInt(index)] = gen.ToInt32(value)
 	case []int64:
-		slice[ToInt(index)] = ToInt64(value)
+		slice[gen.ToInt(index)] = gen.ToInt64(value)
 	case []float32:
-		slice[ToInt(index)] = ToFloat32(value)
+		slice[gen.ToInt(index)] = gen.ToFloat32(value)
 	case []float64:
-		slice[ToInt(index)] = ToFloat64(value)
+		slice[gen.ToInt(index)] = gen.ToFloat64(value)
 	case []bool:
-		slice[ToInt(index)] = (value).(bool)
+		slice[gen.ToInt(index)] = (value).(bool)
 	}
 	rv := assertValidObj(slice)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
-		SetField(rv.Index(ToInt(index)), rv.Type().Elem(), value)
+		SetField(rv.Index(gen.ToInt(index)), rv.Type().Elem(), value)
 	default:
 		panic(fmt.Sprintf("unexpected type %T for slice index", slice))
 	}
@@ -1019,21 +1020,21 @@ func RSetMapIndex(k, m, val any) {
 	case map[string]string:
 		m[k.(string)] = val.(string)
 	case map[int]bool:
-		m[ToInt(k)] = val.(bool)
+		m[gen.ToInt(k)] = val.(bool)
 	case map[int]string:
-		m[ToInt(k)] = val.(string)
+		m[gen.ToInt(k)] = val.(string)
 	case map[int]int:
-		m[ToInt(k)] = ToInt(val)
+		m[gen.ToInt(k)] = gen.ToInt(val)
 	case map[int]any:
-		m[ToInt(k)] = val
+		m[gen.ToInt(k)] = val
 	case map[int64]bool:
-		m[ToInt64(val)] = val.(bool)
+		m[gen.ToInt64(val)] = val.(bool)
 	case map[int64]string:
-		m[ToInt64(val)] = val.(string)
+		m[gen.ToInt64(val)] = val.(string)
 	case map[int64]int64:
-		m[ToInt64(k)] = ToInt64(val)
+		m[gen.ToInt64(k)] = gen.ToInt64(val)
 	case map[int64]any:
-		m[ToInt64(k)] = val.(int64)
+		m[gen.ToInt64(k)] = val.(int64)
 	}
 	rv := assertValidObj(m)
 	switch rv.Kind() {

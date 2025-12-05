@@ -1057,7 +1057,7 @@ return 1,2
 		{
 			name: "in.gs",
 			program: `
-println(in([1,2,3], int($.Uint32))) // true
+println(in([1,2,3], $.Uint32)) // true
 `,
 			env:    &BasicValue{Uint32: 3},
 			expect: `true`,

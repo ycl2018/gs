@@ -8,6 +8,7 @@ import (
 	"time"
 
 	json "github.com/bytedance/sonic"
+	"github.com/ycl2018/gs/gen"
 )
 
 var Predefine = map[string]*DefineFunc{
@@ -183,43 +184,60 @@ func In(args []any) []any {
 	key := args[1]
 	switch obj := obj.(type) {
 	case map[string]struct{}:
-		if _, ok := obj[key.(string)]; ok {
-			return []any{true}
+		if v, ok := key.(string); !ok {
+			return []any{false}
+		} else {
+			if _, ok := obj[v]; ok {
+				return []any{true}
+			}
 		}
 		return []any{false}
 	case map[int]struct{}:
-		if _, ok := obj[key.(int)]; ok {
-			return []any{true}
+		if v, ok := gen.TryToInt(key); !ok {
+			return []any{false}
+		} else {
+			if _, ok := obj[v]; ok {
+				return []any{true}
+			}
+		}
+		return []any{false}
+	case map[float64]struct{}:
+		if v, ok := gen.TryToFloat64(key); !ok {
+			return []any{false}
+		} else {
+			if _, ok := obj[v]; ok {
+				return []any{true}
+			}
 		}
 		return []any{false}
 	case map[int64]struct{}:
-		if _, ok := obj[key.(int64)]; ok {
-			return []any{true}
+		if v, ok := gen.TryToInt64(key); !ok {
+			return []any{false}
+		} else {
+			if _, ok := obj[v]; ok {
+				return []any{true}
+			}
 		}
 		return []any{false}
 	case []int:
-		for _, v := range obj {
-			if v == key.(int) {
-				return []any{true}
+		if key, ok := gen.TryToInt(key); !ok {
+			return []any{false}
+		} else {
+			for _, v := range obj {
+				if v == key {
+					return []any{true}
+				}
 			}
 		}
 		return []any{false}
 	case []int64:
-		for _, v := range obj {
-			if v == key.(int64) {
-				return []any{true}
-			}
-		}
-		return []any{false}
-	case map[any]any:
-		if _, ok := obj[key]; ok {
-			return []any{true}
-		}
-		return []any{false}
-	case []any:
-		for _, v := range obj {
-			if v == key {
-				return []any{true}
+		if key, ok := gen.TryToInt64(key); !ok {
+			return []any{false}
+		} else {
+			for _, v := range obj {
+				if v == key {
+					return []any{true}
+				}
 			}
 		}
 		return []any{false}
@@ -236,7 +254,7 @@ func In(args []any) []any {
 	switch kind {
 	case reflect.Slice, reflect.Array, reflect.String:
 		for i := 0; i < rv.Len(); i++ {
-			if rv.Index(i).Interface() == key {
+			if ok, _ := gen.Eq(rv.Index(i).Interface(), key); ok {
 				return []any{true}
 			}
 		}

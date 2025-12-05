@@ -2,9 +2,11 @@ package compile
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
 )
@@ -16,17 +18,21 @@ type INode interface {
 var _ gen.GsVisitor = (*ConstOptimizer)(nil)
 
 // ConstOptimizer do optimize:
-//	1. fold const expr
-// 	2. fold array/dict literal to const
+//  1. fold const expr
+//  2. fold array/dict literal to const
 type ConstOptimizer struct {
 	gen.BaseGsVisitor
+	Conf          *conf.CompileConf
+	GlobalScope   *GlobalScope
 	FoldConstExpr bool
 	Log           InterpreterListener
 }
 
-func NewConstOptimizer(log InterpreterListener) *ConstOptimizer {
+func NewConstOptimizer(log InterpreterListener, conf *conf.CompileConf, scope *GlobalScope) *ConstOptimizer {
 	c := &ConstOptimizer{
-		Log: log,
+		Log:         log,
+		Conf:        conf,
+		GlobalScope: scope,
 	}
 	c.BaseGsVisitor = gen.BaseGsVisitor{ParseTreeVisitor: gen.NewBaseVisitor(c)}
 	return c
@@ -472,6 +478,15 @@ func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
 			if !added {
 				newChildren = append(newChildren, expr)
 			}
+		case *gen.ArrayAtomContext:
+			if al, ok := t.GetChild(0).(*gen.ArrayLiteralContext); ok && t.GetChildCount() == 1 {
+				if cn, ok2 := al.GetChild(0).(*consts.ConstNode); ok2 {
+					applied = true
+					newChildren = append(newChildren, cn)
+					break
+				}
+			}
+			newChildren = append(newChildren, t)
 		default:
 			newChildren = append(newChildren, t)
 		}
@@ -553,6 +568,98 @@ func (c *ConstOptimizer) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
 	}
 	if applied {
 		replaceChildren(ctx, newChildren)
+	}
+	return nil
+}
+
+func (c *ConstOptimizer) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
+	c.VisitChildren(ctx)
+	if c.Conf.DefineFuncs.GetFunc("in") != nil && ctx.ID().GetText() == "in" {
+		arg1 := ctx.Expr(0)
+		if arg1 == nil {
+			return nil
+		}
+		constNode, ok := toConstNode(arg1.(*gen.ExprContext))
+		if !ok {
+			return nil
+		}
+		if constNode.Kind == consts.ConstNodeKindList {
+			values := constNode.Value.(*consts.SliceLiteralConst).Value
+			if len(values) == 0 {
+				return nil
+			}
+			var typ reflect.Kind
+			sameType := func(t reflect.Kind) bool {
+				if typ == reflect.Invalid {
+					typ = t
+					return true
+				} else {
+					return typ == t
+				}
+			}
+			for _, v := range values {
+				var curKind reflect.Kind
+				switch v := v.(type) {
+				case string:
+					curKind = reflect.String
+				case int:
+					curKind = reflect.Int
+				case float64:
+					curKind = reflect.Float64
+				case bool:
+					curKind = reflect.Bool
+				default:
+					panic(fmt.Sprintf("unexpect type %T", v))
+				}
+				if !sameType(curKind) {
+					return nil
+				}
+			}
+			if typ == reflect.Invalid {
+				return nil
+			}
+			var constVal any
+			switch typ {
+			case reflect.String:
+				var constMap = make(map[string]struct{}, len(values))
+				for _, v := range values {
+					constMap[v.(string)] = struct{}{}
+				}
+				constVal = constMap
+			case reflect.Int:
+				var constMap = make(map[int]struct{}, len(values))
+				for _, v := range values {
+					constMap[v.(int)] = struct{}{}
+				}
+				constVal = constMap
+			case reflect.Float64:
+				var constMap = make(map[float64]struct{}, len(values))
+				for _, v := range values {
+					constMap[v.(float64)] = struct{}{}
+				}
+				constVal = constMap
+			case reflect.Bool:
+				var constMap = make(map[bool]struct{}, len(values))
+				for _, v := range values {
+					constMap[v.(bool)] = struct{}{}
+				}
+				constVal = constMap
+			default:
+				panic(fmt.Sprintf("unexpect type %s", typ))
+			}
+			// remove first expr
+			var replaced bool
+			var newChildren []antlr.Tree
+			for _, tree := range ctx.GetChildren() {
+				if _, ok := tree.(gen.IExprContext); ok && !replaced {
+					newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindAny, constVal, ctx.GetStart()))
+					replaced = true
+				} else {
+					newChildren = append(newChildren, tree)
+				}
+			}
+			replaceChildren(ctx, newChildren)
+		}
 	}
 	return nil
 }

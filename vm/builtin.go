@@ -3,6 +3,8 @@ package vm
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/ycl2018/gs/gen"
 )
 
 func length(x any) int {
@@ -50,33 +52,33 @@ func appendSlice(x any, values []any) any {
 	case []any:
 		return append(x, values...)
 	case []string:
-		return append(x, CopyToSliceByKind(values, reflect.String).([]string)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.String).([]string)...)
 	case []int:
-		return append(x, CopyToSliceByKind(values, reflect.Int).([]int)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Int).([]int)...)
 	case []int64:
-		return append(x, CopyToSliceByKind(values, reflect.Int64).([]int64)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Int64).([]int64)...)
 	case []int8:
-		return append(x, CopyToSliceByKind(values, reflect.Int8).([]int8)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Int8).([]int8)...)
 	case []int16:
-		return append(x, CopyToSliceByKind(values, reflect.Int16).([]int16)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Int16).([]int16)...)
 	case []int32:
-		return append(x, CopyToSliceByKind(values, reflect.Int32).([]int32)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Int32).([]int32)...)
 	case []uint:
-		return append(x, CopyToSliceByKind(values, reflect.Uint).([]uint)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uint).([]uint)...)
 	case []uint8:
-		return append(x, CopyToSliceByKind(values, reflect.Uint8).([]uint8)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uint8).([]uint8)...)
 	case []uint16:
-		return append(x, CopyToSliceByKind(values, reflect.Uint16).([]uint16)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uint16).([]uint16)...)
 	case []uint32:
-		return append(x, CopyToSliceByKind(values, reflect.Uint32).([]uint32)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uint32).([]uint32)...)
 	case []uint64:
-		return append(x, CopyToSliceByKind(values, reflect.Uint64).([]uint64)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uint64).([]uint64)...)
 	case []float32:
-		return append(x, CopyToSliceByKind(values, reflect.Float32).([]float32)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Float32).([]float32)...)
 	case []float64:
-		return append(x, CopyToSliceByKind(values, reflect.Float64).([]float64)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Float64).([]float64)...)
 	case []uintptr:
-		return append(x, CopyToSliceByKind(values, reflect.Uintptr).([]uintptr)...)
+		return append(x, gen.CopyToSliceByKind(values, reflect.Uintptr).([]uintptr)...)
 	default:
 		xv := reflect.ValueOf(x)
 		return reflect.AppendSlice(xv, reflect.ValueOf(values)).Interface()
@@ -90,33 +92,33 @@ func appendSliceExpand(x any, expandSlice any) any {
 		case []any:
 			return append(x, expandSlice...)
 		case []string:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.String).([]string)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.String).([]string)...)
 		case []int:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Int).([]int)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Int).([]int)...)
 		case []int8:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Int8).([]int8)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Int8).([]int8)...)
 		case []int16:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Int16).([]int16)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Int16).([]int16)...)
 		case []int32:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Int32).([]int32)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Int32).([]int32)...)
 		case []int64:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Int64).([]int64)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Int64).([]int64)...)
 		case []uint8:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint8).([]uint8)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uint8).([]uint8)...)
 		case []uint:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint).([]uint)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uint).([]uint)...)
 		case []uint16:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint16).([]uint16)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uint16).([]uint16)...)
 		case []uint32:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint32).([]uint32)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uint32).([]uint32)...)
 		case []uint64:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uint64).([]uint64)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uint64).([]uint64)...)
 		case []float32:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Float32).([]float32)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Float32).([]float32)...)
 		case []float64:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Float64).([]float64)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Float64).([]float64)...)
 		case []uintptr:
-			return append(x, CopyToSliceByKind(expandSlice, reflect.Uintptr).([]uintptr)...)
+			return append(x, gen.CopyToSliceByKind(expandSlice, reflect.Uintptr).([]uintptr)...)
 		}
 	}
 	// expandSlice is not from env
@@ -232,28 +234,28 @@ func deleteMap(m, k any) {
 		delete(m, k.(string))
 		return
 	case map[int]string:
-		delete(m, ToInt(k))
+		delete(m, gen.ToInt(k))
 		return
 	case map[int]any:
-		delete(m, ToInt(k))
+		delete(m, gen.ToInt(k))
 		return
 	case map[int]bool:
-		delete(m, ToInt(k))
+		delete(m, gen.ToInt(k))
 		return
 	case map[int]int:
-		delete(m, ToInt(k))
+		delete(m, gen.ToInt(k))
 		return
 	case map[int64]string:
-		delete(m, ToInt64(k))
+		delete(m, gen.ToInt64(k))
 		return
 	case map[int64]any:
-		delete(m, ToInt64(k))
+		delete(m, gen.ToInt64(k))
 		return
 	case map[int64]int64:
-		delete(m, ToInt64(k))
+		delete(m, gen.ToInt64(k))
 		return
 	case map[int64]bool:
-		delete(m, ToInt64(k))
+		delete(m, gen.ToInt64(k))
 		return
 	default:
 	}
@@ -265,31 +267,31 @@ func deleteMap(m, k any) {
 	case int: // int may be vm value, map
 		switch kt := rm.Type().Key().Kind(); kt {
 		case reflect.Int:
-			k = ToInt(k)
+			k = gen.ToInt(k)
 		case reflect.Int8:
-			k = ToInt8(k)
+			k = gen.ToInt8(k)
 		case reflect.Int16:
-			k = ToInt16(k)
+			k = gen.ToInt16(k)
 		case reflect.Int32:
-			k = ToInt32(k)
+			k = gen.ToInt32(k)
 		case reflect.Int64:
-			k = ToInt64(k)
+			k = gen.ToInt64(k)
 		case reflect.Uint:
-			k = ToUint(k)
+			k = gen.ToUint(k)
 		case reflect.Uint8:
-			k = ToUint8(k)
+			k = gen.ToUint8(k)
 		case reflect.Uint16:
-			k = ToUint16(k)
+			k = gen.ToUint16(k)
 		case reflect.Uint32:
-			k = ToUint32(k)
+			k = gen.ToUint32(k)
 		case reflect.Uint64:
-			k = ToUint64(k)
+			k = gen.ToUint64(k)
 		case reflect.Uintptr:
-			k = ToUintptr(k)
+			k = gen.ToUintptr(k)
 		case reflect.Float64:
-			k = ToFloat64(k)
+			k = gen.ToFloat64(k)
 		case reflect.Float32:
-			k = ToFloat32(k)
+			k = gen.ToFloat32(k)
 		}
 	}
 	rm.SetMapIndex(reflect.ValueOf(k), reflect.Value{})
@@ -322,51 +324,51 @@ var mapKindToType = map[reflect.Kind]reflect.Type{
 func convert(v any, kind reflect.Kind) any {
 	switch kind {
 	case reflect.Int:
-		if val, ok := TryToInt(v); ok {
+		if val, ok := gen.TryToInt(v); ok {
 			return val
 		}
 	case reflect.Int8:
-		if val, ok := TryToInt8(v); ok {
+		if val, ok := gen.TryToInt8(v); ok {
 			return val
 		}
 	case reflect.Int16:
-		if val, ok := TryToInt16(v); ok {
+		if val, ok := gen.TryToInt16(v); ok {
 			return val
 		}
 	case reflect.Int32:
-		if val, ok := TryToInt32(v); ok {
+		if val, ok := gen.TryToInt32(v); ok {
 			return val
 		}
 	case reflect.Int64:
-		if val, ok := TryToInt64(v); ok {
+		if val, ok := gen.TryToInt64(v); ok {
 			return val
 		}
 	case reflect.Uint:
-		if val, ok := TryToUint(v); ok {
+		if val, ok := gen.TryToUint(v); ok {
 			return val
 		}
 	case reflect.Uint8:
-		if val, ok := TryToUint8(v); ok {
+		if val, ok := gen.TryToUint8(v); ok {
 			return val
 		}
 	case reflect.Uint16:
-		if val, ok := TryToUint16(v); ok {
+		if val, ok := gen.TryToUint16(v); ok {
 			return val
 		}
 	case reflect.Uint32:
-		if val, ok := TryToUint32(v); ok {
+		if val, ok := gen.TryToUint32(v); ok {
 			return val
 		}
 	case reflect.Uint64:
-		if val, ok := TryToUint64(v); ok {
+		if val, ok := gen.TryToUint64(v); ok {
 			return val
 		}
 	case reflect.Float32:
-		if val, ok := TryToFloat32(v); ok {
+		if val, ok := gen.TryToFloat32(v); ok {
 			return val
 		}
 	case reflect.Float64:
-		if val, ok := TryToFloat64(v); ok {
+		if val, ok := gen.TryToFloat64(v); ok {
 			return val
 		}
 	case reflect.String:

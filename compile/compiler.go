@@ -45,13 +45,15 @@ func (p *GsCompiler) Compile(input antlr.CharStream, conf *conf.CompileConf) (*v
 		return nil, errors.New(p.ErrWriter.String())
 	}
 	// 优化
-	optimize := NewConstOptimizer(log)
-	for i := 0; i < 100; i++ {
-		optimize.Visit(programContext)
-		if !optimize.FoldConstExpr {
-			break
-		} else {
-			optimize.FoldConstExpr = false
+	if conf.Optimize {
+		optimize := NewConstOptimizer(log, conf, defVisitor.GlobalScope)
+		for i := 0; i < 100; i++ {
+			optimize.Visit(programContext)
+			if !optimize.FoldConstExpr {
+				break
+			} else {
+				optimize.FoldConstExpr = false
+			}
 		}
 	}
 	if p.ErrWriter.String() != "" {

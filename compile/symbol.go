@@ -348,3 +348,13 @@ func defineStructConst(constName, name string, fields []string, scope *GlobalSco
 	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
 	return cSymbol
 }
+
+func defineAnyConst(name string, val any, scope *GlobalScope) Symbol {
+	constSymbol := &ConstSymbol{
+		Name:  fmt.Sprintf("%s::%s", consts2.ConstAny, name),
+		Kind:  consts2.ConstAny,
+		Value: val,
+	}
+	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
+	return cSymbol
+}

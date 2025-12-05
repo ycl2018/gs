@@ -64,6 +64,9 @@ func (s *StackCompileVisitor) VisitConstNode(v *consts.ConstNode) interface{} {
 		} else {
 			s.Write(consts.InstrFalse, v.GetStart())
 		}
+	case consts.ConstNodeKindAny:
+		constName := fmt.Sprintf("line@%d", v.GetStart().GetLine())
+		s.Write(consts.InstrConst, v.GetStart(), defineAnyConst(constName, v.Value, s.GlobalScope).GetAddress())
 	default:
 		panic(fmt.Sprintf("unknown constant type:%d", v.Kind))
 	}

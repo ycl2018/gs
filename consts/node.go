@@ -17,6 +17,7 @@ const (
 	ConstNodeKindMap
 	ConstNodeKindList
 	ConstNodeKindBool
+	ConstNodeKindAny
 )
 
 func ToBoolValue(c *ConstNode) bool {
@@ -73,6 +74,13 @@ type ConstNode struct {
 	Kind  ConstNodeKind
 	Value any
 	token antlr.Token
+}
+
+func (c *ConstNode) LogicalOrExpr() gen.ILogicalOrExprContext {
+	panic("not implemented")
+}
+
+func (c *ConstNode) IsExprContext() {
 }
 
 func (c *ConstNode) IsAtomContext() {
@@ -275,6 +283,8 @@ func (c *ConstNode) GetText() string {
 		}
 		sb.WriteString("]")
 		return sb.String()
+	case ConstNodeKindAny:
+		return fmt.Sprintf("%v", c.Value)
 	default:
 		return ""
 	}
