@@ -133,3 +133,23 @@ func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
 	}
 	return &Result{value: interpreter.Result}, nil
 }
+
+func Eval(program string, env any, ops ...any) (ret *Result, err error) {
+	var compileOps []CompileOption
+	var runOps []RunOption
+	for _, op := range ops {
+		switch op := op.(type) {
+		case CompileOption:
+			compileOps = append(compileOps, op)
+		case RunOption:
+			runOps = append(runOps, op)
+		default:
+			panic(fmt.Sprintf("EvalOption type %T is not CompileOption or RunOption", op))
+		}
+	}
+	code, err := Compile(program, compileOps...)
+	if err != nil {
+		return nil, err
+	}
+	return Run(code, env, runOps...)
+}

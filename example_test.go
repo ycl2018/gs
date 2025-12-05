@@ -1054,6 +1054,14 @@ return 1,2
 			ret:    consts.Tuple{Values: []any{1, 2}, Num: 2},
 			expect: ``,
 		},
+		{
+			name: "in.gs",
+			program: `
+println(in([1,2,3], int($.Uint32))) // true
+`,
+			env:    &BasicValue{Uint32: 3},
+			expect: `true`,
+		},
 	}
 
 	for _, tt := range tests {

@@ -2,6 +2,7 @@ package conf
 
 import (
 	"io"
+	"os"
 
 	"github.com/ycl2018/gs/consts"
 )
@@ -72,7 +73,7 @@ func Default() CompileConf {
 
 func DefaultRunConf() RunConf {
 	return RunConf{
-		Out:              io.Discard,
+		Out:              os.Stdout,
 		FieldIndexCache:  true,
 		MethodIndexCache: true,
 	}

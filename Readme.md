@@ -16,7 +16,7 @@ func fact(n) {
 }
 println(fact(10))
 `
-gs.Eval(program)
+gs.Eval(program, nil)
 ```
 
 循环
@@ -29,7 +29,7 @@ for i = range 10 {
 }
 println(arr) // [0 1 2 3 4 5 6 7 8 9]
 `
-gs.Eval(program)
+gs.Eval(program, nil)
 ```
 
 ### 集成go环境
@@ -221,6 +221,15 @@ gs 语言和 go 类型系统集成尽量遵循语言的最小惊讶原则，基�
 - 访问结构体用点`.`
 - 访问数组/Map 用方括号`[]`
 - 访问指针类型的成员：支持自动解引用，如 *someStruct.Field，可以直接写 someStruct.Field
+
+#### 基本类型自动转换
+
+go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 不能直接计算，为了简化，虚拟机中在部分场景中支持自动转换:
+
+- 所有基本类型的计算，比较
+- 给 go 基本类型赋值
+
+**除此之外，其他场景必须通过类型强转**
 
 #### 赋值go 值
 
