@@ -20,6 +20,7 @@ var _ gen.GsVisitor = (*ConstOptimizer)(nil)
 // ConstOptimizer do optimize:
 //  1. fold const expr
 //  2. fold array/dict literal to const
+//  3. in func: array -> map
 type ConstOptimizer struct {
 	gen.BaseGsVisitor
 	Conf          *conf.CompileConf

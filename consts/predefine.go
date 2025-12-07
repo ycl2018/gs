@@ -3,6 +3,7 @@ package consts
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,13 @@ var Predefine = map[string]*DefineFunc{
 		NumOut: 1,
 		Fast:   true,
 		Fn:     Index,
+	},
+	"sort": {
+		Name:   "sort",
+		NumIn:  1,
+		NumOut: 0,
+		Fast:   true,
+		Fn:     Sort,
 	},
 	// strings
 	"hasPrefix": {
@@ -182,6 +190,9 @@ var Predefine = map[string]*DefineFunc{
 func In(args []any) []any {
 	obj := args[0]
 	key := args[1]
+	if obj == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case map[string]struct{}:
 		if v, ok := key.(string); !ok {
@@ -260,6 +271,9 @@ func In(args []any) []any {
 		}
 		return []any{false}
 	case reflect.Map:
+		if key == nil {
+			key = reflect.Zero(rv.Type().Key())
+		}
 		if rv.MapIndex(reflect.ValueOf(key)).IsValid() {
 			return []any{true}
 		}
@@ -272,10 +286,14 @@ func In(args []any) []any {
 func Index(args []any) []any {
 	obj := args[0]
 	key := args[1]
+	if obj == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case []int:
+		key := gen.ToInt(key)
 		for i, v := range obj {
-			if v == key.(int) {
+			if v == key {
 				return []any{i}
 			}
 		}
@@ -290,15 +308,16 @@ func Index(args []any) []any {
 	case string:
 		return []any{strings.Index(obj, key.(string))}
 	case []int64:
+		key := gen.ToInt64(key)
 		for i, v := range obj {
-			if v == key.(int64) {
+			if v == key {
 				return []any{i}
 			}
 		}
 		return []any{-1}
 	case []any:
 		for i, v := range obj {
-			if v == key {
+			if ok, _ := gen.Eq(v, key); ok {
 				return []any{i}
 			}
 		}
@@ -309,7 +328,7 @@ func Index(args []any) []any {
 	switch kind {
 	case reflect.Slice, reflect.Array, reflect.String:
 		for i := 0; i < rv.Len(); i++ {
-			if rv.Index(i).Interface() == key {
+			if ok, _ := gen.Eq(rv.Index(i).Interface(), key); ok {
 				return []any{i}
 			}
 		}
@@ -319,9 +338,106 @@ func Index(args []any) []any {
 	}
 }
 
+// Sort support basic kind slice or []any of all basic kind values that can compare
+func Sort(args []any) []any {
+	s := args[0]
+	if s == nil {
+		return nil
+	}
+	switch s := s.(type) {
+	case []string:
+		slices.Sort(s)
+	case []int:
+		slices.Sort(s)
+	case []int8:
+		slices.Sort(s)
+	case []int16:
+		slices.Sort(s)
+	case []int32:
+		slices.Sort(s)
+	case []int64:
+		slices.Sort(s)
+	case []float32:
+		slices.Sort(s)
+	case []float64:
+		slices.Sort(s)
+	case []uint:
+		slices.Sort(s)
+	case []uint8:
+		slices.Sort(s)
+	case []uint16:
+		slices.Sort(s)
+	case []uint32:
+		slices.Sort(s)
+	case []uint64:
+		slices.Sort(s)
+	case []uintptr:
+		slices.Sort(s)
+	case []any:
+		slices.SortFunc(s, func(a, b any) int {
+			ok, err := gen.Lt(a, b)
+			if err != nil {
+				panic(fmt.Sprintf("sort: can't compare %T with %T ", a, b))
+			}
+			if ok {
+				return -1
+			}
+			return 1
+		})
+	default:
+		panic(fmt.Sprintf("sort: not support type %T,please use user define function to sort", s))
+	}
+	return nil
+}
+
+func AllBasicKind(input []any) bool {
+	// 处理空切片
+	if len(input) == 0 {
+		return false
+	}
+	// 检查所有元素是否与第一个元素的基础Kind一致
+	for _, elem := range input {
+		elemVal := reflect.ValueOf(elem)
+		_, ok := getBaseKind(elemVal.Kind())
+		if !ok {
+			return false
+		}
+	}
+	// 根据基础Kind转换切片
+	return true
+}
+
+var basicKinds = map[reflect.Kind]struct{}{
+	reflect.Bool:    {},
+	reflect.Int:     {},
+	reflect.Int8:    {},
+	reflect.Int16:   {},
+	reflect.Int32:   {},
+	reflect.Int64:   {},
+	reflect.Uint:    {},
+	reflect.Uint8:   {},
+	reflect.Uint16:  {},
+	reflect.Uint32:  {},
+	reflect.Uint64:  {},
+	reflect.Uintptr: {},
+	reflect.Float32: {},
+	reflect.Float64: {},
+	reflect.String:  {},
+}
+
+func getBaseKind(kind reflect.Kind) (reflect.Kind, bool) {
+	if _, ok := basicKinds[kind]; ok {
+		return kind, ok
+	}
+	return reflect.Invalid, false
+}
+
 func HasPrefix(args []any) []any {
 	obj := args[0]
 	key := args[1]
+	if obj == nil || key == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.HasPrefix(obj, key.(string))}
@@ -333,6 +449,9 @@ func HasPrefix(args []any) []any {
 func HasSuffix(args []any) []any {
 	obj := args[0]
 	key := args[1]
+	if obj == nil || key == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.HasSuffix(obj, key.(string))}
@@ -344,6 +463,9 @@ func HasSuffix(args []any) []any {
 func Trim(args []any) []any {
 	obj := args[0]
 	cutset := args[1]
+	if obj == nil || cutset == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.Trim(obj, cutset.(string))}
@@ -355,6 +477,9 @@ func Trim(args []any) []any {
 func TrimPrefix(args []any) []any {
 	obj := args[0]
 	cutset := args[1]
+	if obj == nil || cutset == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.TrimPrefix(obj, cutset.(string))}
@@ -366,6 +491,9 @@ func TrimPrefix(args []any) []any {
 func TrimSuffix(args []any) []any {
 	obj := args[0]
 	cutset := args[1]
+	if obj == nil || cutset == nil {
+		return []any{false}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.TrimSuffix(obj, cutset.(string))}
@@ -408,6 +536,9 @@ func TrimRight(args []any) []any {
 
 func toLower(args []any) []any {
 	obj := args[0]
+	if obj == nil {
+		return []any{""}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.ToLower(obj)}
@@ -417,6 +548,9 @@ func toLower(args []any) []any {
 }
 func toUpper(args []any) []any {
 	obj := args[0]
+	if obj == nil {
+		return []any{""}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.ToUpper(obj)}
@@ -428,6 +562,9 @@ func toUpper(args []any) []any {
 func Split(args []any) []any {
 	obj := args[0]
 	sep := args[1]
+	if obj == nil || sep == nil {
+		return []any{nil}
+	}
 	switch obj := obj.(type) {
 	case string:
 		return []any{strings.Split(obj, sep.(string))}
@@ -439,6 +576,9 @@ func Split(args []any) []any {
 func Join(args []any) []any {
 	obj := args[0]
 	sep := args[1]
+	if obj == nil || sep == nil {
+		return []any{nil}
+	}
 	switch obj := obj.(type) {
 	case []string:
 		return []any{strings.Join(obj, sep.(string))}
@@ -470,6 +610,9 @@ func Now(_ []any) []any {
 func ParseTime(args []any) []any {
 	layout := args[0]
 	value := args[1]
+	if layout == nil || value == nil {
+		return []any{nil, fmt.Errorf("parsetime err: invalid layout(%v) time(%v) ", layout, value)}
+	}
 	switch layout := layout.(type) {
 	case string:
 		t, err := time.Parse(layout, value.(string))
@@ -502,7 +645,7 @@ func Atoi(args []any) []any {
 }
 
 func Itoa(args []any) []any {
-	d := strconv.FormatInt(ToInt64(args[0]), 10)
+	d := strconv.FormatInt(gen.ToInt64(args[0]), 10)
 	return []any{d}
 }
 
@@ -512,40 +655,7 @@ func Duration(args []any) []any {
 	case time.Duration:
 		return []any{obj}
 	default:
-		return []any{time.Duration(ToInt64(obj))}
-	}
-}
-
-func ToInt64(value any) int64 {
-	switch v := value.(type) {
-	case int64:
-		return v
-	case int:
-		return int64(v)
-	case int8:
-		return int64(v)
-	case int16:
-		return int64(v)
-	case int32:
-		return int64(v)
-	case uint:
-		return int64(v)
-	case uint8:
-		return int64(v)
-	case uint16:
-		return int64(v)
-	case uint32:
-		return int64(v)
-	case uint64:
-		return int64(v)
-	case uintptr:
-		return int64(v)
-	case float32:
-		return int64(v)
-	case float64:
-		return int64(v)
-	default:
-		panic(fmt.Sprintf("ToInt64: unsupport %T", value))
+		return []any{time.Duration(gen.ToInt64(obj))}
 	}
 }
 

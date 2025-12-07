@@ -72,7 +72,7 @@ type BasicValue struct {
 	Bool        bool
 }
 
-func TestGsInterpreter_Interp(t *testing.T) {
+func TestGs(t *testing.T) {
 	tests := []struct {
 		name       string
 		program    string
@@ -1011,6 +1011,12 @@ println(duration(111)) 					// 111ns
 println(toJson($.StringSlice)) 			// (["hello","world"],<nil>)
 println(fromJson("{\"foo\":\"bar\"}")) 	// (map[foo:bar],<nil>)
 println(unmarshalJson("{\"foo\":\"bar\"}",$.Map)) // <nil>
+arr = [3,2,1]
+sort(arr)
+println(arr) 							// [1,2,3]
+arr = ["B","A","C"]
+sort(arr)
+println(arr) 							// [A B C]
 		`,
 			env: &MyEnv{
 				StringSlice: []string{"hello", "world"},
@@ -1044,6 +1050,8 @@ hello world
 (["hello","world"],<nil>)
 (map[foo:bar],<nil>)
 <nil>
+[1 2 3]
+[A B C]
 `,
 		},
 		{
