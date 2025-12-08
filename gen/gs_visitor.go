@@ -1,4 +1,4 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from /Users/bytedance/go/src/github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
@@ -143,17 +143,20 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#comparisonExpr.
 	VisitComparisonExpr(ctx *ComparisonExprContext) interface{}
 
-	// Visit a parse tree produced by GsParser#addExpr.
-	VisitAddExpr(ctx *AddExprContext) interface{}
-
 	// Visit a parse tree produced by GsParser#binExpr.
 	VisitBinExpr(ctx *BinExprContext) interface{}
+
+	// Visit a parse tree produced by GsParser#addExpr.
+	VisitAddExpr(ctx *AddExprContext) interface{}
 
 	// Visit a parse tree produced by GsParser#mulExpr.
 	VisitMulExpr(ctx *MulExprContext) interface{}
 
 	// Visit a parse tree produced by GsParser#negAtom.
 	VisitNegAtom(ctx *NegAtomContext) interface{}
+
+	// Visit a parse tree produced by GsParser#notAtom.
+	VisitNotAtom(ctx *NotAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#intAtom.
 	VisitIntAtom(ctx *IntAtomContext) interface{}
@@ -172,12 +175,6 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#nilAtom.
 	VisitNilAtom(ctx *NilAtomContext) interface{}
-
-	// Visit a parse tree produced by GsParser#notAtom.
-	VisitNotAtom(ctx *NotAtomContext) interface{}
-
-	// Visit a parse tree produced by GsParser#qidAtom.
-	VisitQidAtom(ctx *QidAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#builtinAtom.
 	VisitBuiltinAtom(ctx *BuiltinAtomContext) interface{}
@@ -199,6 +196,9 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#derefAtom.
 	VisitDerefAtom(ctx *DerefAtomContext) interface{}
+
+	// Visit a parse tree produced by GsParser#qidAtom.
+	VisitQidAtom(ctx *QidAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#lvalue.
 	VisitLvalue(ctx *LvalueContext) interface{}
@@ -229,6 +229,9 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#indexAccess.
 	VisitIndexAccess(ctx *IndexAccessContext) interface{}
+
+	// Visit a parse tree produced by GsParser#methodCallAccess.
+	VisitMethodCallAccess(ctx *MethodCallAccessContext) interface{}
 
 	// Visit a parse tree produced by GsParser#primary.
 	VisitPrimary(ctx *PrimaryContext) interface{}

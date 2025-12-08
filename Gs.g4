@@ -6,12 +6,12 @@ program
 
 // 结构体定义
 structDefinition
-    :   'type' ID 'struct' '{' ID (',' ID)* '}'
+    :   TYPE ID STRUCT '{' ID (',' ID)* '}'
     ;
 
 // 函数定义
 functionDefinition
-    :   'func' ID '(' (ID (',' ID)* )? ')'  block
+    :   FUNC ID '(' (ID (',' ID)* )? ')'  block
     ;
 
 // 代码块（适配隐藏换行符，用分号或换行分隔语句）
@@ -35,7 +35,7 @@ statement
     |   call                                            #callStmt
     |   BREAK                                           #breakStmt
     |   CONTINUE                                        #continueStmt
-    |   GLOBAL  ID                                      #globalStmt
+    |   GLOBAL ID (',' ID)*                             #globalStmt
     ;
 
 assign: lvalue (',' lvalue)* '=' expr (',' expr)*;
@@ -85,26 +85,23 @@ call
     ;
 // 表达式层级
 expr : logicalOrExpr ;
-
 logicalOrExpr : logicalAndExpr (OR logicalAndExpr)* ;
 logicalAndExpr : comparisonExpr (AND comparisonExpr)* ;
-comparisonExpr : addExpr (compOp addExpr)? ;
-
-addExpr : binExpr (addOp binExpr)* ;
-binExpr : mulExpr (bitOp mulExpr)* ;
+comparisonExpr : binExpr (compOp binExpr)? ;
+binExpr : addExpr (bitOp addExpr)* ;
+addExpr : mulExpr (addOp mulExpr)* ;
 mulExpr : atom (mulOp atom)* ;
 
 // 原子表达式
 atom
     :   SUB atom                #negAtom  // 负数字面量/表达式
+    |   NOT atom                #notAtom
     |   INT                     #intAtom
     |   FLOAT                   #floatAtom
     |   STRING                  #stringAtom
     |   TRUE                    #trueAtom
     |   FALSE                   #falseAtom
     |   NIL                     #nilAtom
-    |   NOT expr                #notAtom
-    |   qid                     #qidAtom
     |   builtinCall             #builtinAtom     // 内置函数调用表达式
     |   call                    #callAtom
     |   instance                #instanceAtom
@@ -112,6 +109,7 @@ atom
     |   dictLiteral             #dictAtom
     |   '(' expr ')'            #parenAtom
     |   '*' lvalue              #derefAtom
+    |   qid                     #qidAtom
     ;
 
 lvalue
@@ -128,11 +126,11 @@ sliceExpr : expr? COLON expr? ;
 dictLiteral : '{' (dictEntry (',' dictEntry)* ','?)? '}' ;
 dictEntry
     :   (STRING|INT|FLOAT|TRUE|FALSE) ':' expr         #constKeyEntry
-    |   lvalue ':' expr             #idKeyEntry  // 支持qid作为键
+    |   lvalue ':' expr                                #idKeyEntry  // 支持qid作为键
     ;
 
 // 结构体实例化（支持末尾逗号）
-instance : 'new' ID '{' (ID ':' expr (',' ID ':' expr)* ','?)? '}' ;
+instance : NEW ID '{' (ID ':' expr (',' ID ':' expr)* ','?)? '}' ;
 
 // 限定标识符
 qid : primary accessor* ;
@@ -140,6 +138,7 @@ qid : primary accessor* ;
 accessor
     :   DOT ID                            #propertyAccess
     |   LBRACK (expr | sliceExpr) ']'     #indexAccess
+    |   '(' (expr (',' expr)* ','?)? ')'  #methodCallAccess
     ;
 
 primary : ID | ENV ;
@@ -147,7 +146,7 @@ primary : ID | ENV ;
 // 运算符集合
 compOp  : EQ | LT | GT | NEQ | GEQ | LEQ ;
 addOp   : ADD | SUB ;
-bitOp   : BITAND | BITOR | XOR ;
+bitOp   : BITAND | BITOR | XOR | LSHIFT | RSHIFT ;
 mulOp   : MUL | DIV | MOD ;
 
 // 关键字（全部放在ID前，利用优先级匹配）
@@ -160,7 +159,6 @@ OR      : '||' ;
 NOT     : '!' ;
 IF      : 'if' ;
 ELSE    : 'else' ;
-
 FOR     : 'for' ;
 RANGE   : 'range' ;
 RETURN  : 'return' ;
@@ -184,16 +182,16 @@ SPRINTF : 'sprintf';
 PRINTLN : 'println';
 
 // ==== convert
-UINT    : 'uint';
 UINT8   : 'uint8';
 UINT16  : 'uint16';
 UINT32  : 'uint32';
 UINT64  : 'uint64';
-INTS    : 'int';
+UINT    : 'uint';
 INT8    : 'int8';
 INT16   : 'int16';
 INT32   : 'int32';
 INT64   : 'int64';
+INTS    : 'int';
 FLOAT32 : 'float32';
 FLOAT64 : 'float64';
 STRINGS : 'string';
@@ -203,22 +201,24 @@ EXPAND  : '...';
 
 
 // 运算符
+LSHIFT     : '<<' ;
+RSHIFT     : '>>' ;
+INCR       : '++' ;  // 自增运算符
+DECR       : '--' ;  // 自减运算符
+GEQ        : '>=' ;
+LEQ        : '<=' ;
+NEQ        : '!=' ;
+EQ         : '==' ;
 ADD        : '+' ;
 SUB        : '-' ;
 MUL        : '*' ;
 DIV        : '/' ;
 MOD        : '%' ;
-EQ         : '==' ;
 LT         : '<' ;
 GT         : '>' ;
-GEQ        : '>=' ;
-LEQ        : '<=' ;
-NEQ        : '!=' ;
 BITAND     : '&' ;
 BITOR      : '|' ;
 XOR        : '^' ;
-INCR       : '++' ;  // 自增运算符
-DECR       : '--' ;  // 自减运算符
 DOT        : '.' ;  // 普通属性访问（在SAFE_DOT之后，避免被拆分）
 LBRACK     : '[' ;  // 普通索引访问（在SAFE_LBRACK之后，避免被拆分）
 LPAREN     : '(' ;

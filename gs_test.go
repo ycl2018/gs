@@ -24,6 +24,10 @@ type MyEnv struct {
 	MyEnv       *MyEnv
 }
 
+func (e *MyEnv) Do() *MyEnv {
+	return e
+}
+
 type StringAlias string
 
 type Itf interface {
@@ -42,8 +46,8 @@ func (m *MyItf) Hello2() string {
 	return "Hello2 " + m.Name
 }
 
-func (env *MyEnv) SayHello() string {
-	return "Hello World " + env.A
+func (e *MyEnv) SayHello() string {
+	return "Hello World " + e.A
 }
 
 type Embed struct {
@@ -1070,6 +1074,23 @@ println(in([1,2,3], $.Uint32)) // true
 			env:    &BasicValue{Uint32: 3},
 			expect: `true`,
 		},
+		{
+			name: "chain_call.gs",
+			program: `
+println($.Do().Itf.Hello() == "Hello World")
+$.Do().A = "hello"
+println($.Do().A == "hello")
+		`,
+			env: &MyEnv{
+				Itf: &MyItf{
+					Name: "World",
+				},
+			},
+			expect: `
+true
+true
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1092,6 +1113,7 @@ println(in([1,2,3], $.Uint32)) // true
 			if err != nil {
 				if tt.expectErr == "" {
 					t.Fatal(err)
+					return
 				}
 				if tt.expectErr != err.Error() {
 					return
