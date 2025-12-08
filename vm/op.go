@@ -93,6 +93,18 @@ func (i *Interpreter) Op(op consts.Instr) {
 			panic(err)
 		}
 		i.PushOpStack(v)
+	case consts.InstrLShift:
+		v, err := gen.LShift(op1, op2)
+		if err != nil {
+			panic(err)
+		}
+		i.PushOpStack(v)
+	case consts.InstrRShift:
+		v, err := gen.RShift(op1, op2)
+		if err != nil {
+			panic(err)
+		}
+		i.PushOpStack(v)
 	default:
 		panic("unhandled default case")
 	}

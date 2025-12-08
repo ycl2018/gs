@@ -1,4 +1,4 @@
-// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from /Users/bytedance/go/src/github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
 import "github.com/antlr4-go/antlr/v4"
@@ -188,11 +188,11 @@ func (v *BaseGsVisitor) VisitComparisonExpr(ctx *ComparisonExprContext) interfac
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitAddExpr(ctx *AddExprContext) interface{} {
+func (v *BaseGsVisitor) VisitBinExpr(ctx *BinExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitBinExpr(ctx *BinExprContext) interface{} {
+func (v *BaseGsVisitor) VisitAddExpr(ctx *AddExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -201,6 +201,10 @@ func (v *BaseGsVisitor) VisitMulExpr(ctx *MulExprContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitNegAtom(ctx *NegAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitNotAtom(ctx *NotAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -225,14 +229,6 @@ func (v *BaseGsVisitor) VisitFalseAtom(ctx *FalseAtomContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitNilAtom(ctx *NilAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitNotAtom(ctx *NotAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitQidAtom(ctx *QidAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -261,6 +257,10 @@ func (v *BaseGsVisitor) VisitParenAtom(ctx *ParenAtomContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitDerefAtom(ctx *DerefAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitQidAtom(ctx *QidAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -301,6 +301,10 @@ func (v *BaseGsVisitor) VisitPropertyAccess(ctx *PropertyAccessContext) interfac
 }
 
 func (v *BaseGsVisitor) VisitIndexAccess(ctx *IndexAccessContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitMethodCallAccess(ctx *MethodCallAccessContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

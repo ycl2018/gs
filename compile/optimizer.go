@@ -245,7 +245,7 @@ func replaceChildren(ctx antlr.ParserRuleContext, newChildren []antlr.Tree) {
 
 func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
 	c.VisitChildren(ctx)
-	//addExpr (compOp addExpr)? ;
+	//bitExpr (compOp bitExpr)? ;
 	var newChildren []antlr.Tree
 	var applied bool
 	for _, tree := range ctx.GetChildren() {
@@ -331,6 +331,52 @@ func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) int
 	return nil
 }
 
+func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
+	// addExpr (bitOp addExpr)*
+	c.VisitChildren(ctx)
+	var newChildren []antlr.Tree
+	var applied bool
+	for _, tree := range ctx.GetChildren() {
+		var added bool
+		if len(tree.GetChildren()) == 1 {
+			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
+				newChildren = append(newChildren, v)
+				applied = true
+				added = true
+			}
+		}
+		if !added {
+			newChildren = append(newChildren, tree)
+		}
+		if len(newChildren) > 2 {
+			// 合并
+			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
+			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
+			if ok1 && ok2 {
+				op := newChildren[len(newChildren)-2].(*gen.BitOpContext).GetText()
+				var constNode *consts.ConstNode
+				switch op {
+				case "|":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top), ctx.GetStart())
+				case "&":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top), ctx.GetStart())
+				case "^":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)^consts.ToIntValue(top), ctx.GetStart())
+				default:
+					panic(fmt.Sprintf("unknown op: %v", op))
+				}
+				newChildren = newChildren[:len(newChildren)-3]
+				newChildren = append(newChildren, constNode)
+				c.FoldConstExpr = true
+			}
+		}
+	}
+	if applied {
+		replaceChildren(ctx, newChildren)
+	}
+	return nil
+}
+
 func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
 	//
 	c.VisitChildren(ctx)
@@ -369,52 +415,6 @@ func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
 					} else {
 						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)-consts.ToIntValue(top), ctx.GetStart())
 					}
-				default:
-					panic(fmt.Sprintf("unknown op: %v", op))
-				}
-				newChildren = newChildren[:len(newChildren)-3]
-				newChildren = append(newChildren, constNode)
-				c.FoldConstExpr = true
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
-}
-
-func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
-	// mulExpr (bitOp mulExpr)*
-	c.VisitChildren(ctx)
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 2 {
-			// 合并
-			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
-			if ok1 && ok2 {
-				op := newChildren[len(newChildren)-2].(*gen.BitOpContext).GetText()
-				var constNode *consts.ConstNode
-				switch op {
-				case "|":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top), ctx.GetStart())
-				case "&":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top), ctx.GetStart())
-				case "^":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)^consts.ToIntValue(top), ctx.GetStart())
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
 				}

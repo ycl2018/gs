@@ -115,7 +115,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 	for i := 0; i < len(accessors); i++ {
 		curType = dePointer(curType)
 		var fieldPath []*reflect.StructField
-		pa, ok := accessors[i].(*gen.PropertyAccessContext)
+		pa, ok := isFieldLoad(i, accessors)
 		// for consistent struct field load
 		for ok && curType.Kind() == reflect.Struct && i < len(accessors) && pa.DOT() != nil {
 			fieldName := pa.ID().GetText()
@@ -129,7 +129,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			curType = dePointer(f.Type)
 			i++
 			if i < len(accessors) {
-				pa, ok = accessors[i].(*gen.PropertyAccessContext)
+				pa, ok = isFieldLoad(i, accessors)
 			}
 		}
 		if len(fieldPath) > 0 {
@@ -148,32 +148,39 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			switch curType.Kind() {
 			case reflect.Struct:
 				f, err := s.Env.IndexField(fieldName, curType)
-				if err != nil {
-					s.Log.ErrorToken(qid.GetStart(), err.Error())
-					return
+				if err == nil {
+					s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+					curType = f.Type
+					continue
 				}
-				curType = f.Type
-				s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+				m, err := s.Env.IndexMethod(fieldName, curType)
+				if err == nil {
+					s.Write(consts.InstrMLoadByIndex, a.GetStart(), m.Index)
+					curType = m.Type
+					continue
+				}
+				s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+				return
 			case reflect.Interface:
-				// interface Load
 				if curType.NumMethod() > 0 {
-					s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-					return
+					if methodByName, ok := curType.MethodByName(fieldName); ok {
+						if methodByName.IsExported() {
+							s.Write(consts.InstrMLoadByIndex, a.GetStart(), methodByName.Index)
+							curType = methodByName.Type
+						} else {
+							s.Log.ErrorToken(pa.GetStart(), "syntax error:unexported method:%s on type:%s", fieldName, curType.String())
+							return
+						}
+					}
+				} else {
+					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 				}
-				s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 			default:
 				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 				return
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.SliceExprContext:
-				if !canSliceSplit(curType) {
-					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-					return
-				}
-				indexId.WriteString("[" + t.GetText() + "]")
-				t.Accept(s)
 			case *gen.ExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
@@ -194,6 +201,39 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 					s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 					return
 				}
+			case *gen.SliceExprContext:
+				if !canSliceSplit(curType) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					return
+				}
+				indexId.WriteString("[" + t.GetText() + "]")
+				t.Accept(s)
+			default:
+				s.Log.ErrorToken(qid.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+				return
+			}
+		case *gen.MethodCallAccessContext:
+			if !canCall(curType) {
+				s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+				return
+			}
+			indexId.WriteString("(")
+			allExpr := a.AllExpr()
+			for j, expr := range allExpr {
+				expr.Accept(s)
+				if j != 0 {
+					indexId.WriteString(",")
+				}
+				indexId.WriteString(expr.GetText())
+			}
+			indexId.WriteString(")")
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
+			if curType.Kind() == reflect.Func {
+				if curType.NumIn()-1 != len(allExpr) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error: method call:%s params num not match(need %d got %d)", indexId.String(), curType.NumIn(), len(allExpr))
+					return
+				}
+				curType = curType.Out(0)
 			}
 		}
 	}
@@ -218,7 +258,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 	for i := 0; i < len(accessors); i++ {
 		curType = dePointer(curType)
 		var fieldPath []*reflect.StructField
-		pa, ok := accessors[i].(*gen.PropertyAccessContext)
+		pa, ok := isFieldLoad(i, accessors)
 		// for consistent struct field load
 		for ok && curType.Kind() == reflect.Struct && i < len(accessors)-1 && pa.DOT() != nil {
 			fieldName := pa.ID().GetText()
@@ -232,7 +272,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			curType = dePointer(f.Type)
 			i++
 			if i < len(accessors) {
-				pa, ok = accessors[i].(*gen.PropertyAccessContext)
+				pa, ok = isFieldLoad(i, accessors)
 			}
 		}
 		if len(fieldPath) > 0 {
@@ -250,24 +290,42 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			curType = dePointer(curType)
 			switch curType.Kind() {
 			case reflect.Struct:
-				if i != len(accessors)-1 {
-					panic("unexpected code")
+				f, err1 := s.Env.IndexField(fieldName, curType)
+				if err1 == nil {
+					if i == len(accessors)-1 {
+						s.Write(consts.InstrRSetField, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+					} else {
+						s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+						curType = f.Type
+					}
+					continue
 				}
-				f, err := s.Env.IndexField(fieldName, curType)
-				if err != nil {
-					s.Log.ErrorToken(qid.GetStart(), err.Error())
+				if i == len(accessors)-1 {
+					s.Log.ErrorToken(a.GetStart(), "syntax error:not field %s on type:%s", fieldName, curType.String())
 					return
 				}
-				s.Write(consts.InstrRSetField, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+				m, err := s.Env.IndexMethod(fieldName, curType)
+				if err != nil {
+					s.Log.ErrorToken(a.GetStart(), fmt.Sprintf("syntax error:not field or method %s on type:%s", fieldName, curType.String()))
+					return
+				}
+				s.Write(consts.InstrMLoadByIndex, a.GetStart(), m.Index)
+				curType = m.Type
 			case reflect.Interface:
-				// interface Load
-				if i == len(accessors)-1 {
-					s.Write(consts.InstrFStore, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
-				} else {
-					if curType.NumMethod() > 0 {
+				if curType.NumMethod() > 0 {
+					if methodByName, ok := curType.MethodByName(fieldName); ok {
+						if methodByName.IsExported() {
+							s.Write(consts.InstrMLoadByIndex, a.GetStart(), methodByName.Index)
+							curType = methodByName.Type
+						} else {
+							s.Log.ErrorToken(pa.GetStart(), "syntax error:unexported method:%s on type:%s", fieldName, curType.String())
+							return
+						}
+					} else {
 						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 						return
 					}
+				} else {
 					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 				}
 			default:
@@ -295,13 +353,13 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 						s.Write(consts.InstrRIndex, a.GetStart())
 					}
 				case reflect.Interface:
+					if curType.NumMethod() > 0 {
+						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+						return
+					}
 					if i == len(accessors)-1 {
 						s.Write(consts.InstrIndexStore, a.GetStart())
 					} else {
-						if curType.NumMethod() > 0 {
-							s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-							return
-						}
 						s.Write(consts.InstrIndexLoad, a.GetStart())
 					}
 				default:
@@ -319,6 +377,34 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 					return
 				}
 				t.Accept(s)
+
+			}
+		case *gen.MethodCallAccessContext:
+			if i == len(accessors)-1 {
+				s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to method call")
+				return
+			}
+			if !canCall(curType) {
+				s.Log.ErrorToken(a.GetStart(), "syntax error:can't call %s on type:%s", indexId.String(), curType.String())
+				return
+			}
+			indexId.WriteString("(")
+			allExpr := a.AllExpr()
+			for j, expr := range allExpr {
+				expr.Accept(s)
+				if j != 0 {
+					indexId.WriteString(",")
+				}
+				indexId.WriteString(expr.GetText())
+			}
+			indexId.WriteString(")")
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
+			if curType.Kind() == reflect.Func {
+				if curType.NumIn()-1 != len(allExpr) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error: method call:%s params num not match(need %d got %d)", indexId.String(), curType.NumIn(), len(allExpr))
+					return
+				}
+				curType = curType.Out(0)
 			}
 		}
 	}
@@ -337,7 +423,7 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 	for i := 0; i < len(accessors); i++ {
 		curType = dePointer(curType)
 		var fieldPath []*reflect.StructField
-		pa, ok := accessors[i].(*gen.PropertyAccessContext)
+		pa, ok := isFieldLoad(i, accessors)
 		// for consistent struct field load
 		for ok && curType.Kind() == reflect.Struct && i < len(accessors)-1 && pa.DOT() != nil {
 			fieldName := pa.ID().GetText()
@@ -350,8 +436,8 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			fieldPath = append(fieldPath, f)
 			curType = dePointer(f.Type)
 			i++
-			if i < len(accessors) {
-				pa, ok = accessors[i].(*gen.PropertyAccessContext)
+			if i < len(accessors)-1 {
+				pa, ok = isFieldLoad(i, accessors)
 			}
 		}
 		if len(fieldPath) > 0 {
@@ -369,44 +455,40 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			curType = dePointer(curType)
 			switch curType.Kind() {
 			case reflect.Struct:
-				if i != len(accessors)-1 {
-					panic("unexpected code")
+				f, err := s.Env.IndexField(fieldName, curType)
+				if err == nil {
+					if i == len(accessors)-1 {
+						if !canCall(f.Type) {
+							s.Log.ErrorToken(a.GetStart(), "syntax error:can't call method:%s on type:%s", fieldName, curType.String())
+							return
+						}
+					}
+					s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
+					curType = f.Type
+					continue
 				}
 				m, err := s.Env.IndexMethod(fieldName, curType)
-				if m != nil {
-					s.Write(consts.InstrMLoadByIndex, ctx.GetStart(), m.Index)
-					return
-				}
-				// field
-				f, err := s.Env.IndexField(fieldName, curType)
 				if err != nil {
-					s.Log.ErrorToken(a.GetStart(), err.Error())
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 					return
 				}
-				if f.Type.Kind() == reflect.Func || f.Type.Kind() == reflect.Interface {
-					s.Write(consts.InstrRFByIndex, a.GetStart(), defineFieldIndexConst(indexId.String(), []*reflect.StructField{f}, s.GlobalScope).GetAddress())
-					return
-				}
-				s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
-				return
+				s.Write(consts.InstrMLoadByIndex, ctx.GetStart(), m.Index)
+				curType = m.Type
 			case reflect.Interface:
-				// interface Load
-				if i == len(accessors)-1 {
-					if curType.NumMethod() > 0 {
-						if methodByName, ok := curType.MethodByName(fieldName); ok {
+				if curType.NumMethod() > 0 {
+					if methodByName, ok := curType.MethodByName(fieldName); ok {
+						if methodByName.IsExported() {
 							s.Write(consts.InstrMLoadByIndex, a.GetStart(), methodByName.Index)
+							curType = methodByName.Type
 						} else {
-							s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+							s.Log.ErrorToken(pa.GetStart(), "syntax error:unexported method:%s on type:%s", fieldName, curType.String())
 							return
 						}
 					} else {
-						s.Write(consts.InstrMLoadByName, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
-					}
-				} else {
-					if curType.NumMethod() > 0 {
 						s.Log.ErrorToken(pa.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
 						return
 					}
+				} else {
 					s.Write(consts.InstrFLoad, a.GetStart(), defineStringConst(fieldName, s.GlobalScope).GetAddress())
 				}
 			default:
@@ -432,20 +514,39 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 					}
 					s.Write(consts.InstrIndexLoad, a.GetStart())
 				default:
-					s.Log.ErrorToken(ctx.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					s.Log.ErrorToken(ctx.GetStart(), "syntax error:invalid index on type:%s", curType.String())
 					return
 				}
 			case *gen.SliceExprContext:
 				if !canSliceSplit(curType) {
-					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid %s on type:%s", indexId.String(), curType.String())
+					s.Log.ErrorToken(a.GetStart(), "syntax error:invalid slice split on type:%s", curType.String())
 					return
 				}
 				indexId.WriteString("[" + t.GetText() + "]")
-				if i == len(accessors)-1 {
-					s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to slice split")
+				t.Accept(s)
+			}
+		case *gen.MethodCallAccessContext:
+			if !canCall(curType) {
+				s.Log.ErrorToken(a.GetStart(), "syntax error:can't call %s on type:%s", indexId.String(), curType.String())
+				return
+			}
+			indexId.WriteString("(")
+			allExpr := a.AllExpr()
+			for j, expr := range allExpr {
+				expr.Accept(s)
+				if j != 0 {
+					indexId.WriteString(",")
+				}
+				indexId.WriteString(expr.GetText())
+			}
+			indexId.WriteString(")")
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
+			if curType.Kind() == reflect.Func {
+				if curType.NumIn()-1 != len(allExpr) {
+					s.Log.ErrorToken(a.GetStart(), "syntax error: method call:%s params num not match(need %d got %d)", indexId.String(), curType.NumIn(), len(allExpr))
 					return
 				}
-				t.Accept(s)
+				curType = curType.Out(0)
 			}
 		}
 	}
@@ -460,4 +561,23 @@ func dePointer(curType reflect.Type) reflect.Type {
 
 func canSliceSplit(curType reflect.Type) bool {
 	return curType.Kind() == reflect.Slice || curType.Kind() == reflect.Array || curType.Kind() == reflect.String || (curType.Kind() == reflect.Interface && curType.NumMethod() == 0)
+}
+
+func canCall(curType reflect.Type) bool {
+	return curType.Kind() == reflect.Func || (curType.Kind() == reflect.Interface && curType.NumMethod() == 0)
+}
+
+func isFieldLoad(i int, accessors []gen.IAccessorContext) (*gen.PropertyAccessContext, bool) {
+	if i >= len(accessors)-1 {
+		return nil, false
+	}
+	a := accessors[i]
+	_, ok := a.(*gen.PropertyAccessContext)
+	if !ok {
+		return nil, false
+	}
+	if _, ok := accessors[i+1].(*gen.MethodCallAccessContext); ok {
+		return nil, false
+	}
+	return a.(*gen.PropertyAccessContext), true
 }

@@ -121,19 +121,21 @@ func (g *GsDefineVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitionCon
 
 func (g *GsDefineVisitor) VisitGlobalStmt(ctx *gen.GlobalStmtContext) interface{} {
 	// 'global' ID
-	varName := ctx.ID().GetText()
-	if g.GlobalScope.Resolve(varName) == nil {
-		g.GlobalScope.Define(NewVariableSymbol(varName, ctx.ID().GetSymbol()))
-	}
-	if l, ok := g.CurScope.(*LocalScope); ok {
-		if l.Symbols[varName] != nil {
-			g.Log.ErrorToken(ctx.GetStart(), "Syntax error: name '%s' is assigned to before global declaration %s", varName)
+	for _, node := range ctx.AllID() {
+		varName := node.GetText()
+		if g.GlobalScope.Resolve(varName) == nil {
+			g.GlobalScope.Define(NewVariableSymbol(varName, node.GetSymbol()))
+		}
+		if l, ok := g.CurScope.(*LocalScope); ok {
+			if l.Symbols[varName] != nil {
+				g.Log.ErrorToken(node.GetSymbol(), "Syntax error: name '%s' is assigned to before global declaration %s", varName)
+				return nil
+			}
+			l.GlobalDeclared[varName] = struct{}{}
+		} else {
+			g.Log.ErrorToken(node.GetSymbol(), "Syntax error: global statement can only write in func body")
 			return nil
 		}
-		l.GlobalDeclared[varName] = struct{}{}
-	} else {
-		g.Log.ErrorToken(ctx.GetStart(), "Syntax error: global statement can only write in func body")
-		return nil
 	}
 	return nil
 }

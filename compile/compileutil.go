@@ -153,6 +153,16 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 				}
 				t.Accept(s)
 			}
+		case *gen.MethodCallAccessContext:
+			if i == len(accessors)-1 {
+				s.Log.ErrorToken(a.GetStart(), "syntax error:can't assign to method call")
+				return
+			}
+			allExpr := a.AllExpr()
+			for _, expr := range allExpr {
+				expr.Accept(s)
+			}
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
 		}
 	}
 }
@@ -187,13 +197,24 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 		}
 		s.EmitLoad(primarySymbol, qid.GetStart())
 	}
-	for _, accessor := range accessors {
+	for i, accessor := range accessors {
 		switch a := accessor.(type) {
 		case *gen.PropertyAccessContext:
 			// fieldLoad
 			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
-			s.Write(consts.InstrFLoad, a.GetStart(), operand)
+			methodLoad := func() bool {
+				if i >= len(accessors)-1 {
+					return false
+				}
+				_, ok := accessors[i+1].(*gen.MethodCallAccessContext)
+				return ok
+			}
+			if methodLoad() {
+				s.Write(consts.InstrMLoadByName, a.GetStart(), operand)
+			} else {
+				s.Write(consts.InstrFLoad, a.GetStart(), operand)
+			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
 			case *gen.ExprContext:
@@ -202,6 +223,12 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			case *gen.SliceExprContext:
 				t.Accept(s)
 			}
+		case *gen.MethodCallAccessContext:
+			allExpr := a.AllExpr()
+			for _, expr := range allExpr {
+				expr.Accept(s)
+			}
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
 		}
 	}
 }
@@ -231,10 +258,17 @@ func (s *StackCompileVisitor) loadOuterFunc(ctx *gen.OuterCallContext) {
 			// fieldLoad
 			fieldName := a.ID().GetText()
 			operand := s.defineStringConst(fieldName)
-			if i < len(accessors)-1 {
-				s.Write(consts.InstrFLoad, a.GetStart(), operand)
-			} else {
+			methodLoad := func() bool {
+				if i >= len(accessors)-1 {
+					return true
+				}
+				_, ok := accessors[i+1].(*gen.MethodCallAccessContext)
+				return ok
+			}
+			if methodLoad() {
 				s.Write(consts.InstrMLoadByName, a.GetStart(), operand)
+			} else {
+				s.Write(consts.InstrFLoad, a.GetStart(), operand)
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
@@ -244,6 +278,12 @@ func (s *StackCompileVisitor) loadOuterFunc(ctx *gen.OuterCallContext) {
 			case *gen.SliceExprContext:
 				t.Accept(s)
 			}
+		case *gen.MethodCallAccessContext:
+			allExpr := a.AllExpr()
+			for _, expr := range allExpr {
+				expr.Accept(s)
+			}
+			s.Write(consts.InstrCallOuter, a.GetStart(), len(allExpr))
 		}
 	}
 }

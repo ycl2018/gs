@@ -2478,6 +2478,480 @@ func Mod(x, y any) (int, error) {
 	return 0, fmt.Errorf("unsupported operator: %T %s %T", x, "%", y)
 }
 
+// LShift 执行 << 运算
+func LShift(x, y any) (int, error) {
+	switch xv := x.(type) {
+	case int:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case int8:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case int16:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case int32:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case int64:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case uint:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case uint8:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case uint16:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case uint32:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	case uint64:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) << int(yv), nil
+		case int8:
+			return int(xv) << int(yv), nil
+		case int16:
+			return int(xv) << int(yv), nil
+		case int32:
+			return int(xv) << int(yv), nil
+		case int64:
+			return int(xv) << int(yv), nil
+		case uint:
+			return int(xv) << int(yv), nil
+		case uint8:
+			return int(xv) << int(yv), nil
+		case uint16:
+			return int(xv) << int(yv), nil
+		case uint32:
+			return int(xv) << int(yv), nil
+		case uint64:
+			return int(xv) << int(yv), nil
+		}
+	}
+	return 0, fmt.Errorf("unsupported operator: %T %s %T", x, "<<", y)
+}
+
+// RShift 执行 >> 运算
+func RShift(x, y any) (int, error) {
+	switch xv := x.(type) {
+	case int:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case int8:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case int16:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case int32:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case int64:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case uint:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case uint8:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case uint16:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case uint32:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	case uint64:
+		switch yv := y.(type) {
+		case int:
+			return int(xv) >> int(yv), nil
+		case int8:
+			return int(xv) >> int(yv), nil
+		case int16:
+			return int(xv) >> int(yv), nil
+		case int32:
+			return int(xv) >> int(yv), nil
+		case int64:
+			return int(xv) >> int(yv), nil
+		case uint:
+			return int(xv) >> int(yv), nil
+		case uint8:
+			return int(xv) >> int(yv), nil
+		case uint16:
+			return int(xv) >> int(yv), nil
+		case uint32:
+			return int(xv) >> int(yv), nil
+		case uint64:
+			return int(xv) >> int(yv), nil
+		}
+	}
+	return 0, fmt.Errorf("unsupported operator: %T %s %T", x, ">>", y)
+}
+
 // Eq 执行 == 运算
 func Eq(x, y any) (bool, error) {
 	switch xv := x.(type) {

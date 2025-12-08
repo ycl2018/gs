@@ -263,6 +263,8 @@ func eq(x, y any) bool {
 		{"Mul", "*"},
 		{"Div", "/"},
 		{"Mod", "%"},
+		{"LShift", "<<"},
+		{"RShift", ">>"},
 		{"Eq", "=="},
 		{"Lt", "<"},
 		{"Gt", ">"},
@@ -462,12 +464,12 @@ func isComparisonOperation(op string) bool {
 }
 
 func isBitwiseOperation(op string) bool {
-	return op == "&" || op == "|" || op == "^" || op == "%"
+	return op == "&" || op == "|" || op == "^" || op == "%" || op == "<<" || op == ">>"
 }
 
 func isFloatAllowed(op string) bool {
 	// 位运算不允许浮点数
-	bitwiseOps := map[string]bool{"&": true, "|": true, "^": true, "%": true}
+	bitwiseOps := map[string]bool{"&": true, "|": true, "^": true, "%": true, "<<": true, ">>": true}
 	return !bitwiseOps[op]
 }
 

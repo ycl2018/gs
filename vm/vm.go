@@ -361,10 +361,7 @@ func (i *Interpreter) cpu() {
 			i.PushOpStack(loadMethodByIndex(obj, instr.Operands))
 		case consts.InstrCallOuter:
 			fn := i.PopOpStack()
-			fnValue, ok := fn.(reflect.Value)
-			if !ok {
-				fnValue = reflect.ValueOf(fn)
-			}
+			fnValue := reflect.ValueOf(fn)
 			i.callFn(instr.Operands, fnValue)
 		case consts.InstrCallDefine:
 			fn := i.DefineFuncs[instr.Operands]
@@ -400,6 +397,9 @@ func (i *Interpreter) cpu() {
 }
 
 func (i *Interpreter) callFn(inNum int, fn reflect.Value) {
+	if !fn.IsValid() {
+		panic(fmt.Sprintf("call func is nil"))
+	}
 	var inArgs = make([]reflect.Value, inNum)
 	for j := inNum - 1; j >= 0; j-- {
 		arg := reflect.ValueOf(i.PopOpStack())
@@ -422,8 +422,11 @@ func (i *Interpreter) callFn(inNum int, fn reflect.Value) {
 	}
 }
 
-func loadMethodByIndex(obj any, index int) reflect.Value {
+func loadMethodByIndex(obj any, index int) any {
 	rv := reflect.ValueOf(obj)
+	if !rv.IsValid() {
+		panic("load method from nil object")
+	}
 	if rv.NumMethod() == 0 {
 		if rv.Kind() == reflect.Ptr {
 			rv = rv.Elem()
@@ -433,11 +436,14 @@ func loadMethodByIndex(obj any, index int) reflect.Value {
 			rv = ptrTo
 		}
 	}
-	return rv.Method(index)
+	return rv.Method(index).Interface()
 }
 
-func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
+func (i *Interpreter) loadMethod(obj any, methodName string) any {
 	rv := reflect.ValueOf(obj)
+	if !rv.IsValid() {
+		panic("load method from nil object")
+	}
 	if i.MethodIndexCache {
 		vt := rv.Type()
 		if index, ok := i.RuntimeCache.FetchMethodIndex(vt, methodName); ok {
@@ -450,14 +456,13 @@ func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
 					ptrTo.Elem().Set(rv)
 					rv = ptrTo
 				default:
-
 				}
-				return rv.Method(index.Index[0])
+				return rv.Method(index.Index[0]).Interface()
 			} else {
 				if rv.Kind() == reflect.Ptr {
 					rv = rv.Elem()
 				}
-				return rv.FieldByIndex(index.Index)
+				return rv.FieldByIndex(index.Index).Interface()
 			}
 		} else {
 			origin := rv
@@ -478,12 +483,15 @@ func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
 			if ok {
 				method := rv.Method(m.Index)
 				if method.IsValid() {
-					i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
-						Index:    []int{m.Index},
-						IsMethod: true,
-						Convert:  conv,
-					})
-					return method
+					if method.CanInterface() {
+						i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
+							Index:    []int{m.Index},
+							IsMethod: true,
+							Convert:  conv,
+						})
+						return method.Interface()
+					}
+					panic(fmt.Sprintf("method '%s' is not exported by type:%T", methodName, obj))
 				}
 			}
 			// try to find field by name
@@ -498,7 +506,7 @@ func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
 						Index:    fieldByName.Index,
 						IsMethod: false,
 					})
-					return field
+					return field.Interface()
 				}
 			}
 			panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
@@ -515,12 +523,12 @@ func (i *Interpreter) loadMethod(obj any, methodName string) reflect.Value {
 	}
 	method := rv.MethodByName(methodName)
 	if method.IsValid() {
-		return method
+		return method.Interface()
 	}
 	rv = assertValidObj(obj)
 	field := rv.FieldByName(methodName)
-	if field.IsValid() && field.Kind() == reflect.Func {
-		return field
+	if field.IsValid() && field.Kind() == reflect.Func && field.CanInterface() {
+		return field.Interface()
 	}
 	panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
 }
@@ -707,6 +715,9 @@ func (i *Interpreter) FieldLoad(field string) any {
 			if indexes, ok := i.RuntimeCache.FetchFieldIndex(vt, field); ok {
 				return validObj.FieldByIndex(indexes).Interface()
 			}
+			if index, ok := i.RuntimeCache.FetchMethodIndex(vt, field); ok {
+				return validObj.Method(index.Index[0]).Interface()
+			}
 			if fieldStruct, ok := vt.FieldByName(field); ok {
 				if !fieldStruct.IsExported() {
 					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
@@ -714,6 +725,8 @@ func (i *Interpreter) FieldLoad(field string) any {
 				i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
 				return validObj.FieldByIndex(fieldStruct.Index).Interface()
 			}
+			method := i.loadMethod(obj, field)
+			return method
 		} else {
 			fieldByName := validObj.FieldByName(field)
 			if fieldByName.IsValid() {
@@ -723,10 +736,11 @@ func (i *Interpreter) FieldLoad(field string) any {
 					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
 				}
 			}
+			method := i.loadMethod(obj, field)
+			return method
 		}
-		panic(fmt.Sprintf("no such field '%s' by type:%T", field, obj))
 	default:
-		panic(fmt.Sprintf("unexpected type %T for field load", obj))
+		panic(fmt.Sprintf("unexpected type %T for load %s", obj, field))
 	}
 }
 

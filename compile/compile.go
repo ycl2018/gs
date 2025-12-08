@@ -639,7 +639,7 @@ func (s *StackCompileVisitor) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext
 }
 
 func (s *StackCompileVisitor) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
-	allExprs, cmpOp := ctx.AllAddExpr(), ctx.CompOp()
+	allExprs, cmpOp := ctx.AllBinExpr(), ctx.CompOp()
 	for i := range allExprs {
 		allExprs[i].Accept(s)
 	}
@@ -669,8 +669,8 @@ func (s *StackCompileVisitor) VisitBinExpr(ctx *gen.BinExprContext) interface{} 
 	var preOp *gen.BitOpContext
 	for _, tree := range ctx.GetChildren() {
 		switch tree := tree.(type) {
-		case *gen.MulExprContext:
-			tree.Accept(s)
+		default:
+			tree.(antlr.RuleContext).Accept(s)
 			if preOp != nil {
 				preOp.Accept(s)
 			}
@@ -718,7 +718,7 @@ func (s *StackCompileVisitor) VisitFalseAtom(ctx *gen.FalseAtomContext) interfac
 }
 
 func (s *StackCompileVisitor) VisitNotAtom(ctx *gen.NotAtomContext) interface{} {
-	ctx.Expr().Accept(s)
+	ctx.Atom().Accept(s)
 	s.Write(consts.InstrNot, ctx.GetStart())
 	return nil
 }
@@ -836,6 +836,10 @@ func (s *StackCompileVisitor) VisitBitOp(ctx *gen.BitOpContext) interface{} {
 		s.Write(consts.InstrBitOR, ctx.GetStart())
 	case "^":
 		s.Write(consts.InstrXOR, ctx.GetStart())
+	case "<<":
+		s.Write(consts.InstrLShift, ctx.GetStart())
+	case ">>":
+		s.Write(consts.InstrRShift, ctx.GetStart())
 	default:
 		panic("unknown bit op")
 	}
