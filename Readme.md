@@ -101,15 +101,15 @@ fmt.Println(env.Sum) // 3
     </tr>
   </thead>
   <tbody>
-    <tr><td>int</td><td>uint,int,uintX,intX</td><td>基本类型</td></tr>
-    <tr><td>float64</td><td>float32,float64</td><td>基本类型</td></tr>
-    <tr><td>string</td><td>string</td><td>基本类型</td></tr>
-    <tr><td>true</td><td>true</td><td>基本类型</td></tr>
-    <tr><td>false</td><td>false</td><td>基本类型</td></tr>
-    <tr><td>[]</td><td>[]any</td><td>复合类型</td></tr>
-    <tr><td>{}</td><td>map[any][any]</td><td>复合类型</td></tr>
-    <tr><td>struct</td><td>自定义类型无对应</td><td>复合类型</td></tr>
-    <tr><td>nil</td><td>nil</td><td>空类型</td></tr>
+    <tr><td><code>int</code></td><td><code>uint,int,uintX,intX</code></td><td>基本类型</td></tr>
+    <tr><td><code>float64</code></td><td><code>float32,float64</code></td><td>基本类型</td></tr>
+    <tr><td><code>string</code></td><td><code>string</code></td><td>基本类型</td></tr>
+    <tr><td><code>true</code></td><td><code>true</code></td><td>基本类型</td></tr>
+    <tr><td><code>false</code></td><td><code>false</code></td><td>基本类型</td></tr>
+    <tr><td><code>[]</code></td><td><code>[]any</code></td><td>复合类型</td></tr>
+    <tr><td><code>{}</code></td><td><code>map[any][any]</code></td><td>复合类型</td></tr>
+    <tr><td><code>struct</code></td><td><code>自定义类型无对应</code></td><td>复合类型</td></tr>
+    <tr><td><code>nil</code></td><td><code>nil</code></td><td>空类型</td></tr>
   </tbody>
 </table>
 
@@ -126,13 +126,13 @@ fmt.Println(env.Sum) // 3
     </tr>
   </thead>
   <tbody>
-    <tr><td>或</td><td>|</td><td>低</td></tr>
-    <tr><td>与</td><td>&&</td><td></td></tr>
-    <tr><td>比较</td><td>&gt;,&lt;,=,!=,==,&gt;=,&lt;=,&gt;&gt;,&lt;&lt;</td><td></td></tr>
-    <tr><td>位运算</td><td>&amp;,|,^</td><td></td></tr>
-    <tr><td>加减</td><td>+,-</td><td></td></tr>
-    <tr><td>乘除</td><td>*,/</td><td></td></tr>
-    <tr><td>指针解引用（来自 go 的指针）</td><td>*</td><td>高</td></tr>
+    <tr><td><code>或</code></td><td><code>|</code></td><td>低</td></tr>
+    <tr><td><code>与</code></td><td><code>&&</code></td><td></td></tr>
+    <tr><td><code>比较</code></td><td><code>&gt;,&lt;,=,!=,==,&gt;=,&lt;=,&gt;&gt;,&lt;&lt;</code></td><td></td></tr>
+    <tr><td><code>位运算</code></td><td><code>&amp;,|,^</code></td><td></td></tr>
+    <tr><td><code>加减</code></td><td><code>+,-</code></td><td></td></tr>
+    <tr><td><code>乘除</code></td><td><code>*,/</code></td><td></td></tr>
+    <tr><td><code>指针解引用（来自 go 的指针）</code></td><td><code>*</code></td><td>高</td></tr>
   </tbody>
 </table>
 
@@ -153,11 +153,11 @@ fmt.Println(env.Sum) // 3
     </tr>
   </thead>
   <tbody>
-    <tr><td>int</td><td>十进制整数：12345<br/>下划线：10_000<br/>二进制：0b01010101,0B01010101,0B1110_01111<br/>八进制：0o755333,0O1234_4567<br/>十六进制：0xaB_Cd,0X12_AC</td></tr>
-    <tr><td>float</td><td>10.3, .2, 123_456.789, 123.45_6e-7, 123.</td></tr>
-    <tr><td>string</td><td>单行字符串："abc"<br/>多行字符串：`<br/>“first line” <br/>“second line”<br/>`</td></tr>
-    <tr><td>[]</td><td>切片 [1,2,3], ["a","b","c"], ["1",1,true]</td></tr>
-    <tr><td>{}</td><td>Map {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}</td></tr>
+    <tr><td><code>int</code></td><td><code>十进制整数：12345<br/>下划线：10_000<br/>二进制：0b01010101,0B01010101,0B1110_01111<br/>八进制：0o755333,0O1234_4567<br/>十六进制：0xaB_Cd,0X12_AC</code></td></tr>
+    <tr><td><code>float64</code></td><td><code>10.3, .2, 123_456.789, 123.45_6e-7, 123.</code></td></tr>
+    <tr><td><code>string</code></td><td><code>单行字符串："abc"<br/>多行字符串：`<br/>“first line” <br/>“second line”<br/>`</code></td></tr>
+    <tr><td><code>[]</code></td><td><code>切片 [1,2,3], ["a","b","c"], ["1",1,true]</code></td></tr>
+    <tr><td><code>{}</code></td><td><code>Map {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}</code></td></tr>
   </tbody>
 </table>
 
@@ -192,16 +192,16 @@ type MyStruct struct {Field0, Filed1, Field2, ...}
     </tr>
   </thead>
   <tbody>
-    <tr><td>变量声明必须赋值</td><td>x = 10<br/>x, y = 1, 2</td></tr>
-    <tr><td>一元运算</td><td>x-=2, x+=2, x/=2, x*=3</td></tr>
-    <tr><td>自加/自减</td><td>i++, i--</td></tr>
-    <tr><td>负数</td><td>-a, -10</td></tr>
-    <tr><td>比较</td><td>&gt;, &lt;, ==, &gt;=, &lt;=, !=</td></tr>
-    <tr><td>运算</td><td>+, -, *, /, &amp;, |, ^</td></tr>
-    <tr><td>返回，支持多返回值</td><td>return x, y</td></tr>
-    <tr><td>终止循环</td><td>break</td></tr>
-    <tr><td>继续循环</td><td>continue</td></tr>
-    <tr><td>切片</td><td>arr[1:2], arr[1:], arr[:10], arr[:]</td></tr>
+    <tr><td>变量声明必须赋值</td><td><code>x = 10<br/>x, y = 1, 2</code></td></tr>
+    <tr><td>一元运算</td><td><code>x-=2, x+=2, x/=2, x*=3</code></td></tr>
+    <tr><td>自加/自减</td><td><code>i++, i--</code></td></tr>
+    <tr><td>负数</td><td><code>-a, -10</code></td></tr>
+    <tr><td>比较</td><td><code>&gt;, &lt;, ==, &gt;=, &lt;=, !=</code></td></tr>
+    <tr><td>运算</td><td><code>+,-,*,/,&amp;,&lt;&lt;,^,&gt;&gt;</code></td></tr>
+    <tr><td>返回，支持多返回值</td><td><code>return x, y</code></td></tr>
+    <tr><td>终止循环</td><td><code>break</code></td></tr>
+    <tr><td>继续循环</td><td><code>continue</code></td></tr>
+    <tr><td>切片</td><td><code>arr[1:2], arr[1:], arr[:10], arr[:]</code></td></tr>
   </tbody>
 </table>
 
@@ -289,12 +289,12 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
     </tr>
   </thead>
   <tbody>
-    <tr><td>append</td><td>切片追加元素，支持三点符号...</td></tr>
-    <tr><td>delete</td><td>删除元素</td></tr>
-    <tr><td>len</td><td>获取长度</td></tr>
-    <tr><td>uint/uint8/uintX/int/int8/intX/float32/float64/string/duration</td><td>类型强转</td></tr>
-    <tr><td>print/printf/println</td><td>打印变量到标准输出，可自定义输出 io</td></tr>
-    <tr><td>sprintf</td><td>格式化字符串，对齐 go</td></tr>
+    <tr><td><code>append</code></td><td>切片追加元素，支持三点符号...</td></tr>
+    <tr><td><code>delete</code></td><td>删除元素</td></tr>
+    <tr><td><code>len</code></td><td>获取长度</td></tr>
+    <tr><td><code>uint/uint8/uintX/int/int8/intX/float32/float64/string/duration</code></td><td>类型强转</td></tr>
+    <tr><td><code>print/printf/println</code></td><td>打印变量到标准输出，可自定义输出 io</td></tr>
+    <tr><td><code>sprintf</code></td><td>格式化字符串，对齐 go</td></tr>
   </tbody>
 </table>
 
@@ -308,8 +308,8 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
     </tr>
   </thead>
   <tbody>
-    <tr><td>in(arr/map, value)</td><td>查询 value 是否在 arr/map 的 key 中</td></tr>
-    <tr><td>sort</td><td>排序，只支持基本类型数组</td></tr>
+    <tr><td><code>in(arr/map, value)</code></td><td>查询 value 是否在 arr/map 的 key 中</td></tr>
+    <tr><td><code>sort</code></td><td>排序，只支持基本类型数组</td></tr>
   </tbody>
 </table>
 
@@ -326,21 +326,21 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
     </tr>
   </thead>
   <tbody>
-    <tr><td>index</td><td>索引</td></tr>
-    <tr><td>hasPrefix</td><td>是否有 prefix</td></tr>
-    <tr><td>hasSuffix</td><td>是否有 suffix</td></tr>
-    <tr><td>trim</td><td>去除两端空白</td></tr>
-    <tr><td>trimPrefix</td><td>去除 prefix</td></tr>
-    <tr><td>trimSuffix</td><td>去除 suffix</td></tr>
-    <tr><td>trimSpace</td><td>去除空白</td></tr>
-    <tr><td>trimLeft</td><td>去除左侧，cutset 匹配</td></tr>
-    <tr><td>trimRight</td><td>去除右侧，cutset 匹配</td></tr>
-    <tr><td>toLower</td><td>转小写</td></tr>
-    <tr><td>toUpper</td><td>转大写</td></tr>
-    <tr><td>split</td><td>拆分</td></tr>
-    <tr><td>join</td><td>合并</td></tr>
-    <tr><td>atoi</td><td>string->int64</td></tr>
-    <tr><td>itoa</td><td>int64->string</td></tr>
+    <tr><td><code>index</code></td><td>索引</td></tr>
+    <tr><td><code>hasPrefix</code></td><td>是否有 prefix</td></tr>
+    <tr><td><code>hasSuffix</code></td><td>是否有 suffix</td></tr>
+    <tr><td><code>trim</code></td><td>去除两端空白</td></tr>
+    <tr><td><code>trimPrefix</code></td><td>去除 prefix</td></tr>
+    <tr><td><code>trimSuffix</code></td><td>去除 suffix</td></tr>
+    <tr><td><code>trimSpace</code></td><td>去除空白</td></tr>
+    <tr><td><code>trimLeft</code></td><td>去除左侧，cutset 匹配</td></tr>
+    <tr><td><code>trimRight</code></td><td>去除右侧，cutset 匹配</td></tr>
+    <tr><td><code>toLower</code></td><td>转小写</td></tr>
+    <tr><td><code>toUpper</code></td><td>转大写</td></tr>
+    <tr><td><code>split</code></td><td>拆分</td></tr>
+    <tr><td><code>join</code></td><td>合并</td></tr>
+    <tr><td><code>atoi</code></td><td>string->int64</td></tr>
+    <tr><td><code>itoa</code></td><td>int64->string</td></tr>
   </tbody>
 </table>
 
@@ -356,9 +356,9 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
     </tr>
   </thead>
   <tbody>
-    <tr><td>now</td><td>获取当前时间</td></tr>
-    <tr><td>parseTime</td><td>解析字符串为时间</td></tr>
-    <tr><td>parseDuration</td><td>解析字符串为 duration</td></tr>
+    <tr><td><code>now</code></td><td>获取当前时间</td></tr>
+    <tr><td><code>parseTime</code></td><td>解析字符串为时间</td></tr>
+    <tr><td><code>parseDuration</code></td><td>解析字符串为 duration</td></tr>
   </tbody>
 </table>
 
@@ -372,8 +372,8 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
     </tr>
   </thead>
   <tbody>
-    <tr><td>toJson</td><td> 序列化为 json 字符串</td></tr>
-    <tr><td>fromJson</td><td> 反序列化为 map[string][any]</td></tr>
-    <tr><td>unmarshalJson</td><td> 对齐 json.Unmarhsal</td></tr>
+    <tr><td><code>toJson</code></td><td> 序列化为 json 字符串</td></tr>
+    <tr><td><code>fromJson</code></td><td> 反序列化为 map[string][any]</td></tr>
+    <tr><td><code>unmarshalJson</code></td><td> 对齐 json.Unmarhsal</td></tr>
   </tbody>
 </table>
