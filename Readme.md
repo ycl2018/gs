@@ -92,31 +92,49 @@ fmt.Println(env.Sum) // 3
 
 ## 数据类型
 
-|类型|对应 go 语言类型|分类|
-|--|--|--|
-|int|uint,int,uintX,intX|基本类型|
-|float64|float32,float64|基本类型|
-|string|string|基本类型|
-|true|true|基本类型|
-|false|false|基本类型|
-|[]|[]any|复合类型|
-|{}|map\[any]\[any]|复合类型|
-|struct|自定义类型无对应|复合类型|
-|nil|nil|空类型|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:20%">类型</th>
+      <th style="width:50%">对应 go 语言类型</th>
+      <th style="width:30%">分类</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>int</td><td>uint,int,uintX,intX</td><td>基本类型</td></tr>
+    <tr><td>float64</td><td>float32,float64</td><td>基本类型</td></tr>
+    <tr><td>string</td><td>string</td><td>基本类型</td></tr>
+    <tr><td>true</td><td>true</td><td>基本类型</td></tr>
+    <tr><td>false</td><td>false</td><td>基本类型</td></tr>
+    <tr><td>[]</td><td>[]any</td><td>复合类型</td></tr>
+    <tr><td>{}</td><td>map[any][any]</td><td>复合类型</td></tr>
+    <tr><td>struct</td><td>自定义类型无对应</td><td>复合类型</td></tr>
+    <tr><td>nil</td><td>nil</td><td>空类型</td></tr>
+  </tbody>
+</table>
 
 ## 运算
 
 优先级从低到高
 
-|类型| 符号                      |优先级|
-|--|-------------------------|--|
-|或| \|                      |低|
-|与| &&                      ||
-|比较| >,<,=,!=,==,>=,<=,>>,<< ||
-|位运算| &,\|,^                  ||
-|加减| +,-                     ||
-|乘除| *,/                     ||
-|指针解引用（来自 go 的指针）| *                       |高|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:20%">类型</th>
+      <th style="width:60%">符号</th>
+      <th style="width:20%">优先级</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>或</td><td>|</td><td>低</td></tr>
+    <tr><td>与</td><td>&&</td><td></td></tr>
+    <tr><td>比较</td><td>&gt;,&lt;,=,!=,==,&gt;=,&lt;=,&gt;&gt;,&lt;&lt;</td><td></td></tr>
+    <tr><td>位运算</td><td>&amp;,|,^</td><td></td></tr>
+    <tr><td>加减</td><td>+,-</td><td></td></tr>
+    <tr><td>乘除</td><td>*,/</td><td></td></tr>
+    <tr><td>指针解引用（来自 go 的指针）</td><td>*</td><td>高</td></tr>
+  </tbody>
+</table>
 
 ## 语法定义
 
@@ -127,13 +145,21 @@ fmt.Println(env.Sum) // 3
 
 ### 字面量
 
-|类型| 示例                                                                                                                          |
-|--|-----------------------------------------------------------------------------------------------------------------------------|
-|int| 十进制整数：12345<br/>下划线：10_000<br/>二进制：0b01010101,0B01010101,0B1110_01111<br/>八进制：0o755333,0O1234_4567<br/>十六进制：0xaB_Cd,0X12_AC |
-|float| 10.3, .2, 123_456.789, 123.45_6e-7, 123.                                                                                    |
-|string| 单行字符串："abc"<br/>多行字符串：\`<br/>“first line” <br/>“second line”<br/>\`                                                         |
-|[]| 切片 [1,2,3\], ["a","b","c"\], ["1",1,true\]                                                                                  |
-|{}| Map {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}                                                                      |
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:20%">类型</th>
+      <th style="width:80%">示例</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>int</td><td>十进制整数：12345<br/>下划线：10_000<br/>二进制：0b01010101,0B01010101,0B1110_01111<br/>八进制：0o755333,0O1234_4567<br/>十六进制：0xaB_Cd,0X12_AC</td></tr>
+    <tr><td>float</td><td>10.3, .2, 123_456.789, 123.45_6e-7, 123.</td></tr>
+    <tr><td>string</td><td>单行字符串："abc"<br/>多行字符串：`<br/>“first line” <br/>“second line”<br/>`</td></tr>
+    <tr><td>[]</td><td>切片 [1,2,3], ["a","b","c"], ["1",1,true]</td></tr>
+    <tr><td>{}</td><td>Map {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}</td></tr>
+  </tbody>
+</table>
 
 ### 类型定义
 
@@ -158,18 +184,26 @@ type MyStruct struct {Field0, Filed1, Field2, ...}
 
 基本语句，对齐 go：
 
-|语句类型|示例|
-|--|--|
-|变量声明必须赋值|x = 10<br/>x, y  =  1, 2|
-|一元元算|x-=2, x+=2, x/=2, x*=3|
-|自加/自减|i++, i--|
-|负数|-a, -10|
-|比较|>, < , ==, >=, <=, !=|
-|运算|+, -, *, /, &, \|, ^|
-|返回，支持多返回值|return x, y|
-|终止循环|break|
-|继续循环|continue|
-|切片|arr[1:2], arr[1:], arr[:10], arr[:]|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">语句类型</th>
+      <th style="width:70%">示例</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>变量声明必须赋值</td><td>x = 10<br/>x, y = 1, 2</td></tr>
+    <tr><td>一元运算</td><td>x-=2, x+=2, x/=2, x*=3</td></tr>
+    <tr><td>自加/自减</td><td>i++, i--</td></tr>
+    <tr><td>负数</td><td>-a, -10</td></tr>
+    <tr><td>比较</td><td>&gt;, &lt;, ==, &gt;=, &lt;=, !=</td></tr>
+    <tr><td>运算</td><td>+, -, *, /, &amp;, |, ^</td></tr>
+    <tr><td>返回，支持多返回值</td><td>return x, y</td></tr>
+    <tr><td>终止循环</td><td>break</td></tr>
+    <tr><td>继续循环</td><td>continue</td></tr>
+    <tr><td>切片</td><td>arr[1:2], arr[1:], arr[:10], arr[:]</td></tr>
+  </tbody>
+</table>
 
 for 循环，对齐 go：
 
@@ -247,59 +281,99 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
 
 ### 基本函数
 
-|函数|作用|
-|--|--|
-|append|切片追加元素，支持三点符号...|
-|delete|删除元素|
-|len|获取长度|
-|uint/uint8/uintX/int/int8/intX/float32/float64/string/duration|类型强转|
-|print/printf/println|打印变量到标准输出，可自定义输出 io|
-|sprintf|格式化字符串，对齐 go|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">函数</th>
+      <th style="width:70%">作用</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>append</td><td>切片追加元素，支持三点符号...</td></tr>
+    <tr><td>delete</td><td>删除元素</td></tr>
+    <tr><td>len</td><td>获取长度</td></tr>
+    <tr><td>uint/uint8/uintX/int/int8/intX/float32/float64/string/duration</td><td>类型强转</td></tr>
+    <tr><td>print/printf/println</td><td>打印变量到标准输出，可自定义输出 io</td></tr>
+    <tr><td>sprintf</td><td>格式化字符串，对齐 go</td></tr>
+  </tbody>
+</table>
 
 ### 集合
 
-|函数|作用|
-|--|--|
-|in(arr/map, value)|查询 value 是否在 arr/map 的 key 中|
-|sort|排序，只支持基本类型数组|
-|||
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">函数</th>
+      <th style="width:70%">作用</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>in(arr/map, value)</td><td>查询 value 是否在 arr/map 的 key 中</td></tr>
+    <tr><td>sort</td><td>排序，只支持基本类型数组</td></tr>
+  </tbody>
+</table>
+
 
 ### 字符串
 
 签名完全对齐 go
 
-|函数|作用|
-|--|--|
-| index| 索引|
-| hasPrefix|是否有 prefix|
-|hasSuffix|有否有 suffix|
-|trim|去除两端空白|
-|trimPrefix|去除 prefix|
-|trimSuffix|去除 suffix|
-|trimSpace|去除空白|
-|trimLeft|去除左侧，cutset 匹配|
-|trimRight|去除右侧，cutset 匹配|
-|toLower|转小写|
-|toUpper|转大写|
-|split|拆分|
-|join|合并|
-|atoi|string->int64|
-|itoa|int64->string|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">函数</th>
+      <th style="width:70%">作用</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>index</td><td>索引</td></tr>
+    <tr><td>hasPrefix</td><td>是否有 prefix</td></tr>
+    <tr><td>hasSuffix</td><td>是否有 suffix</td></tr>
+    <tr><td>trim</td><td>去除两端空白</td></tr>
+    <tr><td>trimPrefix</td><td>去除 prefix</td></tr>
+    <tr><td>trimSuffix</td><td>去除 suffix</td></tr>
+    <tr><td>trimSpace</td><td>去除空白</td></tr>
+    <tr><td>trimLeft</td><td>去除左侧，cutset 匹配</td></tr>
+    <tr><td>trimRight</td><td>去除右侧，cutset 匹配</td></tr>
+    <tr><td>toLower</td><td>转小写</td></tr>
+    <tr><td>toUpper</td><td>转大写</td></tr>
+    <tr><td>split</td><td>拆分</td></tr>
+    <tr><td>join</td><td>合并</td></tr>
+    <tr><td>atoi</td><td>string->int64</td></tr>
+    <tr><td>itoa</td><td>int64->string</td></tr>
+  </tbody>
+</table>
 
 ### 时间
 
 签名完全对齐 go
 
-|函数|作用|
-|--|--|
-|now|获取当前时间|
-|parseTime|解析字符串为时间|
-|parseDuration|解析字符串为 duration|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">函数</th>
+      <th style="width:70%">作用</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>now</td><td>获取当前时间</td></tr>
+    <tr><td>parseTime</td><td>解析字符串为时间</td></tr>
+    <tr><td>parseDuration</td><td>解析字符串为 duration</td></tr>
+  </tbody>
+</table>
 
 ### json
 
-|函数|作用|
-|--|--|
-|toJson| 序列化为 json 字符串|
-|fromJson| 反序列化为 map[string\][any\]|
-|unmarshalJson| 对齐 json.Unmarhsal|
+<table style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:30%">函数</th>
+      <th style="width:70%">作用</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>toJson</td><td> 序列化为 json 字符串</td></tr>
+    <tr><td>fromJson</td><td> 反序列化为 map[string][any]</td></tr>
+    <tr><td>unmarshalJson</td><td> 对齐 json.Unmarhsal</td></tr>
+  </tbody>
+</table>
