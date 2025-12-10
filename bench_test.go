@@ -1,6 +1,9 @@
 package gs
 
-import "testing"
+import (
+	"io"
+	"testing"
+)
 
 //goos: darwin
 //goarch: arm64
@@ -31,7 +34,7 @@ func BenchmarkWithCache(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := Run(code, env)
+		_, err := Run(code, env, Output(io.Discard))
 		if err != nil {
 			b.Fatal(err)
 			return
@@ -53,7 +56,7 @@ func BenchmarkNoCache(b *testing.B) {
 	noCacheOp := NoCache()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := Run(code, env, noCacheOp)
+		_, err := Run(code, env, noCacheOp, Output(io.Discard))
 		if err != nil {
 			b.Fatal(err)
 			return
