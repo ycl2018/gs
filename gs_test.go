@@ -524,7 +524,6 @@ println(b)
 			expect: `111
 hello world
 `,
-			dump: true,
 		},
 		{
 			name: "slice.gs",
