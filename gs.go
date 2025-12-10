@@ -144,7 +144,9 @@ func Eval(program string, env any, ops ...any) (ret *Result, err error) {
 	var compileOps = []CompileOption{
 		NoOptimize(),
 	}
-	var runOps []RunOption
+	var runOps = []RunOption{
+		NoCache(),
+	}
 	compileOps = append(compileOps, Env(env))
 	for _, op := range ops {
 		switch op := op.(type) {
