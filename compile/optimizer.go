@@ -60,26 +60,19 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 	var sliceInit []any
 
 	for _, tree := range exprs {
-		if len(tree.GetChildren()) != 1 {
+		constValue, ok := toConstNode(tree)
+		if !ok {
 			return nil
 		}
-		v := tree.(*gen.ExprContext).GetChild(0)
-		if v.GetChildCount() != 1 {
-			return nil
-		}
-		v2, ok2 := v.GetChild(0).(*consts.ConstNode)
-		if !ok2 {
-			return nil
-		}
-		switch v2.Kind {
+		switch constValue.Kind {
 		case consts.ConstNodeKindInt:
-			sliceInit = append(sliceInit, consts.ToIntValue(v2))
+			sliceInit = append(sliceInit, consts.ToIntValue(constValue))
 		case consts.ConstNodeKindFloat:
-			sliceInit = append(sliceInit, consts.ToFloatValue(v2))
+			sliceInit = append(sliceInit, consts.ToFloatValue(constValue))
 		case consts.ConstNodeKindString:
-			sliceInit = append(sliceInit, consts.ToStringValue(v2))
+			sliceInit = append(sliceInit, consts.ToStringValue(constValue))
 		case consts.ConstNodeKindBool:
-			sliceInit = append(sliceInit, consts.ToBoolValue(v2))
+			sliceInit = append(sliceInit, consts.ToBoolValue(constValue))
 		default:
 			return nil
 		}
@@ -112,7 +105,7 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 		}
 		keyTerminal := constKey.GetChild(0).(antlr.TerminalNode)
 		keyType := keyTerminal.GetSymbol().GetTokenType()
-		valueExpr := entry.(antlr.RuleContext).GetChild(2).(*gen.ExprContext)
+		valueExpr := entry.(antlr.RuleContext).GetChild(2).(gen.IExprContext)
 		constValue, ok := toConstNode(valueExpr)
 		if !ok {
 			return nil
@@ -150,84 +143,24 @@ func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface
 	return nil
 }
 
-func toConstNode(valueExpr *gen.ExprContext) (*consts.ConstNode, bool) {
-	valueChildren := valueExpr.GetChild(0).(*gen.LogicalOrExprContext)
-	if len(valueChildren.GetChildren()) != 1 {
+func toConstNode(expr gen.IExprContext) (*consts.ConstNode, bool) {
+	if expr.GetChildCount() == 0 {
+		v, ok := expr.(*consts.ConstNode)
+		return v, ok
+	}
+	if expr.GetChildCount() != 1 {
 		return nil, false
 	}
-	constValue, ok2 := valueChildren.GetChild(0).(*consts.ConstNode)
-	if !ok2 {
-		return nil, false
-	}
-	return constValue, true
+	constValue, ok := expr.GetChild(0).(*consts.ConstNode)
+	return constValue, ok
 }
 
 func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {
-	// logicalAndExpr (OR logicalAndExpr)*
-	c.VisitChildren(ctx)
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 0 {
-			top, ok := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			if ok {
-				if top.Kind == consts.ConstNodeKindBool && top.Value.(bool) == true {
-					newChildren = []antlr.Tree{top}
-					c.FoldConstExpr = true
-					break
-				}
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
+	return c.VisitExpr(ctx)
 }
 
 func (c *ConstOptimizer) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) interface{} {
-	// comparisonExpr (AND comparisonExpr)* ;
-	c.VisitChildren(ctx)
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 0 {
-			top, ok := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			if ok {
-				if top.Kind == consts.ConstNodeKindBool && top.Value.(bool) == false {
-					newChildren = []antlr.Tree{top}
-					c.FoldConstExpr = true
-					break
-				}
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
+	return c.VisitExpr(ctx)
 }
 
 func replaceChildren(ctx antlr.ParserRuleContext, newChildren []antlr.Tree) {
@@ -244,281 +177,215 @@ func replaceChildren(ctx antlr.ParserRuleContext, newChildren []antlr.Tree) {
 }
 
 func (c *ConstOptimizer) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
-	c.VisitChildren(ctx)
-	//bitExpr (compOp bitExpr)? ;
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 2 {
-			// 合并，只处理相邻的常数
-			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
-			if ok1 && ok2 {
-				op := newChildren[len(newChildren)-2].(*gen.CompOpContext).GetText()
-				var constNode *consts.ConstNode
-				// EQ | LT | GT | NEQ | GEQ | LEQ
-				switch op {
-				case "==":
-					if top.Kind == consts.ConstNodeKindString && pre.Kind == consts.ConstNodeKindString {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(pre) == consts.ToStringValue(top), ctx.GetStart())
-					} else if top.Kind == consts.ConstNodeKindBool && pre.Kind == consts.ConstNodeKindBool {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(pre) == consts.ToBoolValue(top), ctx.GetStart())
-					}
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) == consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) == consts.ToIntValue(top), ctx.GetStart())
-					}
-
-				case "<":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) < consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) < consts.ToIntValue(top), ctx.GetStart())
-					}
-				case ">":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) > consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) > consts.ToIntValue(top), ctx.GetStart())
-					}
-				case "!=":
-					if top.Kind == consts.ConstNodeKindString && pre.Kind == consts.ConstNodeKindString {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(pre) != consts.ToStringValue(top), ctx.GetStart())
-					} else if top.Kind == consts.ConstNodeKindBool && pre.Kind == consts.ConstNodeKindBool {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(pre) != consts.ToBoolValue(top), ctx.GetStart())
-					}
-					if top.Kind == consts.ConstNodeKindFloat && pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) != consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) != consts.ToIntValue(top), ctx.GetStart())
-					}
-				case ">=":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) >= consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) >= consts.ToIntValue(top), ctx.GetStart())
-					}
-				case "<=":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(pre) <= consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(pre) <= consts.ToIntValue(top), ctx.GetStart())
-					}
-				default:
-					panic(fmt.Sprintf("unknown op: %v", op))
-				}
-				newChildren = newChildren[:len(newChildren)-3]
-				newChildren = append(newChildren, constNode)
-				c.FoldConstExpr = true
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
-}
-
-func (c *ConstOptimizer) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
-	// addExpr (bitOp addExpr)*
-	c.VisitChildren(ctx)
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 2 {
-			// 合并
-			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
-			if ok1 && ok2 {
-				op := newChildren[len(newChildren)-2].(*gen.BitOpContext).GetText()
-				var constNode *consts.ConstNode
-				switch op {
-				case "|":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)&consts.ToIntValue(top), ctx.GetStart())
-				case "&":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)|consts.ToIntValue(top), ctx.GetStart())
-				case "^":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)^consts.ToIntValue(top), ctx.GetStart())
-				default:
-					panic(fmt.Sprintf("unknown op: %v", op))
-				}
-				newChildren = newChildren[:len(newChildren)-3]
-				newChildren = append(newChildren, constNode)
-				c.FoldConstExpr = true
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
+	return c.VisitExpr(ctx)
 }
 
 func (c *ConstOptimizer) VisitAddExpr(ctx *gen.AddExprContext) interface{} {
-	//
-	c.VisitChildren(ctx)
-	var newChildren []antlr.Tree
-	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		var added bool
-		if len(tree.GetChildren()) == 1 {
-			if v, ok := tree.GetChild(0).(*consts.ConstNode); ok {
-				newChildren = append(newChildren, v)
-				applied = true
-				added = true
-			}
-		}
-		if !added {
-			newChildren = append(newChildren, tree)
-		}
-		if len(newChildren) > 2 {
-			// 合并，只处理相邻的常数
-			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
-			if ok1 && ok2 {
-				op := newChildren[len(newChildren)-2].(*gen.AddOpContext).GetText()
-				var constNode *consts.ConstNode
-				switch op {
-				case "+":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)+consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)+consts.ToIntValue(top), ctx.GetStart())
-					}
-
-				case "-":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)-consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)-consts.ToIntValue(top), ctx.GetStart())
-					}
-				default:
-					panic(fmt.Sprintf("unknown op: %v", op))
-				}
-				newChildren = newChildren[:len(newChildren)-3]
-				newChildren = append(newChildren, constNode)
-				c.FoldConstExpr = true
-			}
-		}
-	}
-	if applied {
-		replaceChildren(ctx, newChildren)
-	}
-	return nil
+	return c.VisitExpr(ctx)
 }
 
 func (c *ConstOptimizer) VisitMulExpr(ctx *gen.MulExprContext) interface{} {
+	return c.VisitExpr(ctx)
+}
+
+func (c *ConstOptimizer) VisitExpr(ctx gen.IExprContext) interface{} {
 	c.VisitChildren(ctx)
 	var newChildren []antlr.Tree
 	var applied bool
-	for _, tree := range ctx.GetChildren() {
-		switch t := tree.(type) {
-		case *gen.FloatAtomContext:
-			applied = true
-			f, err := strconv.ParseFloat(t.GetText(), 64)
-			if err != nil {
-				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
-				return nil
-			}
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, f, ctx.GetStart()))
-		case *gen.IntAtomContext:
-			applied = true
-			f, err := strconv.ParseInt(t.GetText(), 0, 64)
-			if err != nil {
-				c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
-				return nil
-			}
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, int(f), ctx.GetStart()))
-		case *gen.StringAtomContext:
-			applied = true
-			literal := t.GetText()
-			str, err := strconv.Unquote(literal)
-			if err != nil {
-				c.Log.ErrorToken(t.GetStart(), fmt.Sprintf("invalid string: %s", literal))
-				return nil
-			}
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindString, str, ctx.GetStart()))
-		case *gen.TrueAtomContext:
-			applied = true
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, true, ctx.GetStart()))
-		case *gen.FalseAtomContext:
-			applied = true
-			newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, false, ctx.GetStart()))
-		case *gen.ParenAtomContext:
-			// expr -> logicalor
-			added := false
-			expr := t.Expr()
-			if constNode, ok := toConstNode(expr.(*gen.ExprContext)); ok {
-				newChildren = append(newChildren, constNode)
+	var constNodeNum int
+	for _, n := range ctx.GetChildren() {
+		atomExpr, ok := n.(*gen.AtomExprContext)
+		if ok {
+			tree := atomExpr.Atom()
+			switch t := tree.(type) {
+			case *gen.FloatAtomContext:
+				f, err := strconv.ParseFloat(t.GetText(), 64)
+				if err != nil {
+					c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
+					return nil
+				}
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindFloat, f, ctx.GetStart()))
 				applied = true
-				added = true
-			}
-			if !added {
-				newChildren = append(newChildren, expr)
-			}
-		case *gen.ArrayAtomContext:
-			if al, ok := t.GetChild(0).(*gen.ArrayLiteralContext); ok && t.GetChildCount() == 1 {
-				if cn, ok2 := al.GetChild(0).(*consts.ConstNode); ok2 {
+				constNodeNum++
+			case *gen.IntAtomContext:
+				f, err := strconv.ParseInt(t.GetText(), 0, 64)
+				if err != nil {
+					c.Log.ErrorToken(t.GetStart(), "cannot parse float from:%s", t.GetText())
+					return nil
+				}
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, int(f), ctx.GetStart()))
+				applied = true
+				constNodeNum++
+			case *gen.StringAtomContext:
+				literal := t.GetText()
+				str, err := strconv.Unquote(literal)
+				if err != nil {
+					c.Log.ErrorToken(t.GetStart(), fmt.Sprintf("invalid string: %s", literal))
+					return nil
+				}
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindString, str, ctx.GetStart()))
+				applied = true
+				constNodeNum++
+			case *gen.TrueAtomContext:
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, true, ctx.GetStart()))
+				applied = true
+				constNodeNum++
+			case *gen.FalseAtomContext:
+				newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindBool, false, ctx.GetStart()))
+				applied = true
+				constNodeNum++
+			case *gen.ParenAtomContext:
+				// expr -> logicalor
+				expr := t.Expr()
+				if constNode, ok := toConstNode(expr.(gen.IExprContext)); ok {
+					newChildren = append(newChildren, constNode)
 					applied = true
-					newChildren = append(newChildren, cn)
+					constNodeNum++
 					break
 				}
+				newChildren = append(newChildren, n)
+			case *gen.ArrayAtomContext:
+				if al, ok := t.GetChild(0).(*gen.ArrayLiteralContext); ok && t.GetChildCount() == 1 {
+					if cn, ok2 := al.GetChild(0).(*consts.ConstNode); ok2 {
+						applied = true
+						constNodeNum++
+						newChildren = append(newChildren, cn)
+						break
+					}
+				}
+				newChildren = append(newChildren, n)
+			default:
+				newChildren = append(newChildren, n)
 			}
-			newChildren = append(newChildren, t)
-		default:
-			newChildren = append(newChildren, t)
+		} else {
+			newChildren = append(newChildren, n)
+			if expr, ok := n.(gen.IExprContext); ok {
+				if _, ok := toConstNode(expr); ok {
+					constNodeNum++
+				}
+			}
+
 		}
-		if len(newChildren) > 2 {
+		if constNodeNum > 1 {
 			// 合并
-			top, ok1 := newChildren[len(newChildren)-1].(*consts.ConstNode)
-			pre, ok2 := newChildren[len(newChildren)-3].(*consts.ConstNode)
+			r, ok1 := toConstNode(newChildren[len(newChildren)-1].(gen.IExprContext))
+			l, ok2 := toConstNode(newChildren[len(newChildren)-3].(gen.IExprContext))
 			if ok1 && ok2 {
-				op := newChildren[len(newChildren)-2].(*gen.MulOpContext).GetText()
+				op := newChildren[len(newChildren)-2].(antlr.ParseTree).GetText()
 				var constNode *consts.ConstNode
 				switch op {
-				case "*":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)*consts.ToFloatValue(top), ctx.GetStart())
-					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)*consts.ToIntValue(top), ctx.GetStart())
+				case "&&":
+					for _, v := range []*consts.ConstNode{l, r} {
+						val, valid := getBoolConst(v)
+						if !valid {
+							panic(fmt.Sprintf("syntax err: const:%v in op:%s", v.Value, op))
+						}
+						if valid && !val {
+							constNode = v
+							break
+						}
 					}
-
-				case "/":
-					if top.Kind == consts.ConstNodeKindFloat || pre.Kind == consts.ConstNodeKindFloat {
-						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(pre)/consts.ToFloatValue(top), ctx.GetStart())
+				case "||":
+					for _, v := range []*consts.ConstNode{l, r} {
+						val, valid := getBoolConst(v)
+						if !valid {
+							panic(fmt.Sprintf("syntax err: const value:%v in op:%s", v.Value, op))
+						}
+						if valid && val {
+							constNode = v
+							break
+						}
+					}
+				case "==":
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) == consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindBool && l.Kind == consts.ConstNodeKindBool {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(l) == consts.ToBoolValue(r), ctx.GetStart())
+					}
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) == consts.ToFloatValue(r), ctx.GetStart())
 					} else {
-						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)/consts.ToIntValue(top), ctx.GetStart())
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) == consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "<":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) < consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) < consts.ToIntValue(r), ctx.GetStart())
+					}
+				case ">":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) > consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) > consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "!=":
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) != consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindBool && l.Kind == consts.ConstNodeKindBool {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToBoolValue(l) != consts.ToBoolValue(r), ctx.GetStart())
+					}
+					if r.Kind == consts.ConstNodeKindFloat && l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) != consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) != consts.ToIntValue(r), ctx.GetStart())
+					}
+				case ">=":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) >= consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) >= consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "<=":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) <= consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) <= consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "+":
+					if r.Kind == consts.ConstNodeKindString || l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindString, consts.ToStringValue(l)+consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(l)+consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)+consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "-":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(l)-consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)-consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "*":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(l)*consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)*consts.ToIntValue(r), ctx.GetStart())
+					}
+				case "&":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)&consts.ToIntValue(r), ctx.GetStart())
+				case "|":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)|consts.ToIntValue(r), ctx.GetStart())
+				case "^":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)^consts.ToIntValue(r), ctx.GetStart())
+				case "<<":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)<<consts.ToIntValue(r), ctx.GetStart())
+				case ">>":
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)>>consts.ToIntValue(r), ctx.GetStart())
+				case "/":
+					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+						constNode = consts.NewConstNode(consts.ConstNodeKindFloat, consts.ToFloatValue(l)/consts.ToFloatValue(r), ctx.GetStart())
+					} else {
+						constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)/consts.ToIntValue(r), ctx.GetStart())
 					}
 				case "%":
-					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(pre)%consts.ToIntValue(top), ctx.GetStart())
+					constNode = consts.NewConstNode(consts.ConstNodeKindInt, consts.ToIntValue(l)%consts.ToIntValue(r), ctx.GetStart())
 				default:
 					panic(fmt.Sprintf("unknown op: %v", op))
 				}
 				newChildren = newChildren[:len(newChildren)-3]
 				newChildren = append(newChildren, constNode)
+				applied = true
 				c.FoldConstExpr = true
 			}
 		}
@@ -552,8 +419,9 @@ func (c *ConstOptimizer) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
 		}
 		newChildren = append(newChildren, consts.NewConstNode(consts.ConstNodeKindInt, -int(f), ctx.GetStart()))
 	case *gen.ParenAtomContext:
+		t.Expr().Accept(c)
 		expr := t.Expr()
-		if constNode, ok := toConstNode(expr.(*gen.ExprContext)); ok {
+		if constNode, ok := toConstNode(expr.(gen.IExprContext)); ok {
 			switch constNode.Kind {
 			case consts.ConstNodeKindInt:
 				constNode.Value = -constNode.Value.(int)
@@ -580,7 +448,7 @@ func (c *ConstOptimizer) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
 		if arg1 == nil {
 			return nil
 		}
-		constNode, ok := toConstNode(arg1.(*gen.ExprContext))
+		constNode, ok := toConstNode(arg1.(gen.IExprContext))
 		if !ok {
 			return nil
 		}
@@ -663,4 +531,11 @@ func (c *ConstOptimizer) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
 		}
 	}
 	return nil
+}
+
+func getBoolConst(constNode *consts.ConstNode) (bool, bool) {
+	if constNode.Kind == consts.ConstNodeKindBool {
+		return constNode.Value.(bool), true
+	}
+	return false, false
 }

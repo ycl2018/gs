@@ -83,20 +83,14 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#toStringCall.
 	VisitToStringCall(ctx *ToStringCallContext) interface{}
 
-	// Visit a parse tree produced by GsParser#printCall.
-	VisitPrintCall(ctx *PrintCallContext) interface{}
-
-	// Visit a parse tree produced by GsParser#printfCall.
-	VisitPrintfCall(ctx *PrintfCallContext) interface{}
-
-	// Visit a parse tree produced by GsParser#printlnCall.
-	VisitPrintlnCall(ctx *PrintlnCallContext) interface{}
-
-	// Visit a parse tree produced by GsParser#sprintfCall.
-	VisitSprintfCall(ctx *SprintfCallContext) interface{}
+	// Visit a parse tree produced by GsParser#printXCall.
+	VisitPrintXCall(ctx *PrintXCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#convertCall.
 	VisitConvertCall(ctx *ConvertCallContext) interface{}
+
+	// Visit a parse tree produced by GsParser#goCall.
+	VisitGoCall(ctx *GoCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#singleIter.
 	VisitSingleIter(ctx *SingleIterContext) interface{}
@@ -131,20 +125,11 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#outerCall.
 	VisitOuterCall(ctx *OuterCallContext) interface{}
 
-	// Visit a parse tree produced by GsParser#expr.
-	VisitExpr(ctx *ExprContext) interface{}
-
 	// Visit a parse tree produced by GsParser#logicalOrExpr.
 	VisitLogicalOrExpr(ctx *LogicalOrExprContext) interface{}
 
 	// Visit a parse tree produced by GsParser#logicalAndExpr.
 	VisitLogicalAndExpr(ctx *LogicalAndExprContext) interface{}
-
-	// Visit a parse tree produced by GsParser#comparisonExpr.
-	VisitComparisonExpr(ctx *ComparisonExprContext) interface{}
-
-	// Visit a parse tree produced by GsParser#binExpr.
-	VisitBinExpr(ctx *BinExprContext) interface{}
 
 	// Visit a parse tree produced by GsParser#addExpr.
 	VisitAddExpr(ctx *AddExprContext) interface{}
@@ -152,11 +137,20 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#mulExpr.
 	VisitMulExpr(ctx *MulExprContext) interface{}
 
+	// Visit a parse tree produced by GsParser#atomExpr.
+	VisitAtomExpr(ctx *AtomExprContext) interface{}
+
+	// Visit a parse tree produced by GsParser#comparisonExpr.
+	VisitComparisonExpr(ctx *ComparisonExprContext) interface{}
+
 	// Visit a parse tree produced by GsParser#negAtom.
 	VisitNegAtom(ctx *NegAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#notAtom.
 	VisitNotAtom(ctx *NotAtomContext) interface{}
+
+	// Visit a parse tree produced by GsParser#derefAtom.
+	VisitDerefAtom(ctx *DerefAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#intAtom.
 	VisitIntAtom(ctx *IntAtomContext) interface{}
@@ -193,9 +187,6 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#parenAtom.
 	VisitParenAtom(ctx *ParenAtomContext) interface{}
-
-	// Visit a parse tree produced by GsParser#derefAtom.
-	VisitDerefAtom(ctx *DerefAtomContext) interface{}
 
 	// Visit a parse tree produced by GsParser#qidAtom.
 	VisitQidAtom(ctx *QidAtomContext) interface{}
@@ -241,9 +232,6 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#addOp.
 	VisitAddOp(ctx *AddOpContext) interface{}
-
-	// Visit a parse tree produced by GsParser#bitOp.
-	VisitBitOp(ctx *BitOpContext) interface{}
 
 	// Visit a parse tree produced by GsParser#mulOp.
 	VisitMulOp(ctx *MulOpContext) interface{}

@@ -139,7 +139,7 @@ func (s *StackCompileVisitor) storeQid(qid gen.IQidContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				t.Accept(s)
 				if i < len(accessors)-1 {
 					s.Write(consts.InstrIndexLoad, a.GetStart())
@@ -217,7 +217,7 @@ func (s *StackCompileVisitor) loadQid(qid gen.IQidContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				t.Accept(s)
 				s.Write(consts.InstrIndexLoad, a.GetStart())
 			case *gen.SliceExprContext:
@@ -272,7 +272,7 @@ func (s *StackCompileVisitor) loadOuterFunc(ctx *gen.OuterCallContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				t.Accept(s)
 				s.Write(consts.InstrIndexLoad, a.GetStart())
 			case *gen.SliceExprContext:

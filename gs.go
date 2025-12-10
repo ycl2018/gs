@@ -81,6 +81,12 @@ func BlockAllSystemFunc() CompileOption {
 	}
 }
 
+func NoOptimize() CompileOption {
+	return func(conf *conf.CompileConf) {
+		conf.Optimize = false
+	}
+}
+
 type RunOption func(conf *conf.RunConf)
 
 func Trace() RunOption {
@@ -135,7 +141,9 @@ func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
 }
 
 func Eval(program string, env any, ops ...any) (ret *Result, err error) {
-	var compileOps []CompileOption
+	var compileOps = []CompileOption{
+		NoOptimize(),
+	}
 	var runOps []RunOption
 	compileOps = append(compileOps, Env(env))
 	for _, op := range ops {

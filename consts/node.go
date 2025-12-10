@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/ycl2018/gs/gen"
 )
 
 type ConstNodeKind int
@@ -76,89 +75,10 @@ type ConstNode struct {
 	token antlr.Token
 }
 
-func (c *ConstNode) LogicalOrExpr() gen.ILogicalOrExprContext {
-	panic("not implemented")
-}
-
 func (c *ConstNode) IsExprContext() {
 }
 
 func (c *ConstNode) IsAtomContext() {
-
-}
-
-func (c *ConstNode) AllAtom() []gen.IAtomContext {
-	return []gen.IAtomContext{c}
-}
-
-func (c *ConstNode) Atom(i int) gen.IAtomContext {
-	return c
-}
-
-func (c *ConstNode) AllMulOp() []gen.IMulOpContext {
-	return []gen.IMulOpContext{}
-}
-
-func (c *ConstNode) MulOp(i int) gen.IMulOpContext {
-	return nil
-}
-
-func (c *ConstNode) IsMulExprContext() {
-
-}
-
-func (c *ConstNode) AllMulExpr() []gen.IMulExprContext {
-	return []gen.IMulExprContext{c}
-}
-
-func (c *ConstNode) MulExpr(i int) gen.IMulExprContext {
-	return c
-}
-
-func (c *ConstNode) AllBitOp() []gen.IBitOpContext {
-	return nil
-}
-
-func (c *ConstNode) BitOp(i int) gen.IBitOpContext {
-	return nil
-}
-
-func (c *ConstNode) IsBinExprContext() {
-
-}
-
-func (c *ConstNode) AllBinExpr() []gen.IBinExprContext {
-	return []gen.IBinExprContext{c}
-}
-
-func (c *ConstNode) BinExpr(i int) gen.IBinExprContext {
-	return c
-}
-
-func (c *ConstNode) AllAddOp() []gen.IAddOpContext {
-	return nil
-}
-
-func (c *ConstNode) AddOp(i int) gen.IAddOpContext {
-	return nil
-}
-
-func (c *ConstNode) IsAddExprContext() {
-}
-
-func (c *ConstNode) AllAddExpr() []gen.IAddExprContext {
-	return []gen.IAddExprContext{c}
-}
-
-func (c *ConstNode) AddExpr(i int) gen.IAddExprContext {
-	return c
-}
-
-func (c *ConstNode) CompOp() gen.ICompOpContext {
-	return nil
-}
-
-func (c *ConstNode) IsComparisonExprContext() {
 }
 
 func (c *ConstNode) SetException(exception antlr.RecognitionException) {
@@ -218,25 +138,6 @@ func (c *ConstNode) RemoveLastChild() {
 func (c *ConstNode) GetParser() antlr.Parser {
 	//TODO implement me
 	panic("implement me")
-}
-
-func (c *ConstNode) AllComparisonExpr() []gen.IComparisonExprContext {
-	return []gen.IComparisonExprContext{c}
-}
-
-func (c *ConstNode) ComparisonExpr(i int) gen.IComparisonExprContext {
-	return c
-}
-
-func (c *ConstNode) AllAND() []antlr.TerminalNode {
-	return nil
-}
-
-func (c *ConstNode) AND(i int) antlr.TerminalNode {
-	return nil
-}
-
-func (c *ConstNode) IsLogicalAndExprContext() {
 }
 
 func (c *ConstNode) GetSourceInterval() antlr.Interval {

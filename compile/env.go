@@ -181,7 +181,7 @@ func (s *StackCompileVisitor) loadQidFromEnv(qid gen.IQidContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
 				switch curType.Kind() {
@@ -334,7 +334,7 @@ func (s *StackCompileVisitor) storeQidToEnv(qid gen.IQidContext) {
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
 				switch curType.Kind() {
@@ -497,7 +497,7 @@ func (s *StackCompileVisitor) loadOuterFuncFromEnv(ctx *gen.OuterCallContext, ac
 			}
 		case *gen.IndexAccessContext:
 			switch t := a.GetChild(1).(type) {
-			case *gen.ExprContext:
+			case gen.IExprContext:
 				indexId.WriteString("[" + t.GetText() + "]")
 				t.Accept(s)
 				switch curType.Kind() {

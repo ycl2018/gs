@@ -108,23 +108,15 @@ func (v *BaseGsVisitor) VisitToStringCall(ctx *ToStringCallContext) interface{} 
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitPrintCall(ctx *PrintCallContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitPrintfCall(ctx *PrintfCallContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitPrintlnCall(ctx *PrintlnCallContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitSprintfCall(ctx *SprintfCallContext) interface{} {
+func (v *BaseGsVisitor) VisitPrintXCall(ctx *PrintXCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseGsVisitor) VisitConvertCall(ctx *ConvertCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitGoCall(ctx *GoCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -172,23 +164,11 @@ func (v *BaseGsVisitor) VisitOuterCall(ctx *OuterCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseGsVisitor) VisitExpr(ctx *ExprContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseGsVisitor) VisitLogicalOrExpr(ctx *LogicalOrExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseGsVisitor) VisitLogicalAndExpr(ctx *LogicalAndExprContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitComparisonExpr(ctx *ComparisonExprContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitBinExpr(ctx *BinExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -200,11 +180,23 @@ func (v *BaseGsVisitor) VisitMulExpr(ctx *MulExprContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitAtomExpr(ctx *AtomExprContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitComparisonExpr(ctx *ComparisonExprContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitNegAtom(ctx *NegAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseGsVisitor) VisitNotAtom(ctx *NotAtomContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitDerefAtom(ctx *DerefAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -253,10 +245,6 @@ func (v *BaseGsVisitor) VisitDictAtom(ctx *DictAtomContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitParenAtom(ctx *ParenAtomContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitDerefAtom(ctx *DerefAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -317,10 +305,6 @@ func (v *BaseGsVisitor) VisitCompOp(ctx *CompOpContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitAddOp(ctx *AddOpContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitBitOp(ctx *BitOpContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

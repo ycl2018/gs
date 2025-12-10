@@ -20,9 +20,6 @@ func (b BaseVisitor) Visit(tree antlr.ParseTree) interface{} {
 
 func (b BaseVisitor) VisitChildren(node antlr.RuleNode) interface{} {
 	ctx := node.(antlr.ParserRuleContext)
-	if ctx.GetChildCount() == 1 {
-		return b.Visit(ctx.GetChild(0).(antlr.ParseTree))
-	}
 	for _, child := range ctx.GetChildren() {
 		child.(antlr.ParseTree).Accept(b.RealVisitor)
 	}
