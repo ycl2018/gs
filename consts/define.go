@@ -91,6 +91,8 @@ const (
 	InstrMLoadByIndex
 	InstrCallOuter
 	InstrCallDefine
+	InstrGoOuter
+	InstrGoDefine
 )
 
 var Instructions = []*Instruction{
@@ -173,4 +175,6 @@ var Instructions = []*Instruction{
 	76: {"mload_byindex", INT},
 	77: {"call_outer", INT},
 	78: {"call_define", INT},
+	79: {"go_outer", INT},
+	80: {"go_define", POLL},
 }

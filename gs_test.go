@@ -1093,6 +1093,48 @@ true
 true
 `,
 		},
+		{
+			name: "go.gs",
+			program: `
+f = go $.Fn("World")
+f1 = go define("define func")
+f2 = go fast("fast func")
+val, err = f.Wait()
+val2,err2 = f1.Wait()
+val3,err3 = f2.Wait()
+println(val,err)
+println(val2,err2)
+println(val3,err3)
+`,
+			env: &MyEnv{
+				Fn: func(name string) (string, error) {
+					return "Hello " + name, nil
+				},
+			},
+			defineFunc: []Func{
+				{
+					Name: "define",
+					Fn: func(name string) (string, error) {
+						return "Hello " + name, nil
+					},
+				},
+			},
+			fastFunc: []FastFunc{
+				{
+					Name:   "fast",
+					NumIn:  1,
+					NumOut: 2,
+					Fn: func(in []any) []any {
+						return []any{"Hello " + in[0].(string), nil}
+					},
+				},
+			},
+			expect: `
+Hello World <nil>
+Hello define func <nil>
+Hello fast func <nil>
+`,
+		},
 	}
 
 	for _, tt := range tests {

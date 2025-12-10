@@ -5,6 +5,7 @@ go 1.23.3
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/bytedance/sonic v1.14.2
+	github.com/ycl2018/go-future v0.6.2
 )
 
 require (
