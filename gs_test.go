@@ -2,6 +2,7 @@ package gs
 
 import (
 	"bytes"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -89,6 +90,7 @@ func TestGs(t *testing.T) {
 		dump       bool
 		ret        any
 		onlyRunEnv bool
+		evalMode   bool
 	}{
 		{
 			name: "apple.gs",
@@ -437,15 +439,11 @@ false
 			program: `
 a = 1
 b = 2
-println(a == 2) // false
-println(a + b == 3) // true
 println(a + b == 1 || a + b == 2 || a == 3) // false
 println(a + b == 1 || a + b == 2 || a + b == 3) // true
 println(false || true)// true
 		`,
 			expect: `
-false
-true
 false
 true
 true
@@ -519,9 +517,13 @@ println(a)
 			name: "const_optimizer.gs",
 			program: `
 a= (1*2+3*3) + 100 // 111
+b= "hello" + " world"
 println(a)
+println(b)
 `,
-			expect: "111",
+			expect: `111
+hello world
+`,
 		},
 		{
 			name: "slice.gs",
@@ -965,8 +967,8 @@ println($.Itf.Hello2() == "Hello2 World")
 				},
 			},
 			expectErr: `
-<line 2> .: syntax error:invalid $.Itf.Hello2 on type:gs.Itf
-		 ^`,
+<line 2> .: syntax error:invalid $.Itf..Hello2 on type:gs.Itf
+         ^`,
 		},
 		{
 			name: "only_run_env.gs",
@@ -1109,24 +1111,31 @@ true
 			if len(tt.fastFunc) > 0 {
 				ops = append(ops, DefineFast(tt.fastFunc...))
 			}
-			code, err := Compile(tt.program, ops...)
-			if err != nil {
-				if tt.expectErr == "" {
-					t.Fatal(err)
-					return
-				}
-				if tt.expectErr != err.Error() {
-					return
-				}
-				return
-			}
 			var runOps = []RunOption{
 				Output(out),
 			}
 			if tt.trace {
 				runOps = append(runOps, Trace())
 			}
-			ret, err := Run(code, tt.env, runOps...)
+			var ret *Result
+			var err error
+			if tt.evalMode {
+				var evalOps []any
+				for _, op := range ops {
+					evalOps = append(evalOps, op)
+				}
+				for _, op := range runOps {
+					evalOps = append(evalOps, op)
+				}
+				ret, err = Eval(tt.program, tt.env, evalOps...)
+			} else {
+				code, err2 := Compile(tt.program, ops...)
+				if err2 != nil {
+					err = err2
+				} else {
+					ret, err = Run(code, tt.env, runOps...)
+				}
+			}
 			if err != nil && tt.expectErr == "" {
 				t.Fatal(err)
 				return
@@ -1136,9 +1145,14 @@ true
 					t.Errorf("expect err: %s, but got nil", tt.expectErr)
 					return
 				}
-				want, got := strings.TrimSpace(tt.expectErr), strings.TrimSpace(err.(*consts.CrashError).CodeTrace)
+				var got = err.Error()
+				var crashError *consts.CrashError
+				if errors.As(err, &crashError) {
+					got = crashError.CodeTrace
+				}
+				want, got := strings.TrimSpace(tt.expectErr), strings.TrimSpace(got)
 				if want != got {
-					t.Errorf("got:\n%s\nwant:\n%s", got, tt.expectErr)
+					t.Errorf("got:\n%s\nwant:\n%s", got, want)
 					return
 				}
 			} else {

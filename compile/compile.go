@@ -191,12 +191,18 @@ func (s *StackCompileVisitor) VisitQid(ctx *gen.QidContext) interface{} {
 }
 
 func (s *StackCompileVisitor) VisitAddOp(ctx *gen.AddOpContext) interface{} {
-	// addOp	: ADD | SUB ;
 	op := ctx.GetText()
-	if op == "+" {
+	switch op {
+	case "+":
 		s.Write(consts.InstrAdd, ctx.GetStart())
-	} else if op == "-" {
+	case "-":
 		s.Write(consts.InstrSub, ctx.GetStart())
+	case "|":
+		s.Write(consts.InstrBitOR, ctx.GetStart())
+	case "^":
+		s.Write(consts.InstrXOR, ctx.GetStart())
+	default:
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("unknown addOp %s", op))
 	}
 	return nil
 }
@@ -238,11 +244,11 @@ func (s *StackCompileVisitor) VisitChildren(node antlr.RuleNode) interface{} {
 func (s *StackCompileVisitor) VisitAssign(ctx *gen.AssignContext) interface{} {
 	// lvalue (',' lvalue)* assignOp expr (',' expr)*
 	var lvalues []*gen.LvalueContext
-	var exprs []*gen.ExprContext
+	var exprs []gen.IExprContext
 	for _, child := range ctx.GetChildren() {
 		if qid, ok := child.(*gen.LvalueContext); ok {
 			lvalues = append(lvalues, qid)
-		} else if e, ok := child.(*gen.ExprContext); ok {
+		} else if e, ok := child.(gen.IExprContext); ok {
 			exprs = append(exprs, e)
 		}
 	}
@@ -283,39 +289,23 @@ func (s *StackCompileVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interf
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitPrintCall(ctx *gen.PrintCallContext) interface{} {
+func (s *StackCompileVisitor) VisitPrintXCall(ctx *gen.PrintXCallContext) interface{} {
 	exprs := ctx.AllExpr()
 	for _, expr := range exprs {
 		expr.Accept(s)
 	}
-	s.Write(consts.InstrPrint, ctx.GetStart(), len(exprs))
-	return nil
-}
-
-func (s *StackCompileVisitor) VisitPrintfCall(ctx *gen.PrintfCallContext) interface{} {
-	exprs := ctx.AllExpr()
-	for _, expr := range exprs {
-		expr.Accept(s)
+	switch ctx.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType() {
+	case gen.GsParserPRINT:
+		s.Write(consts.InstrPrint, ctx.GetStart(), len(exprs))
+	case gen.GsParserPRINTLN:
+		s.Write(consts.InstrPrintln, ctx.GetStart(), len(exprs))
+	case gen.GsParserPRINTF:
+		s.Write(consts.InstrPrintf, ctx.GetStart(), len(exprs))
+	case gen.GsParserSPRINTF:
+		s.Write(consts.InstrSprintf, ctx.GetStart(), len(exprs))
+	default:
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("unknown printX %s", ctx.GetText()))
 	}
-	s.Write(consts.InstrPrintf, ctx.GetStart(), len(exprs))
-	return nil
-}
-
-func (s *StackCompileVisitor) VisitSprintfCall(ctx *gen.SprintfCallContext) interface{} {
-	exprs := ctx.AllExpr()
-	for _, expr := range exprs {
-		expr.Accept(s)
-	}
-	s.Write(consts.InstrSprintf, ctx.GetStart(), len(exprs))
-	return nil
-}
-
-func (s *StackCompileVisitor) VisitPrintlnCall(ctx *gen.PrintlnCallContext) interface{} {
-	exprs := ctx.AllExpr()
-	for _, expr := range exprs {
-		expr.Accept(s)
-	}
-	s.Write(consts.InstrPrintln, ctx.GetStart(), len(exprs))
 	return nil
 }
 
@@ -585,61 +575,45 @@ func (s *StackCompileVisitor) VisitSelfAssignOp(ctx *gen.SelfAssignOpContext) in
 }
 
 func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {
-	allLogicalAndExpr := ctx.AllLogicalAndExpr()
-	if len(allLogicalAndExpr) == 0 && ctx.GetChildCount() == 1 {
+	if ctx.GetChildCount() == 1 {
 		// must be constNode
 		return s.VisitChildren(ctx)
 	}
-	var brtInstrs []*consts.StackInstr
-	orExprLen := len(allLogicalAndExpr)
-	for i, andExpr := range allLogicalAndExpr {
-		andExpr.Accept(s)
-		// short circuit
-		if orExprLen > 1 && i != orExprLen-1 {
-			brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
-			s.WriteInstr(brtInstr, ctx.GetStart())
-			brtInstrs = append(brtInstrs, brtInstr)
-		}
-	}
-	if orExprLen > 1 {
-		brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
-		s.WriteInstr(brInstr, ctx.GetStart())
-		s.FillTarget(brtInstrs...)
-		s.Write(consts.InstrTrue, ctx.GetStart())
-		s.FillTarget(brInstr)
-	}
+	exprs := ctx.AllExpr()
+	l, r := exprs[0], exprs[1]
+	l.Accept(s)
+	brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
+	s.WriteInstr(brtInstr, ctx.GetStart())
+	r.Accept(s)
+	brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
+	s.WriteInstr(brInstr, ctx.GetStart())
+	s.FillTarget(brtInstr)
+	s.Write(consts.InstrTrue, ctx.GetStart())
+	s.FillTarget(brInstr)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext) interface{} {
-	allComparisonExpr := ctx.AllComparisonExpr()
-	if len(allComparisonExpr) == 0 && ctx.GetChildCount() == 1 {
+	if ctx.GetChildCount() == 1 {
 		// must be constNode
 		return s.VisitChildren(ctx)
 	}
-	var brfInstrs []*consts.StackInstr
-	andExprLen := len(allComparisonExpr)
-	for i, cmpExpr := range allComparisonExpr {
-		cmpExpr.Accept(s)
-		// short circuit
-		if andExprLen > 1 && i != andExprLen-1 {
-			brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
-			s.WriteInstr(brfInstr, ctx.GetStart())
-			brfInstrs = append(brfInstrs, brfInstr)
-		}
-	}
-	if andExprLen > 1 {
-		brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
-		s.WriteInstr(brInstr, ctx.GetStart())
-		s.FillTarget(brfInstrs...)
-		s.Write(consts.InstrFalse, ctx.GetStart())
-		s.FillTarget(brInstr)
-	}
+	exprs := ctx.AllExpr()
+	l, r := exprs[0], exprs[1]
+	l.Accept(s)
+	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
+	s.WriteInstr(brfInstr, ctx.GetStart())
+	r.Accept(s)
+	brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
+	s.WriteInstr(brInstr, ctx.GetStart())
+	s.FillTarget(brfInstr)
+	s.Write(consts.InstrFalse, ctx.GetStart())
+	s.FillTarget(brInstr)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
-	allExprs, cmpOp := ctx.AllBinExpr(), ctx.CompOp()
+	allExprs, cmpOp := ctx.AllExpr(), ctx.CompOp()
 	for i := range allExprs {
 		allExprs[i].Accept(s)
 	}
@@ -659,22 +633,6 @@ func (s *StackCompileVisitor) VisitAddExpr(ctx *gen.AddExprContext) interface{} 
 				preOp.Accept(s)
 			}
 		case *gen.AddOpContext:
-			preOp = tree
-		}
-	}
-	return nil
-}
-
-func (s *StackCompileVisitor) VisitBinExpr(ctx *gen.BinExprContext) interface{} {
-	var preOp *gen.BitOpContext
-	for _, tree := range ctx.GetChildren() {
-		switch tree := tree.(type) {
-		default:
-			tree.(antlr.RuleContext).Accept(s)
-			if preOp != nil {
-				preOp.Accept(s)
-			}
-		case *gen.BitOpContext:
 			preOp = tree
 		}
 	}
@@ -745,10 +703,10 @@ func (s *StackCompileVisitor) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) in
 func (s *StackCompileVisitor) VisitSliceExpr(ctx *gen.SliceExprContext) interface{} {
 	// sliceExpr : start=expr? ':' end=expr? ;
 	var isLeft = true
-	var l, r *gen.ExprContext
+	var l, r gen.IExprContext
 	for _, tree := range ctx.GetChildren() {
 		switch tree := tree.(type) {
-		case *gen.ExprContext:
+		case gen.IExprContext:
 			if isLeft {
 				l = tree
 			} else {
@@ -827,25 +785,6 @@ func (s *StackCompileVisitor) VisitIdKeyEntry(ctx *gen.IdKeyEntryContext) interf
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitBitOp(ctx *gen.BitOpContext) interface{} {
-	// bitOp : BITAND | BITOR | XOR ;
-	switch ctx.GetText() {
-	case "&":
-		s.Write(consts.InstrBitAND, ctx.GetStart())
-	case "|":
-		s.Write(consts.InstrBitOR, ctx.GetStart())
-	case "^":
-		s.Write(consts.InstrXOR, ctx.GetStart())
-	case "<<":
-		s.Write(consts.InstrLShift, ctx.GetStart())
-	case ">>":
-		s.Write(consts.InstrRShift, ctx.GetStart())
-	default:
-		panic("unknown bit op")
-	}
-	return nil
-}
-
 func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 	// mulOp : MUL | DIV | MOD ;
 	switch ctx.GetText() {
@@ -855,6 +794,12 @@ func (s *StackCompileVisitor) VisitMulOp(ctx *gen.MulOpContext) interface{} {
 		s.Write(consts.InstrDiv, ctx.GetStart())
 	case "%":
 		s.Write(consts.InstrMod, ctx.GetStart())
+	case "<<":
+		s.Write(consts.InstrLShift, ctx.GetStart())
+	case ">>":
+		s.Write(consts.InstrRShift, ctx.GetStart())
+	case "&":
+		s.Write(consts.InstrBitAND, ctx.GetStart())
 	default:
 		panic("unknown mul op")
 	}

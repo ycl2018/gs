@@ -43,15 +43,14 @@ incrDecr: lvalue (INCR | DECR);
 
 // 内置函数调用（使用关键字）
 builtinCall
-    :   LEN '(' expr ')'                                    #lenCall
-    |   APPEND '(' expr  ((',' expr)* |',' expr EXPAND) ')' #appendCall
-    |   DELETE '(' expr ',' expr ')'                        #deleteCall
-    |   TOSTRING '(' expr ')'                               #toStringCall
-    |   PRINT '(' expr (',' expr)* ')'                      #printCall
-    |   PRINTF '(' expr (',' expr)* ')'                     #printfCall
-    |   PRINTLN '(' expr (',' expr)* ')'                    #printlnCall
-    |   SPRINTF '(' expr (',' expr)* ')'                    #sprintfCall
-    |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')' #convertCall
+    :   LEN '(' expr ')'                                                #lenCall
+    |   APPEND '(' expr  ((',' expr)* |',' expr EXPAND) ')'             #appendCall
+    |   DELETE '(' expr ',' expr ')'                                    #deleteCall
+    |   TOSTRING '(' expr ')'                                           #toStringCall
+    |   (PRINT|PRINTLN|PRINTF|SPRINTF) '(' expr (',' expr)* ')'         #printXCall
+    |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|
+        INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')'    #convertCall
+    |   GO expr                                                         #goCall
     ;
 
 // 迭代变量
@@ -83,19 +82,21 @@ call
     : ID '(' (expr (',' expr)* ','?)? ')'                   #innerCall
     | primary accessor+ '(' (expr (',' expr)* ','?)? ')'    #outerCall
     ;
-// 表达式层级
-expr : logicalOrExpr ;
-logicalOrExpr : logicalAndExpr (OR logicalAndExpr)* ;
-logicalAndExpr : comparisonExpr (AND comparisonExpr)* ;
-comparisonExpr : binExpr (compOp binExpr)? ;
-binExpr : addExpr (bitOp addExpr)* ;
-addExpr : mulExpr (addOp mulExpr)* ;
-mulExpr : atom (mulOp atom)* ;
+
+expr
+    : atom                      #atomExpr
+    | expr mulOp expr           #mulExpr
+    | expr addOp expr           #addExpr
+    | expr compOp expr          #comparisonExpr
+    | expr AND expr             #logicalAndExpr
+    | expr OR expr              #logicalOrExpr
+    ;
 
 // 原子表达式
 atom
     :   SUB atom                #negAtom  // 负数字面量/表达式
     |   NOT atom                #notAtom
+    |   '*' lvalue              #derefAtom
     |   INT                     #intAtom
     |   FLOAT                   #floatAtom
     |   STRING                  #stringAtom
@@ -108,7 +109,6 @@ atom
     |   arrayLiteral            #arrayAtom
     |   dictLiteral             #dictAtom
     |   '(' expr ')'            #parenAtom
-    |   '*' lvalue              #derefAtom
     |   qid                     #qidAtom
     ;
 
@@ -145,9 +145,9 @@ primary : ID | ENV ;
 
 // 运算符集合
 compOp  : EQ | LT | GT | NEQ | GEQ | LEQ ;
-addOp   : ADD | SUB ;
-bitOp   : BITAND | BITOR | XOR | LSHIFT | RSHIFT ;
-mulOp   : MUL | DIV | MOD ;
+addOp   : ADD | SUB | BITOR | XOR ;
+mulOp   : MUL | DIV | MOD | LSHIFT | RSHIFT | BITAND;
+
 
 // 关键字（全部放在ID前，利用优先级匹配）
 ENV     : '$' ;
@@ -170,7 +170,9 @@ BREAK   : 'break' ;
 CONTINUE: 'continue' ;
 GLOBAL  : 'global' ;
 
+
 // ========== 内置函数关键字（禁止用户覆盖） ==========
+GO      : 'go';
 LEN     : 'len' ;
 APPEND  : 'append' ;
 DELETE  : 'delete' ;
