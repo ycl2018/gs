@@ -44,6 +44,7 @@ incrDecr: lvalue (INCR | DECR);
 // 内置函数调用（使用关键字）
 builtinCall
     :   LEN '(' expr ')'                                                #lenCall
+    |   INITREF '(' qid (',' expr)? ')'                                 #initRefCall
     |   APPEND '(' expr  ((',' expr)* |',' expr EXPAND) ')'             #appendCall
     |   DELETE '(' expr ',' expr ')'                                    #deleteCall
     |   TOSTRING '(' expr ')'                                           #toStringCall
@@ -182,6 +183,7 @@ PRINT   : 'print' ;
 PRINTF  : 'printf';
 SPRINTF : 'sprintf';
 PRINTLN : 'println';
+INITREF : 'initRef';
 
 // ==== convert
 UINT8   : 'uint8';

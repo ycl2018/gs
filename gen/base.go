@@ -4,6 +4,10 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 )
 
+type BaseGsVisitor struct {
+	antlr.ParseTreeVisitor
+}
+
 var _ antlr.ParseTreeVisitor = (*BaseVisitor)(nil)
 
 type BaseVisitor struct {

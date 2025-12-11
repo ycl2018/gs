@@ -341,6 +341,20 @@ func (s *StackCompileVisitor) VisitReturnStmt(ctx *gen.ReturnStmtContext) interf
 	return nil
 }
 
+func (s *StackCompileVisitor) VisitInitRefCall(ctx *gen.InitRefCallContext) interface{} {
+	qid := ctx.Qid()
+	expr := ctx.Expr()
+	var operand int
+	if expr != nil {
+		expr.Accept(s)
+		operand = 1
+	}
+	s.loadQid(qid)
+	s.Write(consts.InstrInitRef, ctx.GetStart(), operand)
+	s.storeQid(qid)
+	return nil
+}
+
 func (s *StackCompileVisitor) VisitPrintXCall(ctx *gen.PrintXCallContext) interface{} {
 	exprs := ctx.AllExpr()
 	for _, expr := range exprs {
@@ -363,7 +377,20 @@ func (s *StackCompileVisitor) VisitPrintXCall(ctx *gen.PrintXCallContext) interf
 
 func (s *StackCompileVisitor) VisitBuiltinStmt(ctx *gen.BuiltinStmtContext) interface{} {
 	s.VisitChildren(ctx)
-	s.Write(consts.InstrPop, ctx.GetStart(), 1) // pop unused value
+	var noNeedPop bool
+	switch call := ctx.BuiltinCall().(type) {
+	case *gen.PrintXCallContext:
+		tokenType := call.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType()
+		switch tokenType {
+		case gen.GsParserPRINT, gen.GsParserPRINTLN, gen.GsParserPRINTF:
+			noNeedPop = true
+		}
+	case *gen.DeleteCallContext, *gen.InitRefCallContext:
+		noNeedPop = true
+	}
+	if !noNeedPop {
+		s.Write(consts.InstrPop, ctx.GetStart(), 1)
+	}
 	return nil
 }
 

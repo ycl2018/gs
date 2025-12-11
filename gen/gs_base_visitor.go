@@ -1,11 +1,6 @@
-// Code generated from D:/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
+// Code generated from github.com/ycl2018/gs/Gs.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Gs
-import "github.com/antlr4-go/antlr/v4"
-
-type BaseGsVisitor struct {
-	antlr.ParseTreeVisitor
-}
 
 func (v *BaseGsVisitor) VisitProgram(ctx *ProgramContext) interface{} {
 	return v.VisitChildren(ctx)
@@ -92,6 +87,10 @@ func (v *BaseGsVisitor) VisitIncrDecr(ctx *IncrDecrContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitLenCall(ctx *LenCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitInitRefCall(ctx *InitRefCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

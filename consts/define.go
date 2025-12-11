@@ -93,6 +93,7 @@ const (
 	InstrCallDefine
 	InstrGoOuter
 	InstrGoDefine
+	InstrInitRef
 )
 
 var Instructions = []*Instruction{
@@ -177,4 +178,5 @@ var Instructions = []*Instruction{
 	78: {"call_define", INT},
 	79: {"go_outer", INT},
 	80: {"go_define", POLL},
+	81: {"init_ref", NIL},
 }

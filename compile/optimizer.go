@@ -278,7 +278,8 @@ func (c *ConstOptimizer) VisitExpr(ctx gen.IExprContext) interface{} {
 					for _, v := range []*consts.ConstNode{l, r} {
 						val, valid := getBoolConst(v)
 						if !valid {
-							panic(fmt.Sprintf("syntax err: const:%v in op:%s", v.Value, op))
+							c.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("syntax err: support value %v in op:%s", v.Value, op))
+							return nil
 						}
 						if valid && !val {
 							constNode = v
@@ -289,7 +290,8 @@ func (c *ConstOptimizer) VisitExpr(ctx gen.IExprContext) interface{} {
 					for _, v := range []*consts.ConstNode{l, r} {
 						val, valid := getBoolConst(v)
 						if !valid {
-							panic(fmt.Sprintf("syntax err: const value:%v in op:%s", v.Value, op))
+							c.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("syntax err: support value %v in op:%s", v.Value, op))
+							return nil
 						}
 						if valid && val {
 							constNode = v
@@ -308,13 +310,17 @@ func (c *ConstOptimizer) VisitExpr(ctx gen.IExprContext) interface{} {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) == consts.ToIntValue(r), ctx.GetStart())
 					}
 				case "<":
-					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) < consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) < consts.ToFloatValue(r), ctx.GetStart())
 					} else {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) < consts.ToIntValue(r), ctx.GetStart())
 					}
 				case ">":
-					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) > consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) > consts.ToFloatValue(r), ctx.GetStart())
 					} else {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) > consts.ToIntValue(r), ctx.GetStart())
@@ -331,13 +337,17 @@ func (c *ConstOptimizer) VisitExpr(ctx gen.IExprContext) interface{} {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) != consts.ToIntValue(r), ctx.GetStart())
 					}
 				case ">=":
-					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) >= consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) >= consts.ToFloatValue(r), ctx.GetStart())
 					} else {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) >= consts.ToIntValue(r), ctx.GetStart())
 					}
 				case "<=":
-					if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
+					if r.Kind == consts.ConstNodeKindString && l.Kind == consts.ConstNodeKindString {
+						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToStringValue(l) <= consts.ToStringValue(r), ctx.GetStart())
+					} else if r.Kind == consts.ConstNodeKindFloat || l.Kind == consts.ConstNodeKindFloat {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToFloatValue(l) <= consts.ToFloatValue(r), ctx.GetStart())
 					} else {
 						constNode = consts.NewConstNode(consts.ConstNodeKindBool, consts.ToIntValue(l) <= consts.ToIntValue(r), ctx.GetStart())

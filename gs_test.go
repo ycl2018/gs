@@ -158,6 +158,21 @@ chenglong
 			}},
 		},
 		{
+			name: "set_ptr.gs",
+			program: `
+myEnv = $.MyEnv
+*myEnv.B = "chenglong"
+*myEnv.B = "123"
+println(*$.MyEnv.B)
+`,
+			expect: `
+123
+`,
+			env: &MyEnv{MyEnv: &MyEnv{
+				A: "chenglong",
+			}},
+		},
+		{
 			name: "factorials.gs",
 			program: `
 func fact(n) {
@@ -1133,6 +1148,26 @@ println(val3,err3)
 Hello World <nil>
 Hello define func <nil>
 Hello fast func <nil>
+`,
+		},
+		{
+			name: "init_ref.gs",
+			program: `
+initRef($.Map,1)		// init map
+$.Map["foo"] = "bar"
+println(len($.Map))
+initRef($.Slice, 1)		// init slice
+$.Slice[0] = "hello"
+println(len($.Slice))
+initRef($.MyEnv)		// init Pointer
+$.MyEnv.A = "hello"
+println($.MyEnv.A == "hello")
+		`,
+			env: &MyEnv{},
+			expect: `
+1
+1
+true
 `,
 		},
 	}

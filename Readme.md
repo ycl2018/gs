@@ -1,6 +1,16 @@
 # GS
 
-**GS**是一个简单、高效的动态语言，语法和 go 类似，源代码被编译为字节码后由go虚拟机解释执行，可以无缝的与 go 代码集成。
+**GS** 是一个简单、高性能的动态语言，语法和 go 类似，源代码会被编译为字节码后由go虚拟机解释执行，可以无缝的与 go 代码集成。
+
+可以用于：
+- 表达式引擎
+- 规则引擎
+- 动态配置
+- 脚本
+- 插件
+- 配置校验
+
+凡是需要动态化的场景，都可以考虑使用 GS，实现不停机热更新代码逻辑。
 
 ## examples
 
@@ -73,7 +83,7 @@ ret, _ := gs.Run(code, &Env{A: 1, B: 2})
 fmt.Println(ret.MustInt()) // 3
 ```
 
-甚至赋值
+赋值
 
 ```golang
 program := `
@@ -89,6 +99,21 @@ env := &Env{A: 1, B: 2, Sum: 0}
 gs.Run(code, env)
 fmt.Println(env.Sum) // 3
 ```
+
+异步并发
+
+```golang
+f = go $.Fn("World")            // 并发执行环境函数
+f1 = go define("define func")   // 并发执行自定义函数
+val, err = f.Wait()             // 阻塞并等待函数完成，获取返回值和错误
+val2,err2 = f1.Wait()           // 阻塞并等待函数完成，获取返回值和错误
+println(val,err)
+println(val2,err2)
+```
+
+异步并发由 `go` 关键字触发，支持执行环境函数和自定义函数。
+每个并发任务返回一个 `Future` 对象，通过 `Wait` 方法阻塞并等待任务完成，获取返回值和错误。
+并发能力借助 [github.com/ycl2018/go-future](https://github.com/ycl2018/go-future) 提供。
 
 ## 数据类型
 
@@ -115,7 +140,7 @@ fmt.Println(env.Sum) // 3
 
 ## 运算
 
-优先级从低到高
+优先级从低到高，跟 go 语言一致。
 
 <table style="width:100%">
   <thead>
@@ -126,13 +151,12 @@ fmt.Println(env.Sum) // 3
     </tr>
   </thead>
   <tbody>
-    <tr><td><code>或</code></td><td><code>|</code></td><td>低</td></tr>
-    <tr><td><code>与</code></td><td><code>&&</code></td><td></td></tr>
-    <tr><td><code>比较</code></td><td><code>&gt;,&lt;,=,!=,==,&gt;=,&lt;=,&gt;&gt;,&lt;&lt;</code></td><td></td></tr>
-    <tr><td><code>位运算</code></td><td><code>&amp;,|,^</code></td><td></td></tr>
-    <tr><td><code>加减</code></td><td><code>+,-</code></td><td></td></tr>
-    <tr><td><code>乘除</code></td><td><code>*,/</code></td><td></td></tr>
-    <tr><td><code>指针解引用（来自 go 的指针）</code></td><td><code>*</code></td><td>高</td></tr>
+    <tr><td><code>逻辑或</code></td><td><code>||</code></td><td>低</td></tr>
+    <tr><td><code>逻辑与</code></td><td><code>&&</code></td><td></td></tr>
+    <tr><td><code>关系运算</code></td><td><code>&gt;,&lt;,!=,==,&gt;=,&lt;=</code></td><td></td></tr>
+    <tr><td><code>加减运算</code></td><td><code>+,-,|,^</code></td><td></td></tr>
+    <tr><td><code>乘除运算</code></td><td><code>*,/,%,<<,>>,&</code></td><td></td></tr>
+    <tr><td><code>一元运算</code></td><td><code>*,!,-</code></td><td>高</td></tr>
   </tbody>
 </table>
 
@@ -155,9 +179,9 @@ fmt.Println(env.Sum) // 3
   <tbody>
     <tr><td><code>int</code></td><td><code>十进制整数：12345<br/>下划线：10_000<br/>二进制：0b01010101,0B01010101,0B1110_01111<br/>八进制：0o755333,0O1234_4567<br/>十六进制：0xaB_Cd,0X12_AC</code></td></tr>
     <tr><td><code>float64</code></td><td><code>10.3, .2, 123_456.789, 123.45_6e-7, 123.</code></td></tr>
-    <tr><td><code>string</code></td><td><code>单行字符串："abc"<br/>多行字符串：`<br/>“first line” <br/>“second line”<br/>`</code></td></tr>
-    <tr><td><code>[]</code></td><td><code>切片 [1,2,3], ["a","b","c"], ["1",1,true]</code></td></tr>
-    <tr><td><code>{}</code></td><td><code>Map {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}</code></td></tr>
+    <tr><td><code>string</code></td><td><code>单行字符串："abc"<br/>多行字符串：<br/>`<br/>“first line” <br/>“second line”<br/>`</code></td></tr>
+    <tr><td><code>[]</code></td><td><code>slice： [1,2,3], ["a","b","c"], ["1",1,true]</code></td></tr>
+    <tr><td><code>{}</code></td><td><code>Map： {}, {"1":1,"2",2}, {1:"a",2:"b"}, {true:1,false:0}</code></td></tr>
   </tbody>
 </table>
 
@@ -182,7 +206,7 @@ type MyStruct struct {Field0, Filed1, Field2, ...}
 
 ### 语句
 
-基本语句，对齐 go：
+#### 基本语句，对齐 go：
 
 <table style="width:100%">
   <thead>
@@ -192,7 +216,7 @@ type MyStruct struct {Field0, Filed1, Field2, ...}
     </tr>
   </thead>
   <tbody>
-    <tr><td>变量声明必须赋值</td><td><code>x = 10<br/>x, y = 1, 2</code></td></tr>
+    <tr><td>变量声明必须赋值</td><td><code>x = 10<br/> x, y = 1, 2</code></td></tr>
     <tr><td>一元运算</td><td><code>x-=2, x+=2, x/=2, x*=3</code></td></tr>
     <tr><td>自加/自减</td><td><code>i++, i--</code></td></tr>
     <tr><td>负数</td><td><code>-a, -10</code></td></tr>
@@ -205,7 +229,7 @@ type MyStruct struct {Field0, Filed1, Field2, ...}
   </tbody>
 </table>
 
-for 循环，对齐 go：
+#### for 循环，对齐 go：
 
 ```
 // C 风格
@@ -229,7 +253,7 @@ for i < 10 {
 }
 ```
 
-if 语句，对齐 go：
+#### if 语句，对齐 go：
 
 ```
 if x > 10 {
@@ -243,6 +267,29 @@ if sum = a + b; sum < 10 {
 } else {
   println("a + b  is not less than 10")
 }
+```
+
+#### 并发支持
+
+`go callExpr`
+
+- `callExpr`必须是外部函数：自定义外部函数或者环境对象中的函数指针
+- 限制函数签名返回值必须为两个，第一个为**任意类型**结果，第二个为错误接口`error`
+- go 语句返回一个**异步对象**
+- 异步对象可以用`Wait`方法等待结果，返回值为类型为`any`和错误`error`
+
+```golang
+gs.Eval(`
+f = go fast("World")
+println(f.Wait()) // Hello World <nil>
+`, nil,
+DefineFunc(gs.Func{
+    Name: "define",
+    Fn: func(name string) (string, error) {
+        return "Hello " + name, nil
+    },
+})
+
 ```
 
 ## 与go类型系统的集成
@@ -266,16 +313,53 @@ go 原生计算和比较，要求两个类型必须相同，比如 int 和 uint 
 
 当把 vm 中的值赋值给 go 类型时，遵循下面的原则：
 
-- vm 中基本类型 -> go 中基本类型会**自动适配和强转**，如`intX/uintX/float32/float64`
-- 复合类型赋值支持：
-	- vm中 `{}` <-> go `map[any][any]`
-	- vm 中`[]` <-> go `[]any`
-	- go 中任意类型 -> go 中**相同**类型
-	- 赋值给 go 中指针，除了类型要**严格**相同外，`*`操作符要求是对 env 的**直接操作**：即"$"开头，如：
-		- `*$.A.B = []{1,2,3}`
-		- `*$.C = "aaaa"`
+**必须是可寻址的字段才能赋值**
 
-	  赋值给指针，支持给空指针解引用赋值，但要求类型严格相等，即使是基本类型，也不会自动强转
+- 由于底层使用反射，所以要求赋值的对象必须是可寻址的，比如 `env` 是指针类型时，才能通过 `$` 给其字段赋值
+
+```golang 
+$.String = "string"
+```
+
+或从 env 对象中获取的指针类型
+
+```golang
+ptr = $.Ptr
+ptr.Field = "string"
+// 注意： ptr 本身是不可寻址的，不能直接赋值，（ptr 只是一个指针变量，跟一个 uint 值没啥区别）
+```
+
+**基本类型**
+
+- vm 中基本类型 -> go 中基本类型会**自动适配和强转**，如`intX/uintX/float32/float64`
+
+**复合类型**
+
+- vm中 `{}` <-> go `map[any][any]`
+- vm 中`[]` <-> go `[]any`
+- go 中任意类型 -> go 中**相同**类型
+
+**指针类型**
+
+- 基本类型指针可直接赋值，即使是空指针也支持，但**要求类型严格相等**
+
+```golang
+*$.Ptr = "hello world"
+```
+
+- 指针/map/slice，可通过 initRef 函数初始化，其中 map 可指定容量，slice 可指定长度，如：
+
+```golang
+initRef($.Map,1)		// init map, capacity 1
+$.Map["foo"] = "bar"
+println(len($.Map))
+initRef($.Slice, 1)		// init slice, length 1
+$.Slice[0] = "hello"
+println(len($.Slice))
+initRef($.MyEnv)		// init Pointer
+$.MyEnv.A = "hello"
+println($.MyEnv.A == "hello")
+```
 
 ## 内置函数支持
 

@@ -246,7 +246,6 @@ func (i *Interpreter) cpu() {
 				toPrint[i2] = i.PopOpStack()
 			}
 			_, _ = fmt.Fprint(i.Out, toPrint...)
-			i.PushOpStack(nil)
 		case consts.InstrPrintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -258,7 +257,6 @@ func (i *Interpreter) cpu() {
 				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
 			}
 			_, _ = fmt.Fprintf(i.Out, fmtStr, toPrint[1:]...)
-			i.PushOpStack(nil)
 		case consts.InstrPrintln:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -266,7 +264,6 @@ func (i *Interpreter) cpu() {
 				toPrint[i2] = i.PopOpStack()
 			}
 			_, _ = fmt.Fprintln(i.Out, toPrint...)
-			i.PushOpStack(nil) // return values
 		case consts.InstrSprintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -292,7 +289,6 @@ func (i *Interpreter) cpu() {
 			key := i.PopOpStack()
 			m := i.PopOpStack()
 			deleteMap(m, key)
-			i.PushOpStack(nil)
 		case consts.InstrToString:
 			i.PushOpStack(toString(i.PopOpStack()))
 		case consts.InstrConvert:
@@ -421,6 +417,8 @@ func (i *Interpreter) cpu() {
 			} else {
 				i.goFn(fn.Fn.(reflect.Value), fn.NumIn)
 			}
+		case consts.InstrInitRef:
+			i.PushOpStack(i.initRef(i.PopOpStack(), instr.Operands))
 		case consts.InstrHalt:
 			return
 		default:
@@ -819,9 +817,31 @@ func (i *Interpreter) FieldStore(field string) {
 	}
 	// reflect
 	objStruct := assertValidObj(obj)
+	if i.FieldIndexCache {
+		vt := objStruct.Type()
+		if indexes, ok := i.RuntimeCache.FetchFieldIndex(vt, field); ok {
+			fieldObj := objStruct.FieldByIndex(indexes)
+			SetField(fieldObj, fieldObj.Type(), val)
+			return
+		}
+		if fieldStruct, ok := vt.FieldByName(field); ok {
+			if !fieldStruct.IsExported() {
+				panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
+			}
+			i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
+			fieldObj := objStruct.FieldByIndex(fieldStruct.Index)
+			SetField(fieldObj, fieldObj.Type(), val)
+			return
+		}
+		panic(fmt.Sprintf("field '%s' is not find/exported by type:%T", field, obj))
+	}
+	fieldObj := objStruct.FieldByName(field)
+	if !fieldObj.IsValid() {
+		panic(fmt.Sprintf("field '%s' is not find/exported by type:%T", field, obj))
+	}
 	switch objStruct.Kind() {
 	case reflect.Struct:
-		SetField(objStruct, objStruct.Type(), val)
+		SetField(fieldObj, fieldObj.Type(), val)
 	default:
 		panic(fmt.Sprintf("unexpected type %T for field load", field))
 	}
@@ -954,32 +974,14 @@ func (i *Interpreter) RSetField(fields []*reflect.StructField) {
 // SetField 设置结构体字段的值，支持类型转换
 func SetField(fieldObj reflect.Value, fieldType reflect.Type, value any) {
 	switch fieldType.Kind() {
-	case reflect.Int:
-		fieldObj.Set(reflect.ValueOf(gen.ToInt(value)))
-	case reflect.Int8:
-		fieldObj.Set(reflect.ValueOf(gen.ToInt8(value)))
-	case reflect.Int16:
-		fieldObj.Set(reflect.ValueOf(gen.ToInt16(value)))
-	case reflect.Int32:
-		fieldObj.Set(reflect.ValueOf(gen.ToInt32(value)))
-	case reflect.Int64:
-		fieldObj.Set(reflect.ValueOf(gen.ToInt64(value)))
-	case reflect.Uint:
-		fieldObj.Set(reflect.ValueOf(gen.ToUint(value)))
-	case reflect.Uint8:
-		fieldObj.Set(reflect.ValueOf(gen.ToUint8(value)))
-	case reflect.Uint16:
-		fieldObj.Set(reflect.ValueOf(gen.ToUint16(value)))
-	case reflect.Uint32:
-		fieldObj.Set(reflect.ValueOf(gen.ToUint32(value)))
-	case reflect.Uint64:
-		fieldObj.Set(reflect.ValueOf(gen.ToUint64(value)))
-	case reflect.Uintptr:
-		fieldObj.Set(reflect.ValueOf(gen.ToUintptr(value)))
-	case reflect.Float32:
-		fieldObj.Set(reflect.ValueOf(gen.ToFloat32(value)))
-	case reflect.Float64:
-		fieldObj.Set(reflect.ValueOf(gen.ToFloat64(value)))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		fieldObj.SetInt(gen.ToInt64(value))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		fieldObj.SetUint(gen.ToUint64(value))
+	case reflect.Float32, reflect.Float64:
+		fieldObj.SetFloat(gen.ToFloat64(value))
+	case reflect.String:
+		fieldObj.SetString(value.(string))
 	default:
 		// 对于其他类型，直接设置值
 		fieldObj.Set(reflect.ValueOf(value))
@@ -1162,6 +1164,45 @@ func (i *Interpreter) PrintStack(writer io.Writer) {
 		if printFrameSize >= DefaultPrintStackFrameSize {
 			break
 		}
+	}
+}
+
+// initRef init ptr/map/slice with length
+// when operand == 1, pop length from op stack
+func (i *Interpreter) initRef(obj any, operand int) any {
+	if obj == nil {
+		panic("init ref: got nil interface{}")
+	}
+	rv := reflect.ValueOf(obj)
+	switch rv.Kind() {
+	case reflect.Ptr:
+		if !rv.IsNil() {
+			panic("init ref: ref obj is not empty/nil")
+		}
+		if operand == 1 {
+			panic("init ref: can't init pointer with length")
+		}
+		return reflect.New(rv.Type().Elem()).Interface()
+	case reflect.Map:
+		if !rv.IsNil() {
+			panic("init ref: ref obj is not empty/nil")
+		}
+		var length int
+		if operand == 1 {
+			length = gen.ToInt(i.PopOpStack())
+		}
+		return reflect.MakeMapWithSize(rv.Type(), length).Interface()
+	case reflect.Slice:
+		if !rv.IsNil() {
+			panic("init ref: ref obj is not empty/nil")
+		}
+		var length int
+		if operand == 1 {
+			length = gen.ToInt(i.PopOpStack())
+		}
+		return reflect.MakeSlice(rv.Type(), length, length).Interface()
+	default:
+		panic(fmt.Sprintf("init ref: ref obj is not pointer/map/slice type: %T", obj))
 	}
 }
 
