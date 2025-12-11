@@ -50,7 +50,7 @@ builtinCall
     |   (PRINT|PRINTLN|PRINTF|SPRINTF) '(' expr (',' expr)* ')'         #printXCall
     |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|
         INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')'    #convertCall
-    |   GO expr                                                         #goCall
+    |   GO call                                                         #goCall
     ;
 
 // 迭代变量

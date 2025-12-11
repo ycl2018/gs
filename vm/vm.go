@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ycl2018/go-future/future"
 	"github.com/ycl2018/gs/conf"
 	"github.com/ycl2018/gs/consts"
 	"github.com/ycl2018/gs/gen"
@@ -245,6 +246,7 @@ func (i *Interpreter) cpu() {
 				toPrint[i2] = i.PopOpStack()
 			}
 			_, _ = fmt.Fprint(i.Out, toPrint...)
+			i.PushOpStack(nil)
 		case consts.InstrPrintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -256,6 +258,7 @@ func (i *Interpreter) cpu() {
 				panic(fmt.Sprintf("invalid type:%T: first printf args must be a string", toPrint[0]))
 			}
 			_, _ = fmt.Fprintf(i.Out, fmtStr, toPrint[1:]...)
+			i.PushOpStack(nil)
 		case consts.InstrPrintln:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -263,6 +266,7 @@ func (i *Interpreter) cpu() {
 				toPrint[i2] = i.PopOpStack()
 			}
 			_, _ = fmt.Fprintln(i.Out, toPrint...)
+			i.PushOpStack(nil) // return values
 		case consts.InstrSprintf:
 			printNums := instr.Operands
 			var toPrint = make([]any, printNums)
@@ -288,6 +292,7 @@ func (i *Interpreter) cpu() {
 			key := i.PopOpStack()
 			m := i.PopOpStack()
 			deleteMap(m, key)
+			i.PushOpStack(nil)
 		case consts.InstrToString:
 			i.PushOpStack(toString(i.PopOpStack()))
 		case consts.InstrConvert:
@@ -387,6 +392,35 @@ func (i *Interpreter) cpu() {
 			} else {
 				i.callFn(fn.NumIn, fn.Fn.(reflect.Value))
 			}
+		case consts.InstrGoOuter:
+			obj := i.PopOpStack()
+			fn := reflect.ValueOf(obj)
+			i.goFn(fn, instr.Operands)
+		case consts.InstrGoDefine:
+			fn := i.DefineFuncs[instr.Operands]
+			if fn.NumOut != 2 {
+				panic(fmt.Sprintf("function %s signature is invalid:go can't run func that returns 2 values", fn.Name))
+			}
+			if fn.Fast {
+				var inArgs = make([]any, fn.NumIn)
+				for j := fn.NumIn - 1; j >= 0; j-- {
+					inArgs[j] = i.PopOpStack()
+				}
+				f := future.Go(func() (any, error) {
+					result := fn.Fn.(func([]any) []any)(inArgs)
+					if len(result) != fn.NumOut {
+						panic(fmt.Sprintf("func:%s define %d numOut but get:%d", fn.Name, fn.NumOut, len(result)))
+					}
+					err := result[1]
+					if err == nil {
+						return result[0], nil
+					}
+					return result[0], result[1].(error)
+				})
+				i.PushOpStack(f)
+			} else {
+				i.goFn(fn.Fn.(reflect.Value), fn.NumIn)
+			}
 		case consts.InstrHalt:
 			return
 		default:
@@ -396,9 +430,40 @@ func (i *Interpreter) cpu() {
 	}
 }
 
+func (i *Interpreter) goFn(fn reflect.Value, numIn int) {
+	if !fn.IsValid() {
+		panic(fmt.Sprintf("call func is nil"))
+	}
+	if fn.Kind() != reflect.Func {
+		panic(fmt.Sprintf("value is not func,got:%s", fn.Type().String()))
+	}
+	fnType := fn.Type()
+	if fn.Type().NumOut() != 2 || fnType.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
+		panic(fmt.Sprintf("go can't run func that returns (T,error) but got :%s", fnType.String()))
+	}
+	inNum := numIn
+	var inArgs = make([]reflect.Value, inNum)
+	for j := inNum - 1; j >= 0; j-- {
+		arg := reflect.ValueOf(i.PopOpStack())
+		inArgs[j] = arg
+	}
+	f := future.Go(func() (any, error) {
+		call := fn.Call(inArgs)
+		err := call[1].Interface()
+		if err == nil {
+			return call[0].Interface(), nil
+		}
+		return call[0].Interface(), call[1].Interface().(error)
+	})
+	i.PushOpStack(f)
+}
+
 func (i *Interpreter) callFn(inNum int, fn reflect.Value) {
 	if !fn.IsValid() {
 		panic(fmt.Sprintf("call func is nil"))
+	}
+	if fn.Kind() != reflect.Func {
+		panic(fmt.Sprintf("value is not func,got:%s", fn.Type().String()))
 	}
 	var inArgs = make([]reflect.Value, inNum)
 	for j := inNum - 1; j >= 0; j-- {

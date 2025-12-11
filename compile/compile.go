@@ -84,28 +84,82 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen.FunctionDefinitio
 	return nil
 }
 
+func (s *StackCompileVisitor) VisitGoCall(ctx *gen.GoCallContext) interface{} {
+	call := ctx.Call()
+	switch call := call.(type) {
+	case *gen.OuterCallContext:
+		allExpr := call.AllExpr()
+		for _, context := range allExpr {
+			context.Accept(s)
+		}
+		s.loadOuterFunc(call)
+		// 生成调用指令IR
+		goInstr := consts.NewStackInstr(consts.InstrGoOuter, len(allExpr))
+		s.WriteInstr(goInstr, ctx.GetStart())
+	case *gen.InnerCallContext:
+		allExpr := call.AllExpr()
+		for _, context := range allExpr {
+			context.Accept(s)
+		}
+		instr, err := s.innerCallType(call, allExpr)
+		if err != nil {
+			s.Log.ErrorToken(ctx.GetStart(), err.Error())
+			return nil
+		}
+		switch instr.OpCode {
+		case consts.InstrCallOuter:
+			goInstr := consts.NewStackInstr(consts.InstrGoOuter, len(allExpr))
+			s.WriteInstr(goInstr, ctx.GetStart())
+		case consts.InstrCallDefine:
+			goInstr := consts.NewStackInstr(consts.InstrGoDefine, instr.Operands)
+			s.WriteInstr(goInstr, ctx.GetStart())
+		case consts.InstrCall:
+			s.Log.ErrorToken(ctx.GetStart(), "syntax err:go expr not support run code defined function")
+		default:
+			panic("unreachable")
+		}
+	}
+	return nil
+}
+
 func (s *StackCompileVisitor) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
 	allExpr := ctx.AllExpr()
 	for _, context := range allExpr {
 		context.Accept(s)
 	}
+	instr, err := s.innerCallType(ctx, allExpr)
+	if err != nil {
+		s.Log.ErrorToken(ctx.GetStart(), err.Error())
+		return nil
+	}
+	s.WriteInstr(instr, ctx.GetStart())
+	return nil
+}
+
+func (s *StackCompileVisitor) innerCallType(ctx *gen.InnerCallContext, allExpr []gen.IExprContext) (*consts.StackInstr, error) {
 	funcName := ctx.ID().GetText()
 	if fSymbol := s.CurScope.Resolve(funcName); fSymbol != nil {
-		if len(allExpr) != len(fSymbol.(*FunctionSymbol).FormalArgs) {
-			s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("func:%s need %d args,but got %d", funcName, len(fSymbol.(*FunctionSymbol).FormalArgs), len(allExpr)))
-			return nil
+		switch v := fSymbol.(type) {
+		case *FunctionSymbol:
+			if len(allExpr) != len(v.FormalArgs) {
+				return nil, fmt.Errorf("func:%s need %d args,but got %d", funcName, len(v.FormalArgs), len(allExpr))
+			}
+			// 生成调用指令IR
+			callInstr := consts.NewStackInstr(consts.InstrCall, v.Address)
+			return callInstr, nil
+		case *VariableSymbol:
+			// 生成调用指令IR
+			s.EmitLoad(v, ctx.GetStart())
+			callInstr := consts.NewStackInstr(consts.InstrCallOuter, len(allExpr))
+			return callInstr, nil
+		default:
+			panic(fmt.Sprintf("unkown symbol type:%s to call", fSymbol))
 		}
-		fSymbol := fSymbol.(*FunctionSymbol)
-		// 生成调用指令IR
-		callInstr := consts.NewStackInstr(consts.InstrCall, fSymbol.Address)
-		s.WriteInstr(callInstr, ctx.GetStart())
-		return nil
 	}
 	if defineFn := s.Conf.DefineFuncs.GetFunc(funcName); defineFn != nil {
 		numIn := defineFn.NumIn
 		if len(allExpr) != numIn {
-			s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("func:%s need %d args,but got %d", funcName, numIn, len(allExpr)))
-			return nil
+			return nil, fmt.Errorf("func:%s need %d args,but got %d", funcName, numIn, len(allExpr))
 		}
 		// 生成调用指令IR
 		var addr int
@@ -116,11 +170,9 @@ func (s *StackCompileVisitor) VisitInnerCall(ctx *gen.InnerCallContext) interfac
 			s.CalledDefineFuncs[funcName] = addr
 		}
 		callInstr := consts.NewStackInstr(consts.InstrCallDefine, addr)
-		s.WriteInstr(callInstr, ctx.GetStart())
-		return nil
+		return callInstr, nil
 	}
-	s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName))
-	return nil
+	return nil, fmt.Errorf("undefined func/symbol: %s", funcName)
 }
 
 func (s *StackCompileVisitor) VisitOuterCall(ctx *gen.OuterCallContext) interface{} {
@@ -306,6 +358,12 @@ func (s *StackCompileVisitor) VisitPrintXCall(ctx *gen.PrintXCallContext) interf
 	default:
 		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("unknown printX %s", ctx.GetText()))
 	}
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitBuiltinStmt(ctx *gen.BuiltinStmtContext) interface{} {
+	s.VisitChildren(ctx)
+	s.Write(consts.InstrPop, ctx.GetStart(), 1) // pop unused value
 	return nil
 }
 
@@ -503,7 +561,7 @@ func (s *StackCompileVisitor) VisitForCondStmt(ctx *gen.ForCondStmtContext) inte
 func (s *StackCompileVisitor) VisitCallStmt(ctx *gen.CallStmtContext) interface{} {
 	ctx.Call().Accept(s)
 	// discard return values
-	s.Write(consts.InstrPop, ctx.GetStart(), 1)
+	s.Write(consts.InstrPop, ctx.GetStart(), 1) // pop return value
 	return nil
 }
 
