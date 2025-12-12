@@ -3,14 +3,8 @@
 package gen
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
-)
-
-var (
-	ErrDivisionByZero = errors.New("division by zero")
-	ErrModuloByZero   = errors.New("modulo by zero")
 )
 
 func eq(x, y any) bool {
@@ -365,8 +359,7 @@ func Add(x, y any) (any, error) {
 			return xv + yv, nil
 		}
 	}
-	var zero any
-	return zero, fmt.Errorf("unsupported operator: %T %s %T", x, "+", y)
+	return nil, fmt.Errorf("unsupported operator: %T %s %T", x, "+", y)
 }
 
 // Sub 执行 - 运算
@@ -697,8 +690,7 @@ func Sub(x, y any) (any, error) {
 			return float64(xv) - float64(yv), nil
 		}
 	}
-	var zero any
-	return zero, fmt.Errorf("unsupported operator: %T %s %T", x, "-", y)
+	return nil, fmt.Errorf("unsupported operator: %T %s %T", x, "-", y)
 }
 
 // Mul 执行 * 运算
@@ -1029,8 +1021,7 @@ func Mul(x, y any) (any, error) {
 			return float64(xv) * float64(yv), nil
 		}
 	}
-	var zero any
-	return zero, fmt.Errorf("unsupported operator: %T %s %T", x, "*", y)
+	return nil, fmt.Errorf("unsupported operator: %T %s %T", x, "*", y)
 }
 
 // Div 执行 / 运算
@@ -1039,906 +1030,329 @@ func Div(x, y any) (any, error) {
 	case int:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case int8:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case int16:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case int32:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case int64:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case uint:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case uint8:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case uint16:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case uint32:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case uint64:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return int(xv) / int(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case float32:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	case float64:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case int64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint8:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint16:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case uint64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float32:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		case float64:
-			if yv == 0 {
-				var zero any
-				return zero, ErrDivisionByZero
-			}
 			return float64(xv) / float64(yv), nil
 		}
 	}
-	var zero any
-	return zero, fmt.Errorf("unsupported operator: %T %s %T", x, "/", y)
+	return nil, fmt.Errorf("unsupported operator: %T %s %T", x, "/", y)
 }
 
 // Mod 执行 % 运算
@@ -1947,531 +1361,231 @@ func Mod(x, y any) (int, error) {
 	case int:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case int8:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case int16:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case int32:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case int64:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case uint:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case uint8:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case uint16:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case uint32:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	case uint64:
 		switch yv := y.(type) {
 		case int:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case int64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint8:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint16:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint32:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		case uint64:
-			if yv == 0 {
-				return 0, ErrModuloByZero
-			}
 			return int(xv) % int(yv), nil
 		}
 	}

@@ -830,7 +830,7 @@ func divide(a, b) {
 divide(1, 0)
 `,
 			expectErr: `
-panic: division by zero
+panic: runtime error: integer divide by zero
 stack trace:
 	at divide args:(1, 0) line:3
 	at main args:() line:5

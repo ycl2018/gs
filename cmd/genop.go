@@ -223,14 +223,8 @@ func genOpFuncs() {
 package gen
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
-)
-
-var (
-	ErrDivisionByZero  = errors.New("division by zero")
-	ErrModuloByZero    = errors.New("modulo by zero")
 )
 
 func eq(x, y any) bool {
@@ -319,19 +313,12 @@ func generateOperationFunction(funcName, operator string) string {
 		for _, yt := range intTypes {
 			sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
 			if operator == "/" {
-				sb.WriteString("            if yv == 0 {\n")
-				sb.WriteString("                var zero any\n")
-				sb.WriteString("                return zero, ErrDivisionByZero\n")
-				sb.WriteString("            }\n")
 				if returnType == "int" {
 					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
 				} else {
 					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
 				}
 			} else if operator == "%" {
-				sb.WriteString("            if yv == 0 {\n")
-				sb.WriteString("                return 0, ErrModuloByZero\n")
-				sb.WriteString("            }\n")
 				sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
 			} else {
 				if returnType == "bool" {
@@ -349,12 +336,6 @@ func generateOperationFunction(funcName, operator string) string {
 			floatTypes := []string{"float32", "float64"}
 			for _, yt := range floatTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
-				if operator == "/" {
-					sb.WriteString("            if yv == 0 {\n")
-					sb.WriteString("                var zero any\n")
-					sb.WriteString("                return zero, ErrDivisionByZero\n")
-					sb.WriteString("            }\n")
-				}
 				if returnType == "bool" {
 					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
 				} else {
@@ -376,12 +357,6 @@ func generateOperationFunction(funcName, operator string) string {
 			// y 为整数类型
 			for _, yt := range intTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
-				if operator == "/" {
-					sb.WriteString("            if yv == 0 {\n")
-					sb.WriteString("                var zero any\n")
-					sb.WriteString("                return zero, ErrDivisionByZero\n")
-					sb.WriteString("            }\n")
-				}
 				if returnType == "bool" {
 					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
 				} else {
@@ -392,12 +367,6 @@ func generateOperationFunction(funcName, operator string) string {
 			// y 为浮点类型
 			for _, yt := range floatTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
-				if operator == "/" {
-					sb.WriteString("            if yv == 0 {\n")
-					sb.WriteString("                var zero any\n")
-					sb.WriteString("                return zero, ErrDivisionByZero\n")
-					sb.WriteString("            }\n")
-				}
 				if returnType == "bool" {
 					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
 				} else {
@@ -447,8 +416,7 @@ func generateOperationFunction(funcName, operator string) string {
 		} else if returnType == "int" {
 			sb.WriteString("    return 0, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
 		} else {
-			sb.WriteString("    var zero any\n")
-			sb.WriteString("    return zero, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
+			sb.WriteString("    return nil, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
 		}
 		sb.WriteString(operator)
 		sb.WriteString("\", y)\n")
