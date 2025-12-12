@@ -1170,6 +1170,46 @@ println($.MyEnv.A == "hello")
 true
 `,
 		},
+		{
+			name: "set_nil.gs",
+			program: `
+$.Map = nil
+println($.Map == nil)
+$.Slice = nil
+println($.Slice == nil)
+$.MyEnv = nil
+println($.MyEnv == nil)
+$.Itf = nil
+println($.Itf == nil)
+		`,
+			env: &MyEnv{
+				Map: map[any]any{
+					"foo": "bar",
+				},
+				Slice: []any{"hello", "world"},
+				MyEnv: &MyEnv{},
+				Itf:   &MyItf{},
+			},
+			expect: `
+true
+true
+true
+true
+`,
+		},
+		{
+			name: "new_from_type.gs",
+			program: `
+strPtr = newFromType("")
+*strPtr = "hello"
+$.B = strPtr
+println(*$.B == "hello")
+		`,
+			env: &MyEnv{},
+			expect: `
+true
+`,
+		},
 	}
 
 	for _, tt := range tests {

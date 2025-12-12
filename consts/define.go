@@ -85,7 +85,6 @@ const (
 	InstrAppend
 	InstrAppendExpand
 	InstrDelete
-	InstrToString
 	InstrConvert
 	InstrMLoadByName // method load by name: push peek value's method value or func type field value
 	InstrMLoadByIndex
@@ -94,6 +93,7 @@ const (
 	InstrGoOuter
 	InstrGoDefine
 	InstrInitRef
+	InstrNewFromType
 )
 
 var Instructions = []*Instruction{
@@ -170,13 +170,13 @@ var Instructions = []*Instruction{
 	70: {"append", INT},
 	71: {"append_expand", NIL},
 	72: {"delete", NIL},
-	73: {"toString", NIL},
-	74: {"convert", INT},
-	75: {"mload_byname", POLL},
-	76: {"mload_byindex", INT},
-	77: {"call_outer", INT},
-	78: {"call_define", INT},
-	79: {"go_outer", INT},
-	80: {"go_define", POLL},
-	81: {"init_ref", NIL},
+	73: {"convert", INT},
+	74: {"mload_byname", POLL},
+	75: {"mload_byindex", INT},
+	76: {"call_outer", INT},
+	77: {"call_define", INT},
+	78: {"go_outer", INT},
+	79: {"go_define", POLL},
+	80: {"init_ref", NIL},
+	81: {"new_from_type", NIL},
 }

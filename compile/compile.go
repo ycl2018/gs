@@ -400,6 +400,12 @@ func (s *StackCompileVisitor) VisitLenCall(ctx *gen.LenCallContext) interface{} 
 	return nil
 }
 
+func (s *StackCompileVisitor) VisitNewFromTypeCall(ctx *gen.NewFromTypeCallContext) interface{} {
+	ctx.Expr().Accept(s)
+	s.Write(consts.InstrNewFromType, ctx.GetStart())
+	return nil
+}
+
 func (s *StackCompileVisitor) VisitAppendCall(ctx *gen.AppendCallContext) interface{} {
 	for _, expr := range ctx.AllExpr() {
 		expr.Accept(s)
@@ -417,12 +423,6 @@ func (s *StackCompileVisitor) VisitDeleteCall(ctx *gen.DeleteCallContext) interf
 		expr.Accept(s)
 	}
 	s.Write(consts.InstrDelete, ctx.GetStart())
-	return nil
-}
-
-func (s *StackCompileVisitor) VisitToStringCall(ctx *gen.ToStringCallContext) interface{} {
-	ctx.Expr().Accept(s)
-	s.Write(consts.InstrToString, ctx.GetStart())
 	return nil
 }
 

@@ -69,7 +69,7 @@ func (f *FunctionSymbol) Dump() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(".def %s args=%d locals=%d\n", f.Name, len(f.FormalArgs), f.LocalNums()))
 	for i, instr := range f.Code {
-		sb.WriteString(fmt.Sprintf("#%04d %s", i, instr.Dump()))
+		sb.WriteString(fmt.Sprintf("#%04d %s\n", i, instr.Dump()))
 	}
 	return sb.String()
 }

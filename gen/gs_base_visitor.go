@@ -94,15 +94,15 @@ func (v *BaseGsVisitor) VisitInitRefCall(ctx *InitRefCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitNewFromTypeCall(ctx *NewFromTypeCallContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitAppendCall(ctx *AppendCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
 func (v *BaseGsVisitor) VisitDeleteCall(ctx *DeleteCallContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseGsVisitor) VisitToStringCall(ctx *ToStringCallContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

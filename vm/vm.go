@@ -289,8 +289,6 @@ func (i *Interpreter) cpu() {
 			key := i.PopOpStack()
 			m := i.PopOpStack()
 			deleteMap(m, key)
-		case consts.InstrToString:
-			i.PushOpStack(toString(i.PopOpStack()))
 		case consts.InstrConvert:
 			i.PushOpStack(convert(i.PopOpStack(), reflect.Kind(instr.Operands)))
 		case consts.InstrStruct:
@@ -419,6 +417,8 @@ func (i *Interpreter) cpu() {
 			}
 		case consts.InstrInitRef:
 			i.PushOpStack(i.initRef(i.PopOpStack(), instr.Operands))
+		case consts.InstrNewFromType:
+			i.PushOpStack(newFromType(i.PopOpStack()))
 		case consts.InstrHalt:
 			return
 		default:
@@ -426,6 +426,21 @@ func (i *Interpreter) cpu() {
 		}
 		instr = i.CurCode[i.IP]
 	}
+}
+
+// newFromType create a new object from type
+// if obj is a pointer, return a new pointer to the element type
+// if obj is not a pointer, return a new pointer to the type
+func newFromType(obj any) any {
+	if obj == nil {
+		panic("newFromType: nil object")
+	}
+	rt := reflect.TypeOf(obj)
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	}
+	rv := reflect.New(rt)
+	return rv.Interface()
 }
 
 func (i *Interpreter) goFn(fn reflect.Value, numIn int) {
@@ -641,8 +656,7 @@ func (i *Interpreter) trace() {
 		}
 		fmt.Print(" ]\n")
 	}
-	fmt.Println()
-	fmt.Print(i.CurCode[i.IP])
+	fmt.Printf("->%04d: %s\n", i.IP, i.CurCode[i.IP])
 }
 
 func (i *Interpreter) Dump() {
@@ -982,8 +996,13 @@ func SetField(fieldObj reflect.Value, fieldType reflect.Type, value any) {
 		fieldObj.SetFloat(gen.ToFloat64(value))
 	case reflect.String:
 		fieldObj.SetString(value.(string))
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice:
+		if value == nil {
+			fieldObj.SetZero()
+			return
+		}
+		fieldObj.Set(reflect.ValueOf(value))
 	default:
-		// 对于其他类型，直接设置值
 		fieldObj.Set(reflect.ValueOf(value))
 	}
 }

@@ -1,16 +1,20 @@
 # GS
 
-**GS** 是一个简单、高性能的动态语言，语法和 go 类似，源代码会被编译为字节码后由go虚拟机解释执行，可以无缝的与 go 代码集成。
+**GS** 是一个简单、高性能的动态语言，语法和 go 类似，源代码会被编译并优化为字节码后由go虚拟机解释执行，可以无缝的与 go 代码集成。
 
-可以用于：
-- 表达式引擎
-- 规则引擎
-- 动态配置
-- 脚本
-- 插件
-- 配置校验
+适用于构建：
+- [x] 表达式引擎
+- [x] 规则引擎
+- [x] 动态配置
+- [x] 脚本
+- [x] 插件
+- [x] 配置校验
 
-凡是需要动态化的场景，都可以考虑使用 GS，实现不停机热更新代码逻辑。
+**凡是需要动态化的场景，都可以考虑使用 GS，实现不停机热更新代码逻辑。**
+
+开始使用 `go get github.com/ycl2018/gs`
+
+---
 
 ## examples
 
@@ -24,7 +28,7 @@ func fact(n) {
     }
     return n * fact(n-1)
 }
-println(fact(10))
+println(fact(10)) // 3628800
 `
 gs.Eval(program, nil)
 ```
@@ -40,6 +44,126 @@ for i = range 10 {
 println(arr) // [0 1 2 3 4 5 6 7 8 9]
 `
 gs.Eval(program, nil)
+```
+
+错误提示
+
+```golang
+program := `
+func divide(a, b) {
+	return a / b
+}
+divide(1, 0)
+`
+_, err :=gs.Eval(program, nil)
+fmt.Println(err)
+/*
+panic: division by zero
+stack trace:
+at divide args:(1, 0) line:3
+at main args:() line:5
+ */
+```
+
+**代码调试**
+
+通过 `DumpCode` 和 `Trace` option可以开启代码调试功能，打印字节码和执行 trace。
+
+```text
+Dump:
+.globals: 0
+
+Constant Pool:2
+#0000: func main(args:0, locals:0)
+#0001: func fact(args:1, locals:0)
+
+Code:
+.def main args=0 locals=0
+#0000 iconst     	3
+#0001 call       	const#1
+#0002 println    	1
+#0003 halt       	
+.def fact args=1 locals=0
+#0000 load       	0
+#0001 iconst     	2
+#0002 lt         	
+#0003 brf        	6
+#0004 iconst     	1
+#0005 ret        	
+#0006 load       	0
+#0007 load       	0
+#0008 iconst     	1
+#0009 sub        	
+#0010 call       	const#1
+#0011 mul        	
+#0012 ret 
+
+trace:
+	stack=[ ], calls=[ main ]
+->0000: iconst     	3
+	stack=[ 3 ], calls=[ main ]
+->0001: call       	const#1
+	stack=[ ], calls=[ main fact ]
+->0000: load       	0
+	stack=[ 3 ], calls=[ main fact ]
+->0001: iconst     	2
+	stack=[ 3 2 ], calls=[ main fact ]
+->0002: lt         
+	stack=[ false ], calls=[ main fact ]
+->0003: brf        	6
+	stack=[ ], calls=[ main fact ]
+->0006: load       	0
+	stack=[ 3 ], calls=[ main fact ]
+->0007: load       	0
+	stack=[ 3 3 ], calls=[ main fact ]
+->0008: iconst     	1
+	stack=[ 3 3 1 ], calls=[ main fact ]
+->0009: sub        
+	stack=[ 3 2 ], calls=[ main fact ]
+->0010: call       	const#1
+	stack=[ 3 ], calls=[ main fact fact ]
+->0000: load       	0
+	stack=[ 3 2 ], calls=[ main fact fact ]
+->0001: iconst     	2
+	stack=[ 3 2 2 ], calls=[ main fact fact ]
+->0002: lt         
+	stack=[ 3 false ], calls=[ main fact fact ]
+->0003: brf        	6
+	stack=[ 3 ], calls=[ main fact fact ]
+->0006: load       	0
+	stack=[ 3 2 ], calls=[ main fact fact ]
+->0007: load       	0
+	stack=[ 3 2 2 ], calls=[ main fact fact ]
+->0008: iconst     	1
+	stack=[ 3 2 2 1 ], calls=[ main fact fact ]
+->0009: sub        
+	stack=[ 3 2 1 ], calls=[ main fact fact ]
+->0010: call       	const#1
+	stack=[ 3 2 ], calls=[ main fact fact fact ]
+->0000: load       	0
+	stack=[ 3 2 1 ], calls=[ main fact fact fact ]
+->0001: iconst     	2
+	stack=[ 3 2 1 2 ], calls=[ main fact fact fact ]
+->0002: lt         
+	stack=[ 3 2 true ], calls=[ main fact fact fact ]
+->0003: brf        	6
+	stack=[ 3 2 ], calls=[ main fact fact fact ]
+->0004: iconst     	1
+	stack=[ 3 2 1 ], calls=[ main fact fact fact ]
+->0005: ret        
+	stack=[ 3 2 1 ], calls=[ main fact fact ]
+->0011: mul        
+	stack=[ 3 2 ], calls=[ main fact fact ]
+->0012: ret        
+	stack=[ 3 2 ], calls=[ main fact ]
+->0011: mul        
+	stack=[ 6 ], calls=[ main fact ]
+->0012: ret        
+	stack=[ 6 ], calls=[ main ]
+->0002: println    	1
+	stack=[ ], calls=[ main ]
+->0003: halt       
+
 ```
 
 ### 与go代码集成
@@ -100,7 +224,7 @@ gs.Run(code, env)
 fmt.Println(env.Sum) // 3
 ```
 
-异步并发
+并发
 
 ```golang
 f = go $.Fn("World")            // 并发执行环境函数
@@ -350,15 +474,43 @@ ptr.Field = "string"
 - 指针/map/slice，可通过 initRef 函数初始化，其中 map 可指定容量，slice 可指定长度，如：
 
 ```golang
-initRef($.Map,1)		// init map, capacity 1
+// 初始化 map, 容量为 1
+initRef($.Map,1)		
 $.Map["foo"] = "bar"
 println(len($.Map))
-initRef($.Slice, 1)		// init slice, length 1
+
+// 初始化 slice, 长度为 1
+initRef($.Slice, 1)
 $.Slice[0] = "hello"
 println(len($.Slice))
-initRef($.MyEnv)		// init Pointer
+
+// 初始化 Pointer
+initRef($.MyEnv)		
 $.MyEnv.A = "hello"
 println($.MyEnv.A == "hello")
+```
+
+### 创建任意指针类型
+- 内置函数 `newFromType(value)`，返回一个指向该value类型零值的指针
+  - 如果value是指针类型，返回的新指针依然是一级指针，指向该指针指向的元素类型零值
+  - 如果value不是指针类型，返回的新指针直接指向该类型零值
+
+```golang
+// 基础类型指针
+stringPtr = newFromType("")
+*stringPtr = "hello world"
+println(*stringPtr == "hello world") // true
+
+// 结构体指针
+objPtr = newFromType(MyStruct{})
+*objPtr.Field = "hello world"
+println(*objPtr.Field == "hello world") // true
+
+// 指针类型指针，返回的指针依然是一级指针
+ptrPtr = newFromType(&MyStruct{})
+*ptrPtr.Field = "hello world"
+println(*ptrPtr.Field == "hello world") // true
+
 ```
 
 ## 内置函数支持

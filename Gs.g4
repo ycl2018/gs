@@ -45,9 +45,9 @@ incrDecr: lvalue (INCR | DECR);
 builtinCall
     :   LEN '(' expr ')'                                                #lenCall
     |   INITREF '(' qid (',' expr)? ')'                                 #initRefCall
+    |   NEWFROMTYPE '(' expr ')'                                        #newFromTypeCall
     |   APPEND '(' expr  ((',' expr)* |',' expr EXPAND) ')'             #appendCall
     |   DELETE '(' expr ',' expr ')'                                    #deleteCall
-    |   TOSTRING '(' expr ')'                                           #toStringCall
     |   (PRINT|PRINTLN|PRINTF|SPRINTF) '(' expr (',' expr)* ')'         #printXCall
     |   (UINT|UINT8|UINT16|UINT32|UINT64|INTS|INT8|
         INT16|INT32|INT64|FLOAT32|FLOAT64|STRINGS|BOOL) '(' expr ')'    #convertCall
@@ -184,6 +184,7 @@ PRINTF  : 'printf';
 SPRINTF : 'sprintf';
 PRINTLN : 'println';
 INITREF : 'initRef';
+NEWFROMTYPE : 'newFromType';
 
 // ==== convert
 UINT8   : 'uint8';

@@ -77,14 +77,14 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#initRefCall.
 	VisitInitRefCall(ctx *InitRefCallContext) interface{}
 
+	// Visit a parse tree produced by GsParser#newFromTypeCall.
+	VisitNewFromTypeCall(ctx *NewFromTypeCallContext) interface{}
+
 	// Visit a parse tree produced by GsParser#appendCall.
 	VisitAppendCall(ctx *AppendCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#deleteCall.
 	VisitDeleteCall(ctx *DeleteCallContext) interface{}
-
-	// Visit a parse tree produced by GsParser#toStringCall.
-	VisitToStringCall(ctx *ToStringCallContext) interface{}
 
 	// Visit a parse tree produced by GsParser#printXCall.
 	VisitPrintXCall(ctx *PrintXCallContext) interface{}
