@@ -900,7 +900,6 @@ func (s *StackCompileVisitor) VisitDerefAtom(ctx *gen.DerefAtomContext) interfac
 
 func (s *StackCompileVisitor) VisitLvalue(ctx *gen.LvalueContext) interface{} {
 	// if start by */&
-	s.VisitChildren(ctx)
 	if v, ok := ctx.GetChild(0).(antlr.TerminalNode); ok {
 		switch v.GetText() {
 		case "*":

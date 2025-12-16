@@ -354,7 +354,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrMLoadByName:
 			methodName := i.ConstPool[instr.Operands].Value.(string)
 			obj := i.PopOpStack()
-			i.PushOpStack(i.loadMethod(obj, methodName))
+			i.PushOpStack(i.LoadMethod(obj, methodName))
 		case consts.InstrMLoadByIndex:
 			obj := i.PopOpStack()
 			i.PushOpStack(loadMethodByIndex(obj, instr.Operands))
@@ -517,98 +517,70 @@ func loadMethodByIndex(obj any, index int) any {
 	return rv.Method(index).Interface()
 }
 
-func (i *Interpreter) loadMethod(obj any, methodName string) any {
+func (i *Interpreter) LoadMethod(obj any, methodName string) any {
+	method, err := i.loadMethod(obj, methodName)
+	if err == nil {
+		return method
+	}
+	field, err := i.loadField(obj, methodName)
+	if err == nil {
+		return field
+	}
+	panic(fmt.Sprintf("no such field/method '%s' by type:%T", methodName, obj))
+}
+
+func (i *Interpreter) loadMethod(obj any, methodName string) (any, error) {
 	rv := reflect.ValueOf(obj)
 	if !rv.IsValid() {
 		panic("load method from nil object")
 	}
+	vt := rv.Type()
 	if i.MethodIndexCache {
-		vt := rv.Type()
 		if index, ok := i.RuntimeCache.FetchMethodIndex(vt, methodName); ok {
-			if index.IsMethod {
-				switch index.Convert {
-				case consts.Elem:
-					rv = rv.Elem()
-				case consts.PtrTo:
-					ptrTo := reflect.New(rv.Type())
-					ptrTo.Elem().Set(rv)
-					rv = ptrTo
-				default:
-				}
-				return rv.Method(index.Index[0]).Interface()
-			} else {
-				if rv.Kind() == reflect.Ptr {
-					rv = rv.Elem()
-				}
-				return rv.FieldByIndex(index.Index).Interface()
+			switch index.Convert {
+			case consts.Elem:
+				rv = rv.Elem()
+			case consts.PtrTo:
+				ptrTo := reflect.New(rv.Type())
+				ptrTo.Elem().Set(rv)
+				rv = ptrTo
+			default:
 			}
-		} else {
-			origin := rv
-			conv := consts.No
-			// try to find method by name
-			if rv.NumMethod() == 0 {
-				if rv.Kind() == reflect.Ptr {
-					rv = rv.Elem()
-					conv = consts.Elem
-				} else {
-					ptrTo := reflect.New(rv.Type())
-					ptrTo.Elem().Set(rv)
-					rv = ptrTo
-					conv = consts.PtrTo
-				}
-			}
-			m, ok := rv.Type().MethodByName(methodName)
-			if ok {
-				method := rv.Method(m.Index)
-				if method.IsValid() {
-					if method.CanInterface() {
-						i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
-							Index:    []int{m.Index},
-							IsMethod: true,
-							Convert:  conv,
-						})
-						return method.Interface()
-					}
-					panic(fmt.Sprintf("method '%s' is not exported by type:%T", methodName, obj))
-				}
-			}
-			// try to find field by name
-			if origin.Kind() == reflect.Ptr {
-				rv = origin.Elem()
-			}
-			fieldByName, ok := rv.Type().FieldByName(methodName)
-			if ok {
-				field := rv.FieldByIndex(fieldByName.Index)
-				if field.IsValid() && field.Kind() == reflect.Func {
-					i.RuntimeCache.SetMethodIndex(origin.Type(), methodName, consts.MethodIndex{
-						Index:    fieldByName.Index,
-						IsMethod: false,
-					})
-					return field.Interface()
-				}
-			}
-			panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
+			return rv.Method(index.Index[0]).Interface(), nil
 		}
 	}
+	conv := consts.No
+	// try to find method by name
 	if rv.NumMethod() == 0 {
 		if rv.Kind() == reflect.Ptr {
 			rv = rv.Elem()
+			conv = consts.Elem
 		} else {
 			ptrTo := reflect.New(rv.Type())
 			ptrTo.Elem().Set(rv)
 			rv = ptrTo
+			conv = consts.PtrTo
 		}
 	}
-	method := rv.MethodByName(methodName)
-	if method.IsValid() {
-		return method.Interface()
+	m, ok := rv.Type().MethodByName(methodName)
+	if !ok {
+		return nil, fmt.Errorf("no such method '%s' by type:%T", methodName, obj)
 	}
-	rv = assertValidObj(obj)
-	field := rv.FieldByName(methodName)
-	if field.IsValid() && field.Kind() == reflect.Func && field.CanInterface() {
-		return field.Interface()
+	if !m.IsExported() {
+		panic(fmt.Sprintf("method '%s' is not exported by type:%T", methodName, obj))
 	}
-	panic(fmt.Sprintf("no such method/field '%s' by type:%T", methodName, obj))
+	method := rv.Method(m.Index)
+	if !method.IsValid() || !method.CanInterface() {
+		panic(fmt.Sprintf("method '%s' is not valid by type:%T", methodName, obj))
+	}
+	if i.MethodIndexCache {
+		i.RuntimeCache.SetMethodIndex(vt, methodName, consts.MethodIndex{
+			Index:    []int{m.Index},
+			IsMethod: true,
+			Convert:  conv,
+		})
+	}
+	return method.Interface(), nil
 }
 
 func neg(v any) any {
@@ -778,46 +750,45 @@ func (i *Interpreter) Peek() any {
 }
 
 func (i *Interpreter) FieldLoad(field string) any {
-	// build-in type
 	obj := i.PopOpStack()
 	if structSpace, ok := obj.(*StructSpace); ok {
 		return structSpace.Fields[field]
 	}
+	get, err := i.loadField(obj, field)
+	if err == nil {
+		return get
+	}
+	method, err := i.loadMethod(obj, field)
+	if err == nil {
+		return method
+	}
+	panic(fmt.Sprintf("no such field/method '%s' by type:%T", field, obj))
+}
+
+func (i *Interpreter) loadField(obj any, field string) (any, error) {
 	validObj := assertValidObj(obj)
 	switch validObj.Kind() {
 	case reflect.Struct:
 		// reflect
+		vt := validObj.Type()
 		if i.FieldIndexCache {
-			vt := validObj.Type()
 			if indexes, ok := i.RuntimeCache.FetchFieldIndex(vt, field); ok {
-				return validObj.FieldByIndex(indexes).Interface()
+				return validObj.FieldByIndex(indexes).Interface(), nil
 			}
-			if index, ok := i.RuntimeCache.FetchMethodIndex(vt, field); ok {
-				return validObj.Method(index.Index[0]).Interface()
-			}
-			if fieldStruct, ok := vt.FieldByName(field); ok {
-				if !fieldStruct.IsExported() {
-					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
-				}
-				i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
-				return validObj.FieldByIndex(fieldStruct.Index).Interface()
-			}
-			method := i.loadMethod(obj, field)
-			return method
-		} else {
-			fieldByName := validObj.FieldByName(field)
-			if fieldByName.IsValid() {
-				if fieldByName.CanInterface() {
-					return fieldByName.Interface()
-				} else {
-					panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
-				}
-			}
-			method := i.loadMethod(obj, field)
-			return method
 		}
+		fieldStruct, ok := vt.FieldByName(field)
+		if !ok {
+			return nil, fmt.Errorf("no such field %s for type %T", field, obj)
+		}
+		if !fieldStruct.IsExported() {
+			panic(fmt.Sprintf("field '%s' is not exported by type:%T", field, obj))
+		}
+		if i.FieldIndexCache {
+			i.RuntimeCache.SetFieldIndex(vt, field, fieldStruct.Index)
+		}
+		return validObj.FieldByIndex(fieldStruct.Index).Interface(), nil
 	default:
-		panic(fmt.Sprintf("unexpected type %T for load %s", obj, field))
+		return nil, fmt.Errorf("no such field %s for type %T", field, obj)
 	}
 }
 
