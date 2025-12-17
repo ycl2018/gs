@@ -87,11 +87,6 @@ func (c *ConstOptimizer) VisitArrayLiteral(ctx *gen.ArrayLiteralContext) interfa
 }
 
 func (c *ConstOptimizer) VisitDictLiteral(ctx *gen.DictLiteralContext) interface{} {
-	//dictLiteral : '{' (dictEntry (',' dictEntry)* ','?)? '}' ;
-	//dictEntry
-	//    :  (STRING|INT|FLOAT|TRUE|FALSE) ':' expr  #constKeyEntry
-	//    |   qid ':' expr             #idKeyEntry  // 支持qid作为键
-	//    ;
 	c.VisitChildren(ctx)
 	allEntries := ctx.AllDictEntry()
 	if len(allEntries) == 0 {

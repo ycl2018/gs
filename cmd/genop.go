@@ -227,21 +227,40 @@ import (
 	"reflect"
 )
 
-func eq(x, y any) bool {
+func eq(x, y any, panicOnError bool) bool {
 	if x == nil {
 		if y == nil {
 			return true
 		}
 		ry := reflect.ValueOf(y)
-		return ry.IsNil()
+		switch ry.Kind() {
+		case reflect.Pointer, reflect.Interface, reflect.Chan, reflect.Func, reflect.Map, reflect.Slice, reflect.UnsafePointer:
+			return ry.IsNil()
+		default:
+			if panicOnError {
+				panic(fmt.Sprintf("invalid operation '==' (mismatched types %T and %T)", x, y))
+			}
+			return false
+		}
 	}
 	if y == nil {
 		rx := reflect.ValueOf(x)
-		return rx.IsNil()
+		switch rx.Kind() {
+		case reflect.Pointer, reflect.Interface, reflect.Chan, reflect.Func, reflect.Map, reflect.Slice, reflect.UnsafePointer:
+			return rx.IsNil()
+		default:
+			if panicOnError {
+				panic(fmt.Sprintf("invalid operation '==' (mismatched types %T and %T)", x, y))
+			}
+			return false
+		}
 	}
 	xt, yt := reflect.TypeOf(x), reflect.TypeOf(y)
 	if xt != yt {
-		panic(fmt.Sprintf("invalid operation '==' (mismatched types %T and %T)", x, y))
+		if panicOnError {
+			panic(fmt.Sprintf("invalid operation '==' (mismatched types %T and %T)", x, y))
+		}
+		return false
 	}
 	return x == y
 }
@@ -277,7 +296,8 @@ func eq(x, y any) bool {
 	code := sb.String()
 	formatted, err := format.Source([]byte(code))
 	if err != nil {
-		panic(err)
+		fmt.Println(fmt.Sprintf("Warning: Formatting failed, using unformatted code: %v\n", err))
+		formatted = []byte(code)
 	}
 
 	err = os.WriteFile("./gen/op.gen.go", formatted, 0644)
@@ -298,9 +318,11 @@ func generateOperationFunction(funcName, operator string) string {
 	} else if isBitwiseOperation(operator) {
 		returnType = "int"
 	}
-
-	sb.WriteString(fmt.Sprintf("// %s 执行 %s 运算\n", funcName, operator))
-	sb.WriteString(fmt.Sprintf("func %s(x, y any) (%s, error) {\n", funcName, returnType))
+	if funcName == "Eq" {
+		sb.WriteString(fmt.Sprintf("func %s(x, y any, panicOnError bool) %s {\n", funcName, returnType))
+	} else {
+		sb.WriteString(fmt.Sprintf("func %s(x, y any) %s {\n", funcName, returnType))
+	}
 	sb.WriteString("    switch xv := x.(type) {\n")
 
 	// 整数类型
@@ -314,19 +336,19 @@ func generateOperationFunction(funcName, operator string) string {
 			sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
 			if operator == "/" {
 				if returnType == "int" {
-					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 				} else {
-					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 				}
 			} else if operator == "%" {
-				sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+				sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 			} else {
 				if returnType == "bool" {
-					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 				} else if returnType == "int" {
-					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 				} else {
-					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return int(xv) %s int(yv)\n", operator))
 				}
 			}
 		}
@@ -337,9 +359,9 @@ func generateOperationFunction(funcName, operator string) string {
 			for _, yt := range floatTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
 				if returnType == "bool" {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				} else {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				}
 			}
 		}
@@ -358,9 +380,9 @@ func generateOperationFunction(funcName, operator string) string {
 			for _, yt := range intTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
 				if returnType == "bool" {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				} else {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				}
 			}
 
@@ -368,9 +390,9 @@ func generateOperationFunction(funcName, operator string) string {
 			for _, yt := range floatTypes {
 				sb.WriteString(fmt.Sprintf("        case %s:\n", yt))
 				if returnType == "bool" {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				} else {
-					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv), nil\n", operator))
+					sb.WriteString(fmt.Sprintf("            return float64(xv) %s float64(yv)\n", operator))
 				}
 			}
 
@@ -386,19 +408,19 @@ func generateOperationFunction(funcName, operator string) string {
 
 		switch operator {
 		case "+":
-			sb.WriteString("            return xv + yv, nil\n")
+			sb.WriteString("            return xv + yv\n")
 		case "==":
-			sb.WriteString("            return xv == yv, nil\n")
+			sb.WriteString("            return xv == yv\n")
 		case "!=":
-			sb.WriteString("            return xv != yv, nil\n")
+			sb.WriteString("            return xv != yv\n")
 		case "<":
-			sb.WriteString("            return xv < yv, nil\n")
+			sb.WriteString("            return xv < yv\n")
 		case ">":
-			sb.WriteString("            return xv > yv, nil\n")
+			sb.WriteString("            return xv > yv\n")
 		case "<=":
-			sb.WriteString("            return xv <= yv, nil\n")
+			sb.WriteString("            return xv <= yv\n")
 		case ">=":
-			sb.WriteString("            return xv >= yv, nil\n")
+			sb.WriteString("            return xv >= yv\n")
 		}
 
 		sb.WriteString("        }\n")
@@ -409,17 +431,17 @@ func generateOperationFunction(funcName, operator string) string {
 
 	// 根据返回值类型返回适当的零值
 	if funcName == "Eq" {
-		sb.WriteString("    return eq(x, y), nil\n")
+		sb.WriteString("    return eq(x, y, panicOnError)\n")
 	} else {
 		if returnType == "bool" {
-			sb.WriteString("    return false, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
+			sb.WriteString("    panic(fmt.Sprintf(\"unsupported operator: %T %s %T\", x, \"")
 		} else if returnType == "int" {
-			sb.WriteString("    return 0, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
+			sb.WriteString("    panic(fmt.Sprintf(\"unsupported operator: %T %s %T\", x, \"")
 		} else {
-			sb.WriteString("    return nil, fmt.Errorf(\"unsupported operator: %T %s %T\", x, \"")
+			sb.WriteString("    panic(fmt.Sprintf(\"unsupported operator: %T %s %T\", x, \"")
 		}
 		sb.WriteString(operator)
-		sb.WriteString("\", y)\n")
+		sb.WriteString("\", y))\n")
 	}
 
 	sb.WriteString("}\n")

@@ -3,15 +3,41 @@ package conf
 import (
 	"io"
 	"os"
+	"reflect"
 
 	"github.com/ycl2018/gs/consts"
 )
 
 type CompileConf struct {
-	Env         any
-	Optimize    bool
-	DumpCode    bool
-	DefineFuncs DefineFuncManager
+	Env            any
+	Optimize       bool
+	DumpCode       bool
+	DefineFuncs    DefineFuncManager
+	TypesAvailable DefineTypesManager
+}
+
+type RunConf struct {
+	Out              io.Writer
+	StackSize        int
+	Trace            bool
+	FieldIndexCache  bool
+	MethodIndexCache bool
+}
+
+func Default() CompileConf {
+	return CompileConf{
+		Optimize:       true,
+		DefineFuncs:    NewDefineFuncManager(),
+		TypesAvailable: NewDefineTypesManager(),
+	}
+}
+
+func DefaultRunConf() RunConf {
+	return RunConf{
+		Out:              os.Stdout,
+		FieldIndexCache:  true,
+		MethodIndexCache: true,
+	}
 }
 
 type DefineFuncManager struct {
@@ -56,25 +82,31 @@ func (m DefineFuncManager) Define(name string, f *consts.DefineFunc) {
 	m.userDefine[name] = f
 }
 
-type RunConf struct {
-	Out              io.Writer
-	StackSize        int
-	Trace            bool
-	FieldIndexCache  bool
-	MethodIndexCache bool
+type DefineTypesManager struct {
+	system     map[string]reflect.Type
+	userDefine map[string]reflect.Type
 }
 
-func Default() CompileConf {
-	return CompileConf{
-		Optimize:    true,
-		DefineFuncs: NewDefineFuncManager(),
+func NewDefineTypesManager() DefineTypesManager {
+	return DefineTypesManager{
+		system:     consts.PredefineTypes,
+		userDefine: map[string]reflect.Type{},
 	}
 }
 
-func DefaultRunConf() RunConf {
-	return RunConf{
-		Out:              os.Stdout,
-		FieldIndexCache:  true,
-		MethodIndexCache: true,
+func (m DefineTypesManager) GetType(name string) reflect.Type {
+	if t, ok := m.system[name]; ok {
+		return t
 	}
+	if t, ok := m.userDefine[name]; ok {
+		return t
+	}
+	return nil
+}
+
+func (m DefineTypesManager) Define(name string, t reflect.Type) {
+	if _, ok := m.system[name]; ok {
+		panic("can not override system type " + name)
+	}
+	m.userDefine[name] = t
 }

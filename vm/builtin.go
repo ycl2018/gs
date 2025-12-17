@@ -42,9 +42,13 @@ func length(x any) int {
 	switch xv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.String, reflect.Chan:
 		return xv.Len()
+	case reflect.Pointer:
+		if xv.Elem().Kind() == reflect.Array {
+			return xv.Elem().Len()
+		}
 	default:
-		panic(fmt.Sprintf("can't length %T", x))
 	}
+	panic(fmt.Sprintf("can't length %T", x))
 }
 
 func appendSlice(x any, values []any) any {
@@ -234,28 +238,28 @@ func deleteMap(m, k any) {
 		delete(m, k.(string))
 		return
 	case map[int]string:
-		delete(m, gen.ToInt(k))
+		delete(m, k.(int))
 		return
 	case map[int]any:
-		delete(m, gen.ToInt(k))
+		delete(m, k.(int))
 		return
 	case map[int]bool:
-		delete(m, gen.ToInt(k))
+		delete(m, k.(int))
 		return
 	case map[int]int:
-		delete(m, gen.ToInt(k))
+		delete(m, k.(int))
 		return
 	case map[int64]string:
-		delete(m, gen.ToInt64(k))
+		delete(m, k.(int64))
 		return
 	case map[int64]any:
-		delete(m, gen.ToInt64(k))
+		delete(m, k.(int64))
 		return
 	case map[int64]int64:
-		delete(m, gen.ToInt64(k))
+		delete(m, k.(int64))
 		return
 	case map[int64]bool:
-		delete(m, gen.ToInt64(k))
+		delete(m, k.(int64))
 		return
 	default:
 	}
@@ -263,45 +267,7 @@ func deleteMap(m, k any) {
 	if rm.Kind() != reflect.Map {
 		panic(fmt.Sprintf("delete unsupport type:%T", m))
 	}
-	switch k.(type) {
-	case int: // int may be vm value, map
-		switch kt := rm.Type().Key().Kind(); kt {
-		case reflect.Int:
-			k = gen.ToInt(k)
-		case reflect.Int8:
-			k = gen.ToInt8(k)
-		case reflect.Int16:
-			k = gen.ToInt16(k)
-		case reflect.Int32:
-			k = gen.ToInt32(k)
-		case reflect.Int64:
-			k = gen.ToInt64(k)
-		case reflect.Uint:
-			k = gen.ToUint(k)
-		case reflect.Uint8:
-			k = gen.ToUint8(k)
-		case reflect.Uint16:
-			k = gen.ToUint16(k)
-		case reflect.Uint32:
-			k = gen.ToUint32(k)
-		case reflect.Uint64:
-			k = gen.ToUint64(k)
-		case reflect.Uintptr:
-			k = gen.ToUintptr(k)
-		case reflect.Float64:
-			k = gen.ToFloat64(k)
-		case reflect.Float32:
-			k = gen.ToFloat32(k)
-		}
-	}
 	rm.SetMapIndex(reflect.ValueOf(k), reflect.Value{})
-}
-
-func toString(v any) string {
-	if v, ok := v.(fmt.Stringer); ok {
-		return v.String()
-	}
-	panic(fmt.Sprintf("toString unsupport type:%T", v))
 }
 
 var mapKindToType = map[reflect.Kind]reflect.Type{

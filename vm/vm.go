@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"io"
-	"math"
 	"reflect"
 	"runtime/debug"
 	"slices"
@@ -67,12 +66,13 @@ func NewStackFrame(f *consts.FunctionConst, returnAddr int, code []consts.StackI
 }
 
 type Code struct {
-	GlobalNum    int
-	ConstPool    []consts.Const
-	DefineFuncs  []consts.DefineFunc
-	MainFunc     consts.FunctionConst
-	BuildEnvType reflect.Type
-	RuntimeCache *consts.RuntimeCache
+	GlobalNum      int
+	ConstPool      []consts.Const
+	DefineFuncs    []consts.DefineFunc
+	TypesAvailable conf.DefineTypesManager
+	MainFunc       consts.FunctionConst
+	BuildEnvType   reflect.Type
+	RuntimeCache   *consts.RuntimeCache
 }
 
 func (i *Interpreter) Run() (err error) {
@@ -80,7 +80,7 @@ func (i *Interpreter) Run() (err error) {
 	sf := NewStackFrame(&i.MainFunc, i.IP, i.CurCode)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
-	if i.Trace {
+	if Trace && i.Trace {
 		fmt.Printf("\ntrace:\n")
 	}
 	defer func() {
@@ -112,23 +112,97 @@ func (i *Interpreter) PushOpStack(v any) {
 }
 
 func (i *Interpreter) cpu() {
-	// 取指令，并执行
 	instr := i.CurCode[i.IP]
 	for i.IP < len(i.CurCode) {
-		if i.Trace {
+		if Trace && i.Trace {
 			i.trace()
 		}
 		i.IP++ // next instruction or first operand
 		switch instr.OpCode {
-		case consts.InstrAdd, consts.InstrSub, consts.InstrMul, consts.InstrDiv, consts.InstrLT, consts.InstrEQ, consts.InstrLEQ, consts.InstrNEQ, consts.InstrGEQ, consts.InstrGT, consts.InstrMod, consts.InstrBitOR, consts.InstrBitAND, consts.InstrXOR:
-			i.Op(instr.OpCode)
+		case consts.InstrAdd:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Add(x, y))
+
+		case consts.InstrSub:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Sub(x, y))
+
+		case consts.InstrMul:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Mul(x, y))
+
+		case consts.InstrDiv:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Div(x, y))
+
+		case consts.InstrLT:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Lt(x, y))
+
+		case consts.InstrEQ:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Eq(x, y, true))
+
+		case consts.InstrLEQ:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Lte(x, y))
+
+		case consts.InstrNEQ:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Neq(x, y))
+
+		case consts.InstrGEQ:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Gte(x, y))
+
+		case consts.InstrGT:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Gt(x, y))
+
+		case consts.InstrBitOR:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Or(x, y))
+
+		case consts.InstrBitAND:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.And(x, y))
+
+		case consts.InstrXOR:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Xor(x, y))
+
+		case consts.InstrMod:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.Mod(x, y))
+
+		case consts.InstrLShift:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.LShift(x, y))
+
+		case consts.InstrRShift:
+			y := i.PopOpStack()
+			x := i.PopOpStack()
+			i.PushOpStack(gen.RShift(x, y))
+
 		case consts.InstrOR:
 			i.PushOpStack(i.PopOpStack().(bool) || i.PopOpStack().(bool))
 		case consts.InstrAND:
 			i.PushOpStack(i.PopOpStack().(bool) && i.PopOpStack().(bool))
-		case consts.InstrPow:
-			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			i.PushOpStack(math.Pow(gen.ToFloat64(op1), gen.ToFloat64(op2)))
 		case consts.InstrNeg:
 			i.PushOpStack(neg(i.PopOpStack()))
 		case consts.InstrTrue:
@@ -155,14 +229,11 @@ func (i *Interpreter) cpu() {
 			dictLen := instr.Operands
 			i.PushOpStack(i.MakeMap(dictLen))
 		case consts.InstrCall:
-			// 函数调用
 			funcIndex := instr.Operands
 			fs := i.ConstPool[funcIndex].Value.(consts.FunctionConst)
 			funcStack := NewStackFrame(&fs, i.IP, i.CurCode)
 			i.FP++
 			i.Calls = append(i.Calls, funcStack)
-			// 拷贝操作数到参数中
-			// move args from operand stack to top frame on call stack
 			for a := int(fs.ParamCount) - 1; a >= 0; a-- {
 				funcStack.Locals[a] = i.PopOpStack()
 			}
@@ -418,7 +489,7 @@ func (i *Interpreter) cpu() {
 		case consts.InstrInitRef:
 			i.PushOpStack(i.initRef(i.PopOpStack(), instr.Operands))
 		case consts.InstrNewFromType:
-			i.PushOpStack(newFromType(i.PopOpStack()))
+			i.PushOpStack(i.newFromType(i.PopOpStack()))
 		case consts.InstrHalt:
 			return
 		default:
@@ -428,16 +499,18 @@ func (i *Interpreter) cpu() {
 	}
 }
 
-// newFromType create a new object from type
-// if obj is a pointer, return a new pointer to the element type
-// if obj is not a pointer, return a new pointer to the type
-func newFromType(obj any) any {
+// newFromType returns a pointer to a new zero value of type.
+func (i *Interpreter) newFromType(obj any) any {
 	if obj == nil {
 		panic("newFromType: nil object")
 	}
-	rt := reflect.TypeOf(obj)
-	if rt.Kind() == reflect.Ptr {
-		rt = rt.Elem()
+	typeName, ok := obj.(string)
+	if !ok {
+		panic(fmt.Sprintf("newFromType: need param type string but got %T", obj))
+	}
+	rt := i.TypesAvailable.GetType(typeName)
+	if rt == nil {
+		panic(fmt.Sprintf("newFromType: unknown type %s", typeName))
 	}
 	rv := reflect.New(rt)
 	return rv.Interface()
@@ -1135,18 +1208,15 @@ func (i *Interpreter) PrintStack(writer io.Writer) {
 	var printFrameSize int
 	_, _ = fmt.Fprintf(writer, "stack trace:\n")
 	for j := len(i.Calls) - 1; j >= 0; j-- {
-		// 打印调用栈
 		ip := i.IP - 1
-		// func:<funcName>,args:(arg1,arg2,...) line:<line>
 		call := i.Calls[j]
-		_, _ = fmt.Fprintf(writer, "\tat "+call.FuncConsts.Name+" args:(")
-		// args
+		_, _ = fmt.Fprint(writer, "\tat ", call.FuncConsts.Name, " args:(")
 		for k := range call.FuncConsts.ParamCount {
 			if k < len(call.Locals) {
 				if k > 0 {
-					_, _ = fmt.Fprintf(writer, ", ")
+					_, _ = fmt.Fprint(writer, ", ")
 				}
-				_, _ = fmt.Fprintf(writer, "%v", call.Locals[k])
+				_, _ = fmt.Fprint(writer, call.Locals[k])
 			}
 		}
 		_, _ = fmt.Fprintf(writer, ") line:%d\n", call.FuncConsts.Debugger.Table[ip].Line)

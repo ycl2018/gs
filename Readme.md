@@ -10,7 +10,7 @@
 - [x] 插件
 - [x] 配置校验
 
-**凡是需要动态化的场景，都可以考虑使用 GS，实现不停机热更新代码逻辑。**
+**凡是需要动态化的场景，都可以考虑使用 GS，实现高性能不停机热更新代码逻辑。**
 
 开始使用 `go get github.com/ycl2018/gs`
 
@@ -49,11 +49,11 @@ gs.Eval(program, nil)
 错误提示
 
 ```golang
-program := `
-func divide(a, b) {
-	return a / b
-}
-divide(1, 0)
+program := `            // line 1
+func divide(a, b) {     // line 2
+    return a / b        // line 3
+}                       // line 4
+divide(1, 0)            // line 5
 `
 _, err :=gs.Eval(program, nil)
 fmt.Println(err)
@@ -67,7 +67,7 @@ at main args:() line:5
 
 **代码调试**
 
-通过 `DumpCode` 和 `Trace` option可以开启代码调试功能，打印字节码和执行 trace。
+通过 `DumpCode` 和 `Trace` (需配置build tag `gs_trace`) 选项可以开启代码调试功能，打印字节码和执行 trace。
 
 ```text
 Dump:
@@ -197,14 +197,30 @@ fmt.Println(ret.MustBool()) // true
 program := `
 return add($.A + $.B)
 `
+
+// 自定义函数 add
 code, _ := gs.Compile(program, gs.DefineFuncs(gs.Func{
     Name: "add",
+	// Fn 可以为任意函数签名
     Fn: func(a, b int) int {
         return a + b
     },
 }))
+
 ret, _ := gs.Run(code, &Env{A: 1, B: 2})
 fmt.Println(ret.MustInt()) // 3
+
+// 为了更好的调用性能，避免使用反射，建议使用 `gs.DefineFast` 定义函数
+gs.DefineFast(gs.FastFunc{
+    Name: "add",
+    // 定义函数 add，接收 2 个参数，返回 1 个参数
+    NumIn: 2,
+    NumOut: 1,
+    // 函数签名必须为 func(args []any) []any
+    Fn: func(args []any) []any {
+        return []any{args[0].(int) + args[1].(int)}
+    },
+})
 ```
 
 赋值
@@ -219,23 +235,24 @@ code, _ := gs.Compile(program, gs.DefineFuncs(gs.Func{
         return a + b
     },
 }))
+
 env := &Env{A: 1, B: 2, Sum: 0}
 gs.Run(code, env)
 fmt.Println(env.Sum) // 3
 ```
 
-并发
+甚至并发
 
 ```golang
-f = go $.Fn("World")            // 并发执行环境函数
-f1 = go define("define func")   // 并发执行自定义函数
-val, err = f.Wait()             // 阻塞并等待函数完成，获取返回值和错误
-val2,err2 = f1.Wait()           // 阻塞并等待函数完成，获取返回值和错误
-println(val,err)
-println(val2,err2)
+f1 = go $.Fn("World")           // 异步执行任务 1
+f2 = go define("define func")   // 异步执行任务 2
+val1, err = f1.Wait()           // 阻塞并获取结果
+val2, err = f2.Wait()           // 阻塞并获取结果
+println(val1, err)
+println(val2, err)
 ```
 
-异步并发由 `go` 关键字触发，支持执行环境函数和自定义函数。
+异步并发由 `go` 关键字触发，仅支持执行go原生函数。
 每个并发任务返回一个 `Future` 对象，通过 `Wait` 方法阻塞并等待任务完成，获取返回值和错误。
 并发能力借助 [github.com/ycl2018/go-future](https://github.com/ycl2018/go-future) 提供。
 
@@ -404,16 +421,18 @@ if sum = a + b; sum < 10 {
 
 ```golang
 gs.Eval(`
-f = go fast("World")
-println(f.Wait()) // Hello World <nil>
-`, nil,
-DefineFunc(gs.Func{
-    Name: "define",
-    Fn: func(name string) (string, error) {
-        return "Hello " + name, nil
-    },
-})
-
+    f = go fast("World")
+    // do something else ...
+    ret, err = f.Wait()
+    println(ret, err) // Hello World <nil>
+    `,
+    nil,
+    DefineFunc(gs.Func{
+        Name: "define",
+        Fn: func(name string) (string, error) {
+            return "Hello " + name, nil
+        },
+    })
 ```
 
 ## 与go类型系统的集成
@@ -450,7 +469,7 @@ $.String = "string"
 ```golang
 ptr = $.Ptr
 ptr.Field = "string"
-// 注意： ptr 本身是不可寻址的，不能直接赋值，（ptr 只是一个指针变量，跟一个 uint 值没啥区别）
+// 注意： ptr 本身是不可寻址的，不能直接赋值，（ptr 只是一个指针变量，跟一个 uint 值没本质区别）
 ```
 
 **基本类型**
@@ -491,29 +510,43 @@ println($.MyEnv.A == "hello")
 ```
 
 ### 创建任意指针类型
-- 内置函数 `newFromType(value)`，返回一个指向该value类型零值的指针
-  - 如果value是指针类型，返回的新指针依然是一级指针，指向该指针指向的元素类型零值
-  - 如果value不是指针类型，返回的新指针直接指向该类型零值
+- 内置函数 `newFromType(typeName)`，返回一个指向该typeName类型零值的指针
+  - 支持所有 go 基本类型 `intX/uintX/floatX/string/duration/time`
+  - 支持自定义类型
+
+创建基础类型指针
 
 ```golang
-// 基础类型指针
-stringPtr = newFromType("")
+stringPtr = newFromType("string")
 *stringPtr = "hello world"
 println(*stringPtr == "hello world") // true
+```
 
-// 结构体指针
-objPtr = newFromType(MyStruct{})
-*objPtr.Field = "hello world"
-println(*objPtr.Field == "hello world") // true
+自定义类型指针 `AddTypes`
 
-// 指针类型指针，返回的指针依然是一级指针
-ptrPtr = newFromType(&MyStruct{})
-*ptrPtr.Field = "hello world"
-println(*ptrPtr.Field == "hello world") // true
+```golang
+gs.Eval(`
+    myItfPtr = newFromType("myItf")
+    myItfPtr.Name = "World"
+    println(myItfPtr.Hello() == "Hello World") // true
+    `,
+    nil,
+    gs.AddTypes(map[string]any{
+    "myItf": MyItf{},
+}))
 
+type MyItf struct {
+    Name string
+}
+
+func (m *MyItf) Hello() string {
+    return "Hello " + m.Name
+}
 ```
 
 ## 内置函数支持
+
+内置函数是go标准库中函数的包装，签名完全对齐 go。
 
 ### 基本函数
 
@@ -528,7 +561,7 @@ println(*ptrPtr.Field == "hello world") // true
     <tr><td><code>append</code></td><td>切片追加元素，支持三点符号...</td></tr>
     <tr><td><code>delete</code></td><td>删除元素</td></tr>
     <tr><td><code>len</code></td><td>获取长度</td></tr>
-    <tr><td><code>uint/uint8/uintX/int/int8/intX/float32/float64/string/duration</code></td><td>类型强转</td></tr>
+    <tr><td><code>uintX/intX/float32/float64/string/duration</code></td><td>类型强转</td></tr>
     <tr><td><code>print/printf/println</code></td><td>打印变量到标准输出，可自定义输出 io</td></tr>
     <tr><td><code>sprintf</code></td><td>格式化字符串，对齐 go</td></tr>
   </tbody>
@@ -551,8 +584,6 @@ println(*ptrPtr.Field == "hello world") // true
 
 
 ### 字符串
-
-签名完全对齐 go
 
 <table style="width:100%">
   <thead>
@@ -581,8 +612,6 @@ println(*ptrPtr.Field == "hello world") // true
 </table>
 
 ### 时间
-
-签名完全对齐 go
 
 <table style="width:100%">
   <thead>

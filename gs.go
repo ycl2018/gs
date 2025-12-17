@@ -12,25 +12,30 @@ import (
 	"github.com/ycl2018/gs/vm"
 )
 
+// CompileOption is the option for compiling.
 type CompileOption func(conf *conf.CompileConf)
 
+// Env sets the environment for compiling.
 func Env(env any) CompileOption {
 	return func(conf *conf.CompileConf) {
 		conf.Env = env
 	}
 }
 
+// DumpCode dumps the compiled code.
 func DumpCode() CompileOption {
 	return func(conf *conf.CompileConf) {
 		conf.DumpCode = true
 	}
 }
 
+// Func is the function to define.
 type Func struct {
 	Name string
 	Fn   any
 }
 
+// FastFunc is the fast function to define. NumIn and NumOut are the number of input and output parameters.
 type FastFunc struct {
 	Name   string
 	NumIn  int
@@ -38,6 +43,7 @@ type FastFunc struct {
 	Fn     func([]any) []any
 }
 
+// DefineFast defines the fast functions.
 func DefineFast(fns ...FastFunc) CompileOption {
 	return func(conf *conf.CompileConf) {
 		for _, fn := range fns {
@@ -52,6 +58,7 @@ func DefineFast(fns ...FastFunc) CompileOption {
 	}
 }
 
+// DefineFuncs defines the functions.
 func DefineFuncs(fns ...Func) CompileOption {
 	return func(conf *conf.CompileConf) {
 		for _, fn := range fns {
@@ -69,44 +76,61 @@ func DefineFuncs(fns ...Func) CompileOption {
 	}
 }
 
+// BlockSystemFunc blocks the system function.
 func BlockSystemFunc(name string) CompileOption {
 	return func(conf *conf.CompileConf) {
 		conf.DefineFuncs.BlockSystemFunc(name)
 	}
 }
 
+// BlockAllSystemFunc blocks all system functions.
 func BlockAllSystemFunc() CompileOption {
 	return func(conf *conf.CompileConf) {
 		conf.DefineFuncs.BlockAllSystemFunc()
 	}
 }
 
+// NoOptimize disables optimize.
 func NoOptimize() CompileOption {
 	return func(conf *conf.CompileConf) {
 		conf.Optimize = false
 	}
 }
 
+// AddTypes adds the types that can be used in the func newFromType.
+func AddTypes(types map[string]any) CompileOption {
+	return func(conf *conf.CompileConf) {
+		for k, v := range types {
+			conf.TypesAvailable.Define(k, reflect.TypeOf(v))
+		}
+	}
+}
+
+// RunOption is the option for running.
 type RunOption func(conf *conf.RunConf)
 
+// Trace enables trace info. useful for debugging.
 func Trace() RunOption {
 	return func(conf *conf.RunConf) {
 		conf.Trace = true
 	}
 }
 
+// Output sets the output writer. default is os.Stdout.
 func Output(w io.Writer) RunOption {
 	return func(conf *conf.RunConf) {
 		conf.Out = w
 	}
 }
 
+// StackSize sets the stack size. default is 64.
 func StackSize(size int) RunOption {
 	return func(conf *conf.RunConf) {
 		conf.StackSize = size
 	}
 }
 
+// NoCache disables method and field index cache.
 func NoCache() RunOption {
 	return func(conf *conf.RunConf) {
 		conf.MethodIndexCache = false
@@ -114,6 +138,7 @@ func NoCache() RunOption {
 	}
 }
 
+// Compile compiles the program.
 func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 	p := compile.NewGsCompiler()
 	var config = conf.Default()
@@ -127,6 +152,7 @@ func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 	return ret, err
 }
 
+// Run runs the program.
 func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
 	config := conf.DefaultRunConf()
 	for _, op := range ops {
@@ -140,6 +166,7 @@ func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
 	return &Result{value: interpreter.Result}, nil
 }
 
+// Eval compiles and runs the program in one step.
 func Eval(program string, env any, ops ...any) (ret *Result, err error) {
 	var compileOps = []CompileOption{
 		NoOptimize(),

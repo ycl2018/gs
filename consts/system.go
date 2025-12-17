@@ -12,179 +12,91 @@ import (
 	"github.com/ycl2018/gs/gen"
 )
 
-var Predefine = map[string]*DefineFunc{
-	// collections
-	"in": {
-		Name:   "in",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     In,
-	},
-	"index": {
-		Name:   "index",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Index,
-	},
-	"sort": {
-		Name:   "sort",
-		NumIn:  1,
-		NumOut: 0,
-		Fast:   true,
-		Fn:     Sort,
-	},
-	// strings
-	"hasPrefix": {
-		Name:   "hasPrefix",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     HasPrefix,
-	},
-	"hasSuffix": {
-		Name:   "hasSuffix",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     HasSuffix,
-	},
-	"trim": {
-		Name:   "trim",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Trim,
-	},
-	"trimPrefix": {
-		Name:   "trimPrefix",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     TrimPrefix,
-	},
-	"trimSuffix": {
-		Name:   "trimSuffix",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     TrimSuffix,
-	},
-	"trimSpace": {
-		Name:   "trimSpace",
-		NumIn:  1,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     TrimSpace,
-	},
-	"trimLeft": {
-		Name:   "trimLeft",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     TrimLeft,
-	},
-	"trimRight": {
-		Name:   "trimRight",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     TrimRight,
-	},
-	"toLower": {
-		Name:   "toLower",
-		NumIn:  1,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     toLower,
-	},
-	"toUpper": {
-		Name:   "toUpper",
-		NumIn:  1,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     toUpper,
-	},
-	"split": {
-		Name:   "split",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Split,
-	},
-	"join": {
-		Name:   "join",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Join,
-	},
-	// system
-	"now": {
-		Name:   "now",
-		NumIn:  0,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Now,
-	},
-	"parseTime": {
-		Name:   "parseTime",
-		NumIn:  2,
-		NumOut: 2,
-		Fast:   true,
-		Fn:     ParseTime,
-	},
-	"parseDuration": {
-		Name:   "parseDuration",
-		NumIn:  1,
-		NumOut: 2,
-		Fast:   true,
-		Fn:     ParseDuration,
-	},
-	"atoi": {
-		Name:   "atoi",
-		NumIn:  1,
-		NumOut: 2,
-		Fast:   true,
-		Fn:     Atoi,
-	},
-	"itoa": {
-		Name:   "itoa",
-		NumIn:  1,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Itoa,
-	},
-	"duration": {
-		Name:   "duration",
-		NumIn:  1,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     Duration,
-	},
-	// json
-	"toJson": {
-		Name:   "toJson",
-		NumIn:  1,
-		NumOut: 2,
-		Fast:   true,
-		Fn:     ToJson,
-	},
-	"fromJson": {
-		Name:   "fromJson",
-		NumIn:  1,
-		NumOut: 2,
-		Fast:   true,
-		Fn:     FromJson,
-	},
-	"unmarshalJson": {
-		Name:   "unmarshalJson",
-		NumIn:  2,
-		NumOut: 1,
-		Fast:   true,
-		Fn:     UnmarshalJson,
-	},
+// Predefined functions.
+const (
+	FnIn            = "in"
+	FnIndex         = "index"
+	FnSort          = "sort"
+	FnHasPrefix     = "hasPrefix"
+	FnHasSuffix     = "hasSuffix"
+	FnTrim          = "trim"
+	FnTrimPrefix    = "trimPrefix"
+	FnTrimSuffix    = "trimSuffix"
+	FnTrimSpace     = "trimSpace"
+	FnTrimLeft      = "trimLeft"
+	FnTrimRight     = "trimRight"
+	FnToLower       = "toLower"
+	FnToUpper       = "toUpper"
+	FnSplit         = "split"
+	FnJoin          = "join"
+	FnNow           = "now"
+	FnParseTime     = "parseTime"
+	FnParseDuration = "parseDuration"
+	FnAtoi          = "atoi"
+	FnItoA          = "itoa"
+	FnDuration      = "duration"
+	FnToJSON        = "toJson"
+	FnFromJSON      = "fromJson"
+	FnUnmarshalJSON = "unmarshalJson"
+)
+
+// Predefine is the predefine functions. **DO NOT MODIFY**.
+var Predefine = func() map[string]*DefineFunc {
+	var ret = map[string]*DefineFunc{}
+	define := func(name string, numIn, numOut int, fn any) {
+		ret[name] = &DefineFunc{
+			Name:   name,
+			NumIn:  numIn,
+			NumOut: numOut,
+			Fast:   true,
+			Fn:     fn,
+		}
+	}
+	define(FnIn, 2, 1, In)
+	define(FnIndex, 2, 1, Index)
+	define(FnSort, 1, 0, Sort)
+	define(FnHasPrefix, 2, 1, HasPrefix)
+	define(FnHasSuffix, 2, 1, HasSuffix)
+	define(FnTrim, 2, 1, Trim)
+	define(FnTrimPrefix, 2, 1, TrimPrefix)
+	define(FnTrimSuffix, 2, 1, TrimSuffix)
+	define(FnTrimSpace, 1, 1, TrimSpace)
+	define(FnTrimLeft, 2, 1, TrimLeft)
+	define(FnTrimRight, 2, 1, TrimRight)
+	define(FnToLower, 1, 1, toLower)
+	define(FnToUpper, 1, 1, toUpper)
+	define(FnSplit, 2, 1, Split)
+	define(FnJoin, 2, 1, Join)
+	define(FnNow, 0, 1, Now)
+	define(FnParseTime, 2, 2, ParseTime)
+	define(FnParseDuration, 1, 2, ParseDuration)
+	define(FnAtoi, 1, 2, Atoi)
+	define(FnItoA, 1, 1, Itoa)
+	define(FnDuration, 1, 1, Duration)
+	define(FnToJSON, 1, 2, ToJson)
+	define(FnFromJSON, 1, 2, FromJson)
+	define(FnUnmarshalJSON, 2, 1, UnmarshalJson)
+	return ret
+}()
+
+var PredefineTypes = map[string]reflect.Type{
+	"int":           reflect.TypeOf(0),
+	"int8":          reflect.TypeOf(int8(0)),
+	"int16":         reflect.TypeOf(int16(0)),
+	"int32":         reflect.TypeOf(int32(0)),
+	"int64":         reflect.TypeOf(int64(0)),
+	"uint":          reflect.TypeOf(uint(0)),
+	"uint8":         reflect.TypeOf(uint8(0)),
+	"uint16":        reflect.TypeOf(uint16(0)),
+	"uint32":        reflect.TypeOf(uint32(0)),
+	"uint64":        reflect.TypeOf(uint64(0)),
+	"float32":       reflect.TypeOf(float32(0)),
+	"float64":       reflect.TypeOf(float64(0)),
+	"string":        reflect.TypeOf(""),
+	"uintptr":       reflect.TypeOf(uintptr(0)),
+	"time.Time":     reflect.TypeOf(time.Time{}),
+	"time.Duration": reflect.TypeOf(time.Duration(0)),
+	"struct{}":      reflect.TypeOf(struct{}{}),
 }
 
 func In(args []any) []any {
@@ -194,6 +106,13 @@ func In(args []any) []any {
 		return []any{false}
 	}
 	switch obj := obj.(type) {
+	case []any:
+		for i := 0; i < len(obj); i++ {
+			if gen.Eq(obj[i], key, false) {
+				return []any{true}
+			}
+		}
+		return []any{false}
 	case map[string]struct{}:
 		if v, ok := key.(string); !ok {
 			return []any{false}
@@ -265,7 +184,7 @@ func In(args []any) []any {
 	switch kind {
 	case reflect.Slice, reflect.Array, reflect.String:
 		for i := 0; i < rv.Len(); i++ {
-			if ok, _ := gen.Eq(rv.Index(i).Interface(), key); ok {
+			if ok := gen.Eq(rv.Index(i).Interface(), key, false); ok {
 				return []any{true}
 			}
 		}
@@ -317,7 +236,7 @@ func Index(args []any) []any {
 		return []any{-1}
 	case []any:
 		for i, v := range obj {
-			if ok, _ := gen.Eq(v, key); ok {
+			if ok := gen.Eq(v, key, false); ok {
 				return []any{i}
 			}
 		}
@@ -328,7 +247,7 @@ func Index(args []any) []any {
 	switch kind {
 	case reflect.Slice, reflect.Array, reflect.String:
 		for i := 0; i < rv.Len(); i++ {
-			if ok, _ := gen.Eq(rv.Index(i).Interface(), key); ok {
+			if ok := gen.Eq(rv.Index(i).Interface(), key, false); ok {
 				return []any{i}
 			}
 		}
@@ -375,10 +294,7 @@ func Sort(args []any) []any {
 		slices.Sort(s)
 	case []any:
 		slices.SortFunc(s, func(a, b any) int {
-			ok, err := gen.Lt(a, b)
-			if err != nil {
-				panic(fmt.Sprintf("sort: can't compare %T with %T ", a, b))
-			}
+			ok := gen.Lt(a, b)
 			if ok {
 				return -1
 			}
@@ -388,48 +304,6 @@ func Sort(args []any) []any {
 		panic(fmt.Sprintf("sort: not support type %T,please use user define function to sort", s))
 	}
 	return nil
-}
-
-func AllBasicKind(input []any) bool {
-	// 处理空切片
-	if len(input) == 0 {
-		return false
-	}
-	// 检查所有元素是否与第一个元素的基础Kind一致
-	for _, elem := range input {
-		elemVal := reflect.ValueOf(elem)
-		_, ok := getBaseKind(elemVal.Kind())
-		if !ok {
-			return false
-		}
-	}
-	// 根据基础Kind转换切片
-	return true
-}
-
-var basicKinds = map[reflect.Kind]struct{}{
-	reflect.Bool:    {},
-	reflect.Int:     {},
-	reflect.Int8:    {},
-	reflect.Int16:   {},
-	reflect.Int32:   {},
-	reflect.Int64:   {},
-	reflect.Uint:    {},
-	reflect.Uint8:   {},
-	reflect.Uint16:  {},
-	reflect.Uint32:  {},
-	reflect.Uint64:  {},
-	reflect.Uintptr: {},
-	reflect.Float32: {},
-	reflect.Float64: {},
-	reflect.String:  {},
-}
-
-func getBaseKind(kind reflect.Kind) (reflect.Kind, bool) {
-	if _, ok := basicKinds[kind]; ok {
-		return kind, ok
-	}
-	return reflect.Invalid, false
 }
 
 func HasPrefix(args []any) []any {

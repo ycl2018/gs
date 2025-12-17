@@ -401,7 +401,23 @@ func (s *StackCompileVisitor) VisitLenCall(ctx *gen.LenCallContext) interface{} 
 }
 
 func (s *StackCompileVisitor) VisitNewFromTypeCall(ctx *gen.NewFromTypeCallContext) interface{} {
-	ctx.Expr().Accept(s)
+	expr := ctx.Expr()
+	if expr == nil {
+		s.Log.ErrorToken(ctx.GetStart(), "newFromType call need 1 arg")
+		return nil
+	}
+	if expr.GetChildCount() == 1 {
+		str, ok := expr.GetChild(0).(*gen.StringAtomContext)
+		if ok {
+			typeName := str.GetText()[1 : len(str.GetText())-1]
+			typ := s.Conf.TypesAvailable.GetType(typeName)
+			if typ == nil {
+				s.Log.ErrorToken(str.GetStart(), "newFromType call with unknown type %s", typeName)
+				return nil
+			}
+		}
+	}
+	expr.Accept(s)
 	s.Write(consts.InstrNewFromType, ctx.GetStart())
 	return nil
 }

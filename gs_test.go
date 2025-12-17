@@ -86,6 +86,7 @@ func TestGs(t *testing.T) {
 		expectErr  string
 		defineFunc []Func
 		fastFunc   []FastFunc
+		addTypes   map[string]any
 		trace      bool
 		dump       bool
 		ret        any
@@ -1200,13 +1201,20 @@ true
 		{
 			name: "new_from_type.gs",
 			program: `
-strPtr = newFromType("")
+strPtr = newFromType("string")
 *strPtr = "hello"
 $.B = strPtr
 println(*$.B == "hello")
+myItfPtr = newFromType("myItf")
+myItfPtr.Name = "World"
+println(myItfPtr.Hello() == "Hello World")
 		`,
 			env: &MyEnv{},
+			addTypes: map[string]any{
+				"myItf": MyItf{},
+			},
 			expect: `
+true
 true
 `,
 		},
@@ -1227,6 +1235,9 @@ true
 			}
 			if len(tt.fastFunc) > 0 {
 				ops = append(ops, DefineFast(tt.fastFunc...))
+			}
+			if tt.addTypes != nil {
+				ops = append(ops, AddTypes(tt.addTypes))
 			}
 			var runOps = []RunOption{
 				Output(out),

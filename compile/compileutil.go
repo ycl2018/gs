@@ -78,7 +78,7 @@ func (s *StackCompileVisitor) defineStringConst(val string) int {
 }
 
 func (s *StackCompileVisitor) Write(code consts.Instr, token antlr.Token, operands ...int) {
-	operand := -11111
+	operand := -1
 	if len(operands) > 0 {
 		operand = operands[0]
 	}
@@ -331,11 +331,12 @@ func (s *StackCompileVisitor) Code() vm.Code {
 		defineFuncs[address] = *fn
 	}
 	return vm.Code{
-		GlobalNum:    int(s.GlobalScope.LocalVarAllocator),
-		ConstPool:    constPoll,
-		MainFunc:     toFuncConst(s.MainFunc, -1),
-		BuildEnvType: envType,
-		DefineFuncs:  defineFuncs,
-		RuntimeCache: consts.NewRuntimeCache(),
+		GlobalNum:      int(s.GlobalScope.LocalVarAllocator),
+		ConstPool:      constPoll,
+		MainFunc:       toFuncConst(s.MainFunc, -1),
+		BuildEnvType:   envType,
+		DefineFuncs:    defineFuncs,
+		TypesAvailable: s.Conf.TypesAvailable,
+		RuntimeCache:   consts.NewRuntimeCache(),
 	}
 }

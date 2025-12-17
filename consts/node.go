@@ -81,68 +81,54 @@ func (c *ConstNode) IsExprContext() {
 func (c *ConstNode) IsAtomContext() {
 }
 
-func (c *ConstNode) SetException(exception antlr.RecognitionException) {
-
-}
+func (c *ConstNode) SetException(exception antlr.RecognitionException) {}
 
 func (c *ConstNode) AddTokenNode(token antlr.Token) *antlr.TerminalNodeImpl {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) AddErrorNode(badToken antlr.Token) *antlr.ErrorNodeImpl {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) EnterRule(listener antlr.ParseTreeListener) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) ExitRule(listener antlr.ParseTreeListener) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) SetStart(token antlr.Token) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetStart() antlr.Token {
-	//TODO implement me
 	return c.token
 }
 
 func (c *ConstNode) SetStop(token antlr.Token) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetStop() antlr.Token {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) AddChild(child antlr.RuleContext) antlr.RuleContext {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) RemoveLastChild() {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetParser() antlr.Parser {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetSourceInterval() antlr.Interval {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 // can't visit
@@ -192,43 +178,35 @@ func (c *ConstNode) GetText() string {
 }
 
 func (c *ConstNode) ToStringTree(strings []string, recognizer antlr.Recognizer) string {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetRuleContext() antlr.RuleContext {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetInvokingState() int {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) SetInvokingState(i int) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetRuleIndex() int {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) IsEmpty() bool {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetAltNumber() int {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) SetAltNumber(altNumber int) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) String(strings []string, context antlr.RuleContext) string {
@@ -236,31 +214,25 @@ func (c *ConstNode) String(strings []string, context antlr.RuleContext) string {
 }
 
 func (c *ConstNode) GetParent() antlr.Tree {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) SetParent(tree antlr.Tree) {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetPayload() interface{} {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetChild(i int) antlr.Tree {
-	//TODO implement me
-	panic("implement me")
+	panic("unexpected call")
 }
 
 func (c *ConstNode) GetChildCount() int {
-	//TODO implement me
 	return 0
 }
 
 func (c *ConstNode) GetChildren() []antlr.Tree {
-	//TODO implement me
 	return nil
 }
