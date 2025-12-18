@@ -113,6 +113,11 @@ func In(args []any) []any {
 			}
 		}
 		return []any{false}
+	case map[string]string:
+		if _, ok := obj[key.(string)]; ok {
+			return []any{true}
+		}
+		return []any{false}
 	case map[string]struct{}:
 		if v, ok := key.(string); !ok {
 			return []any{false}

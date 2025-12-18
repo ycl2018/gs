@@ -642,3 +642,19 @@ func (m *MyItf) Hello() string {
     <tr><td><code>unmarshalJson</code></td><td> 对齐 json.Unmarhsal</td></tr>
   </tbody>
 </table>
+
+
+# 性能
+
+```text
+goos: darwinench=BenchmarkCompile -benchtime=5s
+goarch: arm64
+pkg: github.com/ycl2018/gs
+cpu: Apple M3 Pro
+BenchmarkCompileMapExpr-12              41453820               138.2 ns/op
+BenchmarkCompileMapGS-12                28542619               214.0 ns/op
+BenchmarkCompileStructExpr-12            8556379               750.5 ns/op
+BenchmarkCompileStructGS-12             10276479               586.5 ns/op
+PASS
+ok      github.com/ycl2018/gs   24.698s
+```

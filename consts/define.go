@@ -6,7 +6,7 @@ const (
 	POLL
 )
 
-type Instr int
+type Instr byte
 
 func (i Instr) String() string {
 	return Instructions[i].Name
@@ -24,6 +24,8 @@ const (
 	InstrLEQ
 	InstrNEQ
 	InstrEQ
+	InstrCmpInt
+	InstrCmpString
 	InstrOR
 	InstrAND
 	InstrNeg
@@ -44,6 +46,8 @@ const (
 	InstrBR  // branch
 	InstrBRT // branch if true
 	InstrBRF // branch if false
+	InstrBRIfF
+	InstrBRIfT
 	InstrBRNil
 	InstrCConst // push constant
 	InstrIConst
@@ -108,6 +112,8 @@ var Instructions = []*Instruction{
 	InstrLEQ:          {"leq", NIL},
 	InstrNEQ:          {"neq", NIL},
 	InstrEQ:           {"eq", NIL},
+	InstrCmpInt:       {"cmpInt", NIL},
+	InstrCmpString:    {"cmpString", NIL},
 	InstrOR:           {"or", NIL},
 	InstrAND:          {"and", NIL},
 	InstrNeg:          {"neg", NIL},
@@ -128,6 +134,8 @@ var Instructions = []*Instruction{
 	InstrBR:           {"br", INT},
 	InstrBRT:          {"brt", INT},
 	InstrBRF:          {"brf", INT},
+	InstrBRIfF:        {"brIfFalse", INT},
+	InstrBRIfT:        {"brIfTrue", INT},
 	InstrBRNil:        {"br_nil", INT},
 	InstrCConst:       {"cconst", INT},
 	InstrIConst:       {"iconst", INT},
