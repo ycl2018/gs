@@ -807,19 +807,34 @@ func (i *Interpreter) trace() {
 
 func (i *Interpreter) Index(obj any, index any) any {
 	switch obj := obj.(type) {
-	case []any:
-		return obj[gen.ToInt(index)]
-	case map[any]any:
-		return obj[index]
 	case map[string]any:
 		return obj[index.(string)]
+	case map[any]any:
+		return obj[index]
+	case []any:
+		return obj[gen.ToInt(index)]
+	case []string:
+		return obj[gen.ToInt(index)]
+	case []int:
+		return obj[gen.ToInt(index)]
+	case []int64:
+		return obj[gen.ToInt(index)]
 	default:
 		rv := assertValidObj(obj)
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
 			return rv.Index(gen.ToInt(index)).Interface()
 		case reflect.Map:
-			return rv.MapIndex(reflect.ValueOf(index)).Interface()
+			rk := reflect.ValueOf(index)
+			for rk.Kind() == reflect.Interface {
+				rk = rk.Elem()
+			}
+			get := rv.MapIndex(rk)
+			if get.IsValid() {
+				return get.Interface()
+			} else {
+				return reflect.Zero(rv.Type().Elem()).Interface()
+			}
 		default:
 			panic(fmt.Sprintf("unexpected type %T for index", obj))
 		}

@@ -1219,45 +1219,6 @@ true
 true
 `,
 		},
-		//program := `
-		//	return $["Int"] == 100
-		//	`
-		//	env := map[string]any{
-		//		"Str":   "string",
-		//		"Int":   100,
-		//		"Bool":  true,
-		//		"Slice": []string{"item"},
-		//		"Map":   map[string]string{"key": "value"},
-		//	}
-		//	code, err := Compile(program, Env(env), DumpCode())
-		//	if err != nil {
-		//		b.Fatal(err)
-		//	}
-		//	b.ResetTimer()
-		//	for b.Loop() {
-		//		ret, err := Run(code, env)
-		//		if err != nil {
-		//			b.Fatal(err)
-		//		}
-		//		if !ret.MustBool() {
-		//			b.Fatal("eval failed")
-		//		}
-		//	}
-		//{
-		//	name: "map_index.gs",
-		//	program: `
-		//return $["Int"] == 100
-		//		`,
-		//	env: map[string]any{
-		//		"Str":   "string",
-		//		"Int":   100,
-		//		"Bool":  true,
-		//		"Slice": []string{"item"},
-		//		"Map":   map[string]string{"key": "value"},
-		//	},
-		//	ret:   &Result{value: true},
-		//	trace: true,
-		//},
 	}
 
 	for _, tt := range tests {

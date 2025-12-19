@@ -106,18 +106,6 @@ func In(args []any) []any {
 		return []any{false}
 	}
 	switch obj := obj.(type) {
-	case []any:
-		for i := 0; i < len(obj); i++ {
-			if gen.Eq(obj[i], key, false) {
-				return []any{true}
-			}
-		}
-		return []any{false}
-	case map[string]string:
-		if _, ok := obj[key.(string)]; ok {
-			return []any{true}
-		}
-		return []any{false}
 	case map[string]struct{}:
 		if v, ok := key.(string); !ok {
 			return []any{false}
@@ -132,6 +120,30 @@ func In(args []any) []any {
 			return []any{false}
 		} else {
 			if _, ok := obj[v]; ok {
+				return []any{true}
+			}
+		}
+		return []any{false}
+	case map[string]string:
+		if _, ok := obj[key.(string)]; ok {
+			return []any{true}
+		}
+		return []any{false}
+	case map[string]any:
+		if _, ok := obj[key.(string)]; ok {
+			return []any{true}
+		}
+		return []any{false}
+	case []string:
+		for _, v := range obj {
+			if v == key.(string) {
+				return []any{true}
+			}
+		}
+		return []any{false}
+	case []any:
+		for i := 0; i < len(obj); i++ {
+			if gen.Eq(obj[i], key, false) {
 				return []any{true}
 			}
 		}
@@ -176,13 +188,7 @@ func In(args []any) []any {
 			}
 		}
 		return []any{false}
-	case []string:
-		for _, v := range obj {
-			if v == key.(string) {
-				return []any{true}
-			}
-		}
-		return []any{false}
+
 	}
 	rv := reflect.ValueOf(obj)
 	kind := rv.Kind()

@@ -143,11 +143,17 @@ func toConstNode(expr gen.IExprContext) (*consts.ConstNode, bool) {
 		v, ok := expr.(*consts.ConstNode)
 		return v, ok
 	}
+	if e, ok := expr.(*gen.AtomExprContext); ok {
+		return isConstAtom(e.Atom())
+	}
 	if expr.GetChildCount() != 1 {
 		return nil, false
 	}
-	constValue, ok := expr.GetChild(0).(*consts.ConstNode)
-	return constValue, ok
+	switch e := expr.GetChild(0).(type) {
+	case *consts.ConstNode:
+		return e, true
+	}
+	return nil, false
 }
 
 func (c *ConstOptimizer) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) interface{} {
@@ -446,6 +452,27 @@ func (c *ConstOptimizer) VisitNegAtom(ctx *gen.NegAtomContext) interface{} {
 	return nil
 }
 
+func isConstAtom(ctx gen.IAtomContext) (*consts.ConstNode, bool) {
+	switch t := ctx.(type) {
+	case *gen.FloatAtomContext:
+		f, err := strconv.ParseFloat(t.GetText(), 64)
+		if err != nil {
+			return nil, false
+		}
+		return consts.NewConstNode(consts.ConstNodeKindFloat, f, ctx.GetStart()), true
+	case *gen.IntAtomContext:
+		f, err := strconv.ParseInt(t.GetText(), 0, 64)
+		if err != nil {
+			return nil, false
+		}
+		return consts.NewConstNode(consts.ConstNodeKindInt, int(f), ctx.GetStart()), true
+	case *gen.StringAtomContext:
+		return consts.NewConstNode(consts.ConstNodeKindString, t.GetText()[1:len(t.GetText())-1], ctx.GetStart()), true
+	default:
+		return nil, false
+	}
+}
+
 func (c *ConstOptimizer) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
 	c.VisitChildren(ctx)
 	if c.Conf.DefineFuncs.GetFunc("in") != nil && ctx.ID().GetText() == "in" {
@@ -453,7 +480,19 @@ func (c *ConstOptimizer) VisitInnerCall(ctx *gen.InnerCallContext) interface{} {
 		if arg1 == nil {
 			return nil
 		}
-		constNode, ok := toConstNode(arg1.(gen.IExprContext))
+		atom, ok := arg1.(*gen.AtomExprContext)
+		if !ok {
+			return nil
+		}
+		arrayAtom, ok := atom.GetChild(0).(*gen.ArrayAtomContext)
+		if !ok {
+			return nil
+		}
+		arrayLiteral := arrayAtom.ArrayLiteral()
+		if len(arrayLiteral.GetChildren()) == 0 {
+			return nil
+		}
+		constNode, ok := arrayLiteral.GetChild(0).(*consts.ConstNode)
 		if !ok {
 			return nil
 		}
