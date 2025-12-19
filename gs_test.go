@@ -1219,6 +1219,26 @@ true
 true
 `,
 		},
+		{
+			name: "define_func_out_num_check.gs",
+			program: `
+a, _ = split("hello,world",",")
+`,
+			expectErr: `
+<line 2> a: func:split return 2 values,but assign to 1
+         ^
+`,
+		},
+		{
+			name: "define_func_in_num_check.gs",
+			program: `
+a = split("hello,world")
+`,
+			expectErr: `
+<line 2> split: func:split need 2 args,but got 1
+         ^^^^^
+`,
+		},
 	}
 
 	for _, tt := range tests {

@@ -161,6 +161,21 @@ func (s *StackCompileVisitor) innerCallType(ctx *gen.InnerCallContext, allExpr [
 		if len(allExpr) != numIn {
 			return nil, fmt.Errorf("func:%s need %d args,but got %d", funcName, numIn, len(allExpr))
 		}
+		var assign antlr.Tree = ctx
+		for range 3 {
+			if assign == nil {
+				break
+			}
+			assign = assign.GetParent() // innerCall -> callAtom -> atomExpr -> assign
+		}
+		if assign != nil {
+			if aCtx, ok := assign.(*gen.AssignContext); ok && len(aCtx.AllExpr()) == 1 {
+				if lValueLen := len(aCtx.AllLvalue()); lValueLen != defineFn.NumOut {
+					s.Log.ErrorToken(aCtx.GetStart(), "func:%s return %d values,but assign to %d", funcName, lValueLen, defineFn.NumOut)
+					return nil, nil
+				}
+			}
+		}
 		// 生成调用指令IR
 		var addr int
 		if v, ok2 := s.CalledDefineFuncs[funcName]; ok2 {
