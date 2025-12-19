@@ -171,8 +171,7 @@ func (s *StackCompileVisitor) innerCallType(ctx *gen.InnerCallContext, allExpr [
 		if assign != nil {
 			if aCtx, ok := assign.(*gen.AssignContext); ok && len(aCtx.AllExpr()) == 1 {
 				if lValueLen := len(aCtx.AllLvalue()); lValueLen != defineFn.NumOut {
-					s.Log.ErrorToken(aCtx.GetStart(), "func:%s return %d values,but assign to %d", funcName, lValueLen, defineFn.NumOut)
-					return nil, nil
+					return nil, fmt.Errorf("func:%s return %d values,but assign to %d", funcName, defineFn.NumOut, lValueLen)
 				}
 			}
 		}

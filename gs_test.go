@@ -1225,8 +1225,8 @@ true
 a, _ = split("hello,world",",")
 `,
 			expectErr: `
-<line 2> a: func:split return 2 values,but assign to 1
-         ^
+<line 2> split: func:split return 1 values,but assign to 2
+         ^^^^^
 `,
 		},
 		{
