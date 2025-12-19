@@ -683,14 +683,10 @@ func (s *StackCompileVisitor) VisitLogicalOrExpr(ctx *gen.LogicalOrExprContext) 
 	exprs := ctx.AllExpr()
 	l, r := exprs[0], exprs[1]
 	l.Accept(s)
-	brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
+	brtInstr := consts.NewStackInstr(consts.InstrBRIfT, placeholder)
 	s.WriteInstr(brtInstr, ctx.GetStart())
 	r.Accept(s)
-	brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
-	s.WriteInstr(brInstr, ctx.GetStart())
 	s.FillTarget(brtInstr)
-	s.Write(consts.InstrTrue, ctx.GetStart())
-	s.FillTarget(brInstr)
 	return nil
 }
 
@@ -702,21 +698,35 @@ func (s *StackCompileVisitor) VisitLogicalAndExpr(ctx *gen.LogicalAndExprContext
 	exprs := ctx.AllExpr()
 	l, r := exprs[0], exprs[1]
 	l.Accept(s)
-	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
+	brfInstr := consts.NewStackInstr(consts.InstrBRIfF, placeholder)
 	s.WriteInstr(brfInstr, ctx.GetStart())
 	r.Accept(s)
-	brInstr := consts.NewStackInstr(consts.InstrBR, placeholder)
-	s.WriteInstr(brInstr, ctx.GetStart())
 	s.FillTarget(brfInstr)
-	s.Write(consts.InstrFalse, ctx.GetStart())
-	s.FillTarget(brInstr)
 	return nil
 }
 
 func (s *StackCompileVisitor) VisitComparisonExpr(ctx *gen.ComparisonExprContext) interface{} {
 	allExprs, cmpOp := ctx.AllExpr(), ctx.CompOp()
-	for i := range allExprs {
-		allExprs[i].Accept(s)
+	if len(allExprs) < 2 {
+		return s.VisitChildren(ctx)
+	}
+	l, r := allExprs[0], allExprs[1]
+	l.Accept(s)
+	r.Accept(s)
+	var constKindl, constKindr consts.ConstNodeKind = -1, -1
+	if lc, ok1 := toConstNode(l); ok1 {
+		constKindl = lc.Kind
+	}
+	if rc, ok2 := toConstNode(r); ok2 {
+		constKindr = rc.Kind
+	}
+	if constKindl == consts.ConstNodeKindInt || constKindr == consts.ConstNodeKindInt {
+		s.Write(consts.InstrCmpInt, ctx.GetStart(), cmpOp.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType())
+		return nil
+	}
+	if constKindl == consts.ConstNodeKindString || constKindr == consts.ConstNodeKindString {
+		s.Write(consts.InstrCmpString, ctx.GetStart(), cmpOp.GetChild(0).(antlr.TerminalNode).GetSymbol().GetTokenType())
+		return nil
 	}
 	if cmpOp != nil {
 		cmpOp.Accept(s)

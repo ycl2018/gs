@@ -642,3 +642,41 @@ func (m *MyItf) Hello() string {
     <tr><td><code>unmarshalJson</code></td><td> 对齐 json.Unmarhsal</td></tr>
   </tbody>
 </table>
+
+
+# 性能
+
+```text
+goos: darwinench=BenchmarkCompile -benchtime=5s
+goarch: arm64
+pkg: github.com/ycl2018/gs
+cpu: Apple M3 Pro
+BenchmarkCompileMapExpr-12              41453820               138.2 ns/op
+BenchmarkCompileMapGS-12                28542619               214.0 ns/op
+BenchmarkCompileStructExpr-12            8556379               750.5 ns/op
+BenchmarkCompileStructGS-12             10276479               586.5 ns/op
+PASS
+ok      github.com/ycl2018/gs   24.698s
+```
+
+# 关于编译优化
+
+- 直接常量表达式优化
+
+```javascript
+a = (1*2+3*3) + 100 // 编译后直接为 111
+b = "hello" + " world" // 编译后直接为 “hello world”
+```
+
+- slice，map字面量
+
+```javascript
+arr = ["111","222","333"] // 编译为伪常量为[]string{"111", "222", "333"}，运行时拷贝一份
+dict = {"1": 1,"2": 2, "3": 3} // 编译为伪常量为map[string]int{"1": 1, "2": 2, "3": 3}，运行时拷贝一份
+```
+
+- 在 in 函数中，slice常量会被编译为map，且运行时不会拷贝
+
+```javascript
+has = in(["111","222","333"],"111") // 编译为伪常量为map[string]struct{}{"111": {}, "222": {}, "333": {}}，且运行时不会拷贝
+```

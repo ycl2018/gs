@@ -123,18 +123,11 @@ func Output(w io.Writer) RunOption {
 	}
 }
 
-// StackSize sets the stack size. default is 64.
-func StackSize(size int) RunOption {
-	return func(conf *conf.RunConf) {
-		conf.StackSize = size
-	}
-}
-
 // NoCache disables method and field index cache.
 func NoCache() RunOption {
 	return func(conf *conf.RunConf) {
-		conf.MethodIndexCache = false
-		conf.FieldIndexCache = false
+		conf.DisableMethodIndexCache = true
+		conf.DisableFieldIndexCache = true
 	}
 }
 
@@ -153,21 +146,21 @@ func Compile(code string, ops ...CompileOption) (*vm.Code, error) {
 }
 
 // Run runs the program.
-func Run(code *vm.Code, env any, ops ...RunOption) (ret *Result, err error) {
+func Run(code *vm.Code, env any, ops ...RunOption) (ret Result, err error) {
 	config := conf.DefaultRunConf()
 	for _, op := range ops {
 		op(&config)
 	}
-	interpreter := vm.NewInterpreter(code, env, &config)
-	err = interpreter.Run()
+	interpreter := vm.NewInterpreter(config)
+	err = interpreter.Run(code, env)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
-	return &Result{value: interpreter.Result}, nil
+	return Result{value: interpreter.Result}, nil
 }
 
 // Eval compiles and runs the program in one step.
-func Eval(program string, env any, ops ...any) (ret *Result, err error) {
+func Eval(program string, env any, ops ...any) (ret Result, err error) {
 	var compileOps = []CompileOption{
 		NoOptimize(),
 	}
@@ -187,7 +180,7 @@ func Eval(program string, env any, ops ...any) (ret *Result, err error) {
 	}
 	code, err := Compile(program, compileOps...)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	return Run(code, env, runOps...)
 }

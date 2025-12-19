@@ -925,9 +925,10 @@ println($.StringAlias == "hello")
 				StringAlias: StringAlias("hello"),
 			},
 			expectErr: `
-panic: invalid operation '==' (mismatched types gs.StringAlias and string)
+panic: interface conversion: interface {} is gs.StringAlias, not string
 stack trace:
 	at main args:() line:2
+
 `,
 		},
 		{
@@ -1245,7 +1246,7 @@ true
 			if tt.trace {
 				runOps = append(runOps, Trace())
 			}
-			var ret *Result
+			var ret Result
 			var err error
 			if tt.evalMode {
 				var evalOps []any

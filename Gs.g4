@@ -85,12 +85,12 @@ call
     ;
 
 expr
-    : atom                      #atomExpr
-    | expr mulOp expr           #mulExpr
-    | expr addOp expr           #addExpr
-    | expr compOp expr          #comparisonExpr
-    | expr AND expr             #logicalAndExpr
-    | expr OR expr              #logicalOrExpr
+    : atom                          #atomExpr
+    | expr mulOp expr               #mulExpr
+    | expr addOp expr               #addExpr
+    | expr compOp expr              #comparisonExpr
+    |<assoc=right> expr AND expr    #logicalAndExpr
+    |<assoc=right> expr OR expr     #logicalOrExpr
     ;
 
 // 原子表达式

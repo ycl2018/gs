@@ -17,11 +17,10 @@ type CompileConf struct {
 }
 
 type RunConf struct {
-	Out              io.Writer
-	StackSize        int
-	Trace            bool
-	FieldIndexCache  bool
-	MethodIndexCache bool
+	Out                     io.Writer
+	Trace                   bool
+	DisableFieldIndexCache  bool
+	DisableMethodIndexCache bool
 }
 
 func Default() CompileConf {
@@ -34,9 +33,7 @@ func Default() CompileConf {
 
 func DefaultRunConf() RunConf {
 	return RunConf{
-		Out:              os.Stdout,
-		FieldIndexCache:  true,
-		MethodIndexCache: true,
+		Out: os.Stdout,
 	}
 }
 
