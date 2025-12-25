@@ -401,9 +401,7 @@ func (i *Interpreter) Run(code *Code, env any) (err error) {
 			i.PushOpStack(s)
 
 		case consts.InstrPop:
-			for range instr.Operands {
-				i.PopOpStack()
-			}
+			i.PopOpStack()
 
 		case consts.InstrBuildTuple:
 			i.PushOpStack(i.BuildTuple(instr.Operands))
