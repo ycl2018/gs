@@ -151,7 +151,7 @@ var Instructions = []*Instruction{
 	InstrFStore:       {"fstore", POLL},
 	InstrIndexStore:   {"indexStore", NIL},
 	InstrStruct:       {"struct", POLL},
-	InstrPop:          {"pop", INT},
+	InstrPop:          {"pop", NIL},
 	InstrBuildTuple:   {"build_tuple", INT},
 	InstrUnpack:       {"unpack", INT},
 	InstrIterNext:     {"iter_next", INT},

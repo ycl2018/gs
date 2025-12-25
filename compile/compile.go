@@ -403,7 +403,7 @@ func (s *StackCompileVisitor) VisitBuiltinStmt(ctx *gen.BuiltinStmtContext) inte
 		noNeedPop = true
 	}
 	if !noNeedPop {
-		s.Write(consts.InstrPop, ctx.GetStart(), 1)
+		s.Write(consts.InstrPop, ctx.GetStart())
 	}
 	return nil
 }
@@ -589,7 +589,7 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 	for _, br := range loop.Continues {
 		br.Operands = rangeNextAddr
 	}
-	s.Write(consts.InstrPop, ctx.GetStart(), 1) // pop iter state
+	s.Write(consts.InstrPop, ctx.GetStart()) // pop iter state
 	return nil
 }
 
@@ -618,7 +618,7 @@ func (s *StackCompileVisitor) VisitForCondStmt(ctx *gen.ForCondStmtContext) inte
 func (s *StackCompileVisitor) VisitCallStmt(ctx *gen.CallStmtContext) interface{} {
 	ctx.Call().Accept(s)
 	// discard return values
-	s.Write(consts.InstrPop, ctx.GetStart(), 1) // pop return value
+	s.Write(consts.InstrPop, ctx.GetStart()) // pop return value
 	return nil
 }
 
