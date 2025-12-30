@@ -112,35 +112,7 @@ trace:
 	stack=[ false ], calls=[ main fact ]
 ->0003: brf        	6
 	stack=[ ], calls=[ main fact ]
-->0006: load       	0
-	stack=[ 3 ], calls=[ main fact ]
-->0007: load       	0
-	stack=[ 3 3 ], calls=[ main fact ]
-->0008: iconst     	1
-	stack=[ 3 3 1 ], calls=[ main fact ]
-->0009: sub        
-	stack=[ 3 2 ], calls=[ main fact ]
-->0010: call       	const#1
-	stack=[ 3 ], calls=[ main fact fact ]
-->0000: load       	0
-	stack=[ 3 2 ], calls=[ main fact fact ]
-->0001: iconst     	2
-	stack=[ 3 2 2 ], calls=[ main fact fact ]
-->0002: lt         
-	stack=[ 3 false ], calls=[ main fact fact ]
-->0003: brf        	6
-	stack=[ 3 ], calls=[ main fact fact ]
-->0006: load       	0
-	stack=[ 3 2 ], calls=[ main fact fact ]
-->0007: load       	0
-	stack=[ 3 2 2 ], calls=[ main fact fact ]
-->0008: iconst     	1
-	stack=[ 3 2 2 1 ], calls=[ main fact fact ]
-->0009: sub        
-	stack=[ 3 2 1 ], calls=[ main fact fact ]
-->0010: call       	const#1
-	stack=[ 3 2 ], calls=[ main fact fact fact ]
-->0000: load       	0
+...
 	stack=[ 3 2 1 ], calls=[ main fact fact fact ]
 ->0001: iconst     	2
 	stack=[ 3 2 1 2 ], calls=[ main fact fact fact ]
@@ -407,6 +379,15 @@ if sum = a + b; sum < 10 {
   println("a + b  is less than 10")
 } else {
   println("a + b  is not less than 10")
+}
+// 支持 elseif 语句
+i = 0
+if i++; i < 1 {
+  println("i < 1")
+} else if i < 2 {
+  println("i < 2")
+} else {
+  println("i >= 2")
 }
 ```
 
