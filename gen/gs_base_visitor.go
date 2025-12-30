@@ -78,6 +78,14 @@ func (v *BaseGsVisitor) VisitGlobalStmt(ctx *GlobalStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitIfStatement(ctx *IfStatementContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitSimpleStmt(ctx *SimpleStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitAssign(ctx *AssignContext) interface{} {
 	return v.VisitChildren(ctx)
 }

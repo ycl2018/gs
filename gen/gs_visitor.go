@@ -65,6 +65,12 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#globalStmt.
 	VisitGlobalStmt(ctx *GlobalStmtContext) interface{}
 
+	// Visit a parse tree produced by GsParser#ifStatement.
+	VisitIfStatement(ctx *IfStatementContext) interface{}
+
+	// Visit a parse tree produced by GsParser#simpleStmt.
+	VisitSimpleStmt(ctx *SimpleStmtContext) interface{}
+
 	// Visit a parse tree produced by GsParser#assign.
 	VisitAssign(ctx *AssignContext) interface{}
 

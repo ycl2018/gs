@@ -27,7 +27,7 @@ statement
     |   selfAssign                                      #selfOpAssignStmt
     |   incrDecr                                        #incrDecrStmt
     |   RETURN (expr (',' expr)* )?                     #returnStmt
-    |   IF (assign ';')? expr block (ELSE block)?       #ifStmt
+    |   ifStatement                                     #ifStmt
     |   FOR forInit? ';' expr? ';' forUpdate? block     #forCStyleStmt  // C风格for（无括号）
     |   FOR iterVar '=' RANGE expr block                #forRangeStmt     // 保留原有=，仅修复必须项
     |   FOR expr block                                  #forCondStmt      // 条件循环（最后匹配，避免歧义）
@@ -37,6 +37,10 @@ statement
     |   CONTINUE                                        #continueStmt
     |   GLOBAL ID (',' ID)*                             #globalStmt
     ;
+
+ifStatement: IF ( simpleStmt ';')? expr block (ELSE (block | ifStatement))?;
+
+simpleStmt: assign | selfAssign | incrDecr | builtinCall | call;
 
 assign: lvalue (',' lvalue)* '=' expr (',' expr)*;
 incrDecr: lvalue (INCR | DECR);

@@ -247,6 +247,35 @@ println(x)         // 100
 `,
 		},
 		{
+			name: "if.gs",
+			program: `
+i = 0
+if i < 1 {
+	println("i < 1")
+} else {
+	println("i >= 1")
+}
+if i++; i < 1 {
+	println("i < 1")
+} else {
+	println("i >= 1")
+}
+
+if i++; i < 1 {
+	println("i < 1")
+} else if i < 2 {
+	println("i < 2")
+} else {
+	println("i >= 2")
+}
+	`,
+			expect: `
+i < 1
+i >= 1
+i >= 2
+`,
+		},
+		{
 			name: "loop.gs",
 			program: `
 n = 100
