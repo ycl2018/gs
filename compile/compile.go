@@ -496,26 +496,25 @@ func (s *StackCompileVisitor) VisitConvertCall(ctx *gen.ConvertCallContext) inte
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitIfStmt(ctx *gen.IfStmtContext) interface{} {
-	// 生成分支语句IR
-	// 'if' (assign ';')? expr block ('else' block)?
-	if ctx.Assign() != nil {
-		ctx.Assign().Accept(s)
-	}
-	blocks := ctx.AllBlock()
-	if len(blocks) == 0 {
-		return nil
+func (s *StackCompileVisitor) VisitIfStatement(ctx *gen.IfStatementContext) interface{} {
+	if ctx.SimpleStmt() != nil {
+		ctx.SimpleStmt().Accept(s)
 	}
 	ctx.Expr().Accept(s)
 	// 生成分支跳转IR
 	brfInstr := consts.NewStackInstr(consts.InstrBRF, placeholder)
 	s.WriteInstr(brfInstr, ctx.GetStart())
-	blocks[0].Accept(s)
-	if len(blocks) == 2 {
+	ctx.Block(0).Accept(s)
+	hasElse := ctx.ELSE() != nil
+	if hasElse {
 		var brInstr = consts.NewStackInstr(consts.InstrBR, placeholder)
 		s.WriteInstr(brInstr, ctx.GetStart())
 		s.FillTarget(brfInstr)
-		blocks[1].Accept(s)
+		if elseBlock := ctx.Block(1); elseBlock != nil {
+			elseBlock.Accept(s)
+		} else if ifStmt := ctx.IfStatement(); ifStmt != nil {
+			s.VisitIfStatement(ifStmt.(*gen.IfStatementContext))
+		}
 		s.FillTarget(brInstr)
 	} else {
 		s.FillTarget(brfInstr)
