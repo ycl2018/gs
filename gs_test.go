@@ -276,6 +276,62 @@ i >= 2
 `,
 		},
 		{
+			name: "switch.gs",
+			program: `
+i = 0
+for range 3 {
+	switch i {
+		case 0:
+			println("i == 0")
+		case 1:
+			println("i == 1")
+		default:
+			println("i != 0 and i != 1")
+	}
+	i++
+}
+
+switch {
+	case i < 1:
+		println("i < 1")
+	case i < 0:
+		println("i < 0")
+	default:
+		println("i >= 1")
+}
+
+onlyValid = true
+switch i {
+	case 3:
+		if onlyValid {
+			println("break")
+			break
+		}
+		println("i == 3")
+	default:
+		println("i != 3")
+	}
+}
+
+a = "hello"
+switch a {
+	case "foo", "hello":
+		println("a == hello || a == foo")
+	default:
+		println("a != hello")
+}
+	`,
+			dump: true,
+			expect: `
+i == 0
+i == 1
+i != 0 and i != 1
+i >= 1
+break
+a == hello || a == foo
+`,
+		},
+		{
 			name: "loop.gs",
 			program: `
 n = 100

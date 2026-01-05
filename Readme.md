@@ -391,6 +391,23 @@ if i++; i < 1 {
 }
 ```
 
+#### switch 语句，对齐 go：
+
+```
+i = 0
+for range 3 {
+  switch i {
+    case 0:
+      println("i == 0")
+    case 1:
+      println("i == 1")
+    default:
+      println("i != 0 and i != 1")
+  }
+  i++
+}
+```
+
 #### 并发支持
 
 `go callExpr`

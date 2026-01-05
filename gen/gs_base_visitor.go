@@ -58,6 +58,10 @@ func (v *BaseGsVisitor) VisitForCondStmt(ctx *ForCondStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseGsVisitor) VisitSwitchStmt(ctx *SwitchStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseGsVisitor) VisitBuiltinStmt(ctx *BuiltinStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -91,6 +95,14 @@ func (v *BaseGsVisitor) VisitAssign(ctx *AssignContext) interface{} {
 }
 
 func (v *BaseGsVisitor) VisitIncrDecr(ctx *IncrDecrContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitExprCaseClause(ctx *ExprCaseClauseContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseGsVisitor) VisitExprSwitchCase(ctx *ExprSwitchCaseContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

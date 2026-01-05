@@ -50,6 +50,9 @@ type GsVisitor interface {
 	// Visit a parse tree produced by GsParser#forCondStmt.
 	VisitForCondStmt(ctx *ForCondStmtContext) interface{}
 
+	// Visit a parse tree produced by GsParser#switchStmt.
+	VisitSwitchStmt(ctx *SwitchStmtContext) interface{}
+
 	// Visit a parse tree produced by GsParser#builtinStmt.
 	VisitBuiltinStmt(ctx *BuiltinStmtContext) interface{}
 
@@ -76,6 +79,12 @@ type GsVisitor interface {
 
 	// Visit a parse tree produced by GsParser#incrDecr.
 	VisitIncrDecr(ctx *IncrDecrContext) interface{}
+
+	// Visit a parse tree produced by GsParser#exprCaseClause.
+	VisitExprCaseClause(ctx *ExprCaseClauseContext) interface{}
+
+	// Visit a parse tree produced by GsParser#exprSwitchCase.
+	VisitExprSwitchCase(ctx *ExprSwitchCaseContext) interface{}
 
 	// Visit a parse tree produced by GsParser#lenCall.
 	VisitLenCall(ctx *LenCallContext) interface{}

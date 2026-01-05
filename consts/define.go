@@ -97,6 +97,7 @@ const (
 	InstrGoDefine
 	InstrInitRef
 	InstrNewFromType
+	InstrCopy
 )
 
 var Instructions = []*Instruction{
@@ -185,4 +186,5 @@ var Instructions = []*Instruction{
 	InstrGoDefine:     {"goDefine", POLL},
 	InstrInitRef:      {"initRef", NIL},
 	InstrNewFromType:  {"newFromType", NIL},
+	InstrCopy:         {"copy", NIL},
 }

@@ -576,6 +576,8 @@ func (s *StackCompileVisitor) VisitForRangeStmt(ctx *gen.ForRangeStmtContext) in
 		second := scope.Resolve(iterVar.ID(1).GetText()).(*VariableSymbol)
 		s.EmitStore(second, iterVar.GetStart())
 		s.EmitStore(first, iterVar.GetStart())
+	case nil:
+		s.Write(consts.InstrIterNext, ctx.GetStart(), 0)
 	}
 	ctx.Block().Accept(s)
 	s.Write(consts.InstrBR, ctx.GetStart(), rangeNextAddr)
@@ -610,6 +612,79 @@ func (s *StackCompileVisitor) VisitForCondStmt(ctx *gen.ForCondStmtContext) inte
 	}
 	for _, br := range loop.Continues {
 		br.Operands = brTarget
+	}
+	return nil
+}
+
+func (s *StackCompileVisitor) VisitSwitchStmt(ctx *gen.SwitchStmtContext) interface{} {
+	var fakeForLoop = &ForLoop{Token: ctx.GetStart()}
+	s.PushLoopStack(fakeForLoop)
+	defer s.PopLoopStack()
+	simpleStmt := ctx.SimpleStmt()
+	if simpleStmt != nil {
+		s.VisitSimpleStmt(simpleStmt.(*gen.SimpleStmtContext))
+	}
+	switchExpr := ctx.Expr()
+	hasSwitchExpr := switchExpr != nil
+	if hasSwitchExpr {
+		switchExpr.Accept(s)
+	}
+	cases := ctx.AllExprCaseClause()
+	var defaultCase gen.IExprCaseClauseContext
+	var brts [][]*consts.StackInstr
+	var statements [][]gen.IStatementContext
+	for _, context := range cases {
+		switchCase := context.ExprSwitchCase()
+		if switchCase.DEFAULT() != nil {
+			if defaultCase != nil {
+				s.Log.ErrorToken(context.GetStart(), "duplicate default case")
+				return nil
+			}
+			defaultCase = context
+			continue
+		}
+		allExpr := switchCase.AllExpr()
+		var brtsInThisCase []*consts.StackInstr
+		var statementsInThisCase = context.AllStatement()
+		for _, expr := range allExpr {
+			if hasSwitchExpr {
+				s.Write(consts.InstrCopy, expr.GetStart())
+			}
+			expr.Accept(s)
+			if hasSwitchExpr {
+				s.Write(consts.InstrEQ, expr.GetStart())
+			}
+			brtInstr := consts.NewStackInstr(consts.InstrBRT, placeholder)
+			s.WriteInstr(brtInstr, ctx.GetStart())
+			brtsInThisCase = append(brtsInThisCase, brtInstr)
+		}
+		brts = append(brts, brtsInThisCase)
+		statements = append(statements, statementsInThisCase)
+	}
+	var brEnds []*consts.StackInstr
+	if defaultCase != nil {
+		for _, context := range defaultCase.AllStatement() {
+			context.Accept(s)
+		}
+		brEnd := consts.NewStackInstr(consts.InstrBR, placeholder)
+		s.WriteInstr(brEnd, defaultCase.GetStart())
+		brEnds = append(brEnds, brEnd)
+	}
+	for i := range brts {
+		s.FillTarget(brts[i]...)
+		for _, statement := range statements[i] {
+			statement.Accept(s)
+		}
+		if i < len(brts)-1 {
+			brEnd := consts.NewStackInstr(consts.InstrBR, placeholder)
+			s.WriteInstr(brEnd, defaultCase.GetStart())
+			brEnds = append(brEnds, brEnd)
+		}
+	}
+	s.FillTarget(brEnds...)
+	s.FillTarget(fakeForLoop.Breaks...)
+	if hasSwitchExpr {
+		s.Write(consts.InstrPop, ctx.GetStart())
 	}
 	return nil
 }
