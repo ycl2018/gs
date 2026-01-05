@@ -304,6 +304,9 @@ func (i *Interpreter) Run(code *Code, env any) (err error) {
 		case consts.InstrNil:
 			i.PushOpStack(nil)
 
+		case consts.InstrCopy:
+			i.PushOpStack(i.Peek())
+
 		case consts.InstrLoad:
 			argIndex := instr.Operands
 			curStack := i.Calls[i.FP]
@@ -423,16 +426,18 @@ func (i *Interpreter) Run(code *Code, env any) (err error) {
 			iterNum := instr.Operands
 			iter := i.Peek().(*consts.Iter)
 			var iter1, iter2 any
-			if iterNum == 1 {
+			switch iterNum {
+			case 1:
 				iter1 = iter.Next1()
-			} else {
-				iter1, iter2 = iter.Next()
-			}
-			if iterNum == 1 {
 				i.PushOpStack(iter1)
-			} else {
+			case 2:
+				iter1, iter2 = iter.Next()
 				i.PushOpStack(iter1)
 				i.PushOpStack(iter2)
+			case 0:
+				iter.Next1()
+			default:
+				panic(fmt.Sprintf("invalid iter num:%d", iterNum))
 			}
 
 		case consts.InstrIterDone:
