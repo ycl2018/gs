@@ -3,6 +3,7 @@ package compile
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -37,5 +38,22 @@ func (d DefaultInterpreterListener) ErrorToken(token antlr.Token, s string, a ..
 	str := sb.String()
 	_, _ = fmt.Fprintf(d.ErrorWriter, str+"\n")
 	start, end := strings.Index(str, ">"), strings.Index(str, ":")
-	fmt.Fprintf(d.ErrorWriter, strings.Repeat(" ", start+1)+strings.Repeat("^", end-start-2)+"\n")
+	_, _ = fmt.Fprintf(d.ErrorWriter, strings.Repeat(" ", start+1)+strings.Repeat("^", end-start-2)+"\n")
+}
+
+type SyntaxErrorListener struct {
+	ErrorWriter io.Writer
+}
+
+func (s SyntaxErrorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
+	_, _ = fmt.Fprintln(s.ErrorWriter, "parse error: line "+strconv.Itoa(line)+":"+strconv.Itoa(column)+" "+msg)
+}
+
+func (s SyntaxErrorListener) ReportAmbiguity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, exact bool, ambigAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
+}
+
+func (s SyntaxErrorListener) ReportAttemptingFullContext(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex int, conflictingAlts *antlr.BitSet, configs *antlr.ATNConfigSet) {
+}
+
+func (s SyntaxErrorListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *antlr.DFA, startIndex, stopIndex, prediction int, configs *antlr.ATNConfigSet) {
 }

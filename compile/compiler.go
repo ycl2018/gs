@@ -33,9 +33,14 @@ func (p *GsCompiler) Compile(input antlr.CharStream, conf *conf.CompileConf) (*v
 	lexer := gen.NewGsLexer(input)
 	tokens := antlr.NewCommonTokenStream(lexer, 0)
 	ps := gen.NewGsParser(tokens)
+	ps.RemoveErrorListeners()
+	ps.AddErrorListener(SyntaxErrorListener{ErrorWriter: p.ErrWriter})
 	programContext := ps.Program()
 	if ps.GetError() != nil {
 		return nil, errors.New(ps.GetError().GetMessage())
+	}
+	if p.ErrWriter.String() != "" {
+		return nil, errors.New(p.ErrWriter.String())
 	}
 	// 符号&作用域解析
 	log := p.InterpreterListener

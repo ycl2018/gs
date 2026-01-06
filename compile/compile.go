@@ -666,9 +666,11 @@ func (s *StackCompileVisitor) VisitSwitchStmt(ctx *gen.SwitchStmtContext) interf
 		for _, context := range defaultCase.AllStatement() {
 			context.Accept(s)
 		}
-		brEnd := consts.NewStackInstr(consts.InstrBR, placeholder)
-		s.WriteInstr(brEnd, defaultCase.GetStart())
-		brEnds = append(brEnds, brEnd)
+		if len(brts) > 0 {
+			brEnd := consts.NewStackInstr(consts.InstrBR, placeholder)
+			s.WriteInstr(brEnd, defaultCase.GetStart())
+			brEnds = append(brEnds, brEnd)
+		}
 	}
 	for i := range brts {
 		s.FillTarget(brts[i]...)
