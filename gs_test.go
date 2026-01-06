@@ -310,7 +310,6 @@ switch i {
 		println("i == 3")
 	default:
 		println("i != 3")
-	}
 }
 
 a = "hello"
@@ -321,7 +320,6 @@ switch a {
 		println("a != hello")
 }
 	`,
-			dump: true,
 			expect: `
 i == 0
 i == 1
